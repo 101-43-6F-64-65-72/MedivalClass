@@ -48,6 +48,7 @@ export default function AdminPanel({
   spotlightPlayer = null,
   onSetSpotlight,
   presentation: externalPresentation,
+  pingMap = {},
 }) {
   const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'slide' | 'broadcast' | 'classes'
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,7 +57,7 @@ export default function AdminPanel({
   // Canva Realtime Presentation Sync Hook
   const fallbackPresentation = usePresentation({
     isAdmin: true,
-    presenterName: localPlayerInfo?.fullName || localPlayerInfo?.username || 'Guru',
+    presenterName: isAdmin ? `Admin ${localPlayerInfo?.fullName || localPlayerInfo?.username || ''}`.trim() : (localPlayerInfo?.fullName || localPlayerInfo?.username || 'Admin'),
     enabled: !externalPresentation,
   });
 
@@ -301,7 +302,7 @@ export default function AdminPanel({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm sm:text-base font-black text-amber-200 uppercase tracking-wide">
-                  Panel Guru / Admin Kelas
+                  Panel Admin Kelas
                 </h2>
                 <span className="pixel-btn-gold text-[10px] px-2 py-0.5 font-bold font-mono">
                   {activeClass}
@@ -510,6 +511,18 @@ export default function AdminPanel({
                                 >
                                   <div className="flex items-center gap-2 min-w-0">
                                     <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
+                                    {/* Ping badge */}
+                                    {pingMap[member.id] != null && (
+                                      <span className={`text-[9px] font-mono font-bold px-1 rounded shrink-0 ${
+                                        pingMap[member.id] < 100
+                                          ? 'text-emerald-400 bg-emerald-950/60'
+                                          : pingMap[member.id] < 300
+                                          ? 'text-amber-400 bg-amber-950/60'
+                                          : 'text-red-400 bg-red-950/60'
+                                      }`}>
+                                        {pingMap[member.id]}ms
+                                      </span>
+                                    )}
                                     <span className="text-[10px] font-mono text-amber-300 font-bold shrink-0">
                                       #{member.attendanceNo || '-'}
                                     </span>

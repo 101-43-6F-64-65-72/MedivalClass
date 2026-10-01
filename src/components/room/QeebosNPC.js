@@ -855,7 +855,7 @@ Wait for my approval before proceeding to the next phase.`;
                       }}
                     >
                       <img
-                        src={dialogStage === 'sayang' ? '/assets/OwnAssets/qeebos/blush.png' : '/assets/OwnAssets/qeebos/normal.png'}
+                        src="/assets/OwnAssets/qeebos/qeebos.png"
                         alt="Qeebos Portrait"
                         className="w-full h-full object-contain image-pixelated pointer-events-none select-none"
                       />

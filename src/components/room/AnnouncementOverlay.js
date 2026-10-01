@@ -58,7 +58,7 @@ export default function AnnouncementOverlay({ announcement, onDismiss }) {
             <div className="flex items-center gap-2 shrink-0 z-20 bg-[#140802] px-2.5 py-1 rounded border border-amber-600/80 shadow">
               <Megaphone className="w-4 h-4 text-amber-400 animate-pulse" />
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 font-mono">
-                Pengumuman Guru
+                Pengumuman Admin
               </span>
             </div>
 
@@ -71,7 +71,7 @@ export default function AnnouncementOverlay({ announcement, onDismiss }) {
                 </span>
                 <span className="text-amber-500/60">•</span>
                 <span className="text-amber-300/80 text-[11px] font-mono">
-                  Disiarkan oleh: {announcement.senderName || 'Guru'}
+                  Disiarkan oleh: {announcement.senderName || 'Admin'}
                 </span>
               </div>
             </div>
@@ -126,10 +126,10 @@ export default function AnnouncementOverlay({ announcement, onDismiss }) {
                 <Megaphone className="w-5 h-5 text-amber-400 animate-bounce" />
                 <div>
                   <h3 className="font-black text-sm text-amber-200 tracking-wide uppercase">
-                    Pengumuman Guru
+                    Pengumuman Admin
                   </h3>
                   <span className="text-[9px] text-amber-400/70 font-mono">
-                    Disiarkan oleh: {announcement.senderName || 'Guru'}
+                    Disiarkan oleh: {announcement.senderName || 'Admin'}
                   </span>
                 </div>
               </div>

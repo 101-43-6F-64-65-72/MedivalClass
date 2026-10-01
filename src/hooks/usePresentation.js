@@ -51,7 +51,7 @@ const ICE_SERVERS = {
 };
 
 export function usePresentation(options = {}) {
-  const { isAdmin = false, presenterName = 'Guru', enabled = true } = options;
+  const { isAdmin = false, presenterName = 'Admin', enabled = true } = options;
 
   const [currentSlide, setCurrentSlide] = useState(1);
   const [totalSlides, setTotalSlides] = useState(15);
@@ -203,7 +203,7 @@ export function usePresentation(options = {}) {
       setScreenStream(stream);
       setIsScreenSharing(true);
       isScreenSharingRef.current = true;
-      setScreenPresenterName(presenterName || 'Guru');
+      setScreenPresenterName(presenterName || 'Admin');
       screenPresenterIdRef.current = myPeerIdRef.current;
 
       // Handle user stopping via browser native floating bar
@@ -220,7 +220,7 @@ export function usePresentation(options = {}) {
           event: 'screenshare-started',
           payload: {
             presenterId: myPeerIdRef.current,
-            presenterName: presenterName || 'Guru',
+            presenterName: presenterName || 'Admin',
           },
         });
       }
@@ -247,7 +247,7 @@ export function usePresentation(options = {}) {
         if (!payload) return;
         const newSlide = Math.max(1, Number(payload.slide) || 1);
         setCurrentSlide(newSlide);
-        setSyncedBy(payload.presenterName || 'Guru');
+        setSyncedBy(payload.presenterName || 'Admin');
         setLastNotification(`Presenter berpindah ke Slide ${newSlide}`);
       })
       .on('broadcast', { event: 'url-change' }, ({ payload }) => {
@@ -461,21 +461,21 @@ export function usePresentation(options = {}) {
         setIsForcedFullscreen(!!payload.forced);
         isForcedFullscreenRef.current = !!payload.forced;
         if (payload.forced) {
-          setLastNotification('Guru mengaktifkan Mode Layar Penuh Wajib untuk seluruh siswa');
+          setLastNotification('Admin mengaktifkan Mode Layar Penuh Wajib untuk seluruh siswa');
         } else {
-          setLastNotification('Guru telah mengakhiri Mode Layar Penuh Wajib');
+          setLastNotification('Admin telah mengakhiri Mode Layar Penuh Wajib');
         }
       })
       .on('broadcast', { event: 'assign-presenter' }, ({ payload }) => {
         if (!payload) return;
         setDesignatedPresenter(payload);
         designatedPresenterRef.current = payload;
-        setLastNotification(`Guru menunjuk ${payload.studentName} sebagai Presenter Kelas`);
+        setLastNotification(`Admin menunjuk ${payload.studentName} sebagai Presenter Kelas`);
       })
       .on('broadcast', { event: 'revoke-presenter' }, () => {
         setDesignatedPresenter(null);
         designatedPresenterRef.current = null;
-        setLastNotification('Akses presenter kelas telah diakhiri oleh Guru');
+        setLastNotification('Akses presenter kelas telah diakhiri oleh Admin');
       })
       .on('broadcast', { event: 'set-active-game-submission' }, ({ payload }) => {
         setActiveGameSubmission(payload?.submission || null);
@@ -493,7 +493,7 @@ export function usePresentation(options = {}) {
               event: 'screenshare-started',
               payload: {
                 presenterId: myPeerIdRef.current,
-                presenterName: presenterName || 'Guru',
+                presenterName: presenterName || 'Admin',
               },
             });
           } else if (isAdmin) {
@@ -678,7 +678,7 @@ export function usePresentation(options = {}) {
       type: type || 'banner',
       imageUrl: (imageUrl || '').trim(),
       duration: duration || 12000,
-      senderName: presenterName || 'Guru',
+      senderName: presenterName || 'Admin',
       timestamp: Date.now(),
     };
     setActiveAnnouncement(announcement);

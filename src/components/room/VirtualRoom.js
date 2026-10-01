@@ -58,6 +58,7 @@ export default function VirtualRoom({
   const [activeTrackedNpcId, setActiveTrackedNpcId] = useState(null);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const zoom = 1.15; // Optimal POV zoom for 3/4 classroom perspective
+  const [lowPingMode, setLowPingMode] = useState(false);
 
   // Bookshelf and Game Submissions Modals state
   const [isBookshelfModalOpen, setIsBookshelfModalOpen] = useState(false);
@@ -67,7 +68,7 @@ export default function VirtualRoom({
   // Shared Presentation & Screen Sharing instance for both Whiteboard and Admin Panel
   const presentation = usePresentation({
     isAdmin,
-    presenterName: fullName || username || (isAdmin ? 'Guru Pengajar' : 'Siswa'),
+    presenterName: isAdmin ? `Admin ${fullName || username || ''}`.trim() : (fullName || username || 'Siswa'),
   });
 
   // Check if current student is designated by admin as presenter
@@ -125,11 +126,12 @@ export default function VirtualRoom({
     sendMessage,
     remotePets,
     updatePet,
+    pingMap,
   } = useMultiplayer(
     localPlayer, 
     username, 
     color, 
-    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, characterIndex, isAdmin, isCreator }
+    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, characterIndex, isAdmin, isCreator, lowPingMode }
   );
 
   const handleCopyCode = () => {
@@ -287,7 +289,7 @@ export default function VirtualRoom({
                 setIsFocused={setIsPresentationFocused}
                 onFocusChange={setIsPresentationActive}
                 isAdmin={isAdmin}
-                presenterName={fullName || username || (isAdmin ? 'Guru Pengajar' : 'Siswa')}
+                presenterName={isAdmin ? `Admin ${fullName || username || ''}`.trim() : (fullName || username || 'Siswa')}
                 presentation={presentation}
               />
             );
@@ -885,6 +887,7 @@ export default function VirtualRoom({
         spotlightPlayer={spotlightPlayer}
         onSetSpotlight={setSpotlight}
         presentation={presentation}
+        pingMap={pingMap}
       />
 
       {/* Rak Buku Karya Game Modal */}
@@ -989,7 +992,12 @@ export default function VirtualRoom({
       />
 
       {/* Network & Bandwidth Monitor */}
-      <NetworkMonitor />
+      <NetworkMonitor
+        playerId={myId}
+        roomCode={roomCode}
+        lowPingMode={lowPingMode}
+        onSetLowPingMode={setLowPingMode}
+      />
 
     </div>
   );

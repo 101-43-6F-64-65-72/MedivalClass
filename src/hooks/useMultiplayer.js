@@ -12,7 +12,8 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     characterIndex = 1, 
     isAdmin = false,
     isCreator = false,
-    onRoomFull 
+    onRoomFull,
+    lowPingMode = false,
   } = options;
 
   const cleanRoomCode = (roomCode || 'LOBBY1').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -44,6 +45,8 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   const [localChatBubble, setLocalChatBubble] = useState(null);
   const [remoteChatBubbles, setRemoteChatBubbles] = useState({});
   const [remotePets, setRemotePets] = useState({});
+  // Ping map: { [playerId]: latencyMs }
+  const [pingMap, setPingMap] = useState({});
 
   // GAME PHASE STATE
   const [gamePhase, setGamePhase] = useState(GAME_PHASES.WAITING);
@@ -232,6 +235,10 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           ...prev,
           [payload.playerId]: payload.petBreed,
         }));
+      })
+      .on('broadcast', { event: 'ping-report' }, ({ payload }) => {
+        if (!payload || payload.playerId === myIdRef.current) return;
+        setPingMap((prev) => ({ ...prev, [payload.playerId]: payload.ping }));
       })
       .on('broadcast', { event: 'join-room-request' }, ({ payload }) => {
         if (!payload || payload.roomCode !== cleanRoomCode) return;
@@ -653,10 +660,14 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     setPendingJoinRequests((prev) => prev.filter((r) => r.requestId !== requestId));
   };
 
-  const playerList = Array.from(players.values());
-  const hasAdminOnline = isAdmin || playerList.some((p) => p.isAdmin);
+  const allPlayerList = Array.from(players.values());
+  // Low Ping Mode: only show players in the same group to reduce render & presence load
+  const playerList = lowPingMode && !isAdmin
+    ? allPlayerList.filter((p) => p.roomCode && p.roomCode.trim().toUpperCase() === cleanRoomCode)
+    : allPlayerList;
+  const hasAdminOnline = isAdmin || allPlayerList.some((p) => p.isAdmin);
   // Count how many players belong to my specific room/group
-  const myGroupCount = 1 + playerList.filter(
+  const myGroupCount = 1 + allPlayerList.filter(
     (p) => p.roomCode && p.roomCode.trim().toUpperCase() === cleanRoomCode
   ).length;
 
@@ -694,6 +705,8 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     // Pet companion system
     remotePets,
     updatePet,
+    // Ping map (admin monitoring)
+    pingMap,
     // Phase and story states & controls
     gamePhase,
     storyPhase,

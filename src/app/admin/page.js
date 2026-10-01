@@ -119,7 +119,7 @@ export default function AdminPortalPage() {
               className="w-6 h-6 image-pixelated animate-pulse"
             />
             <h1 className="text-lg font-black text-amber-300 drop-shadow uppercase tracking-wider">
-              Portal Admin & Guru
+              Portal Admin
             </h1>
             <img
               src="/assets/fantasy_pixelart_ui/icons/gold_star.png"
@@ -129,7 +129,7 @@ export default function AdminPortalPage() {
           </div>
 
           <p className="text-xs text-amber-200/80 leading-relaxed">
-            Halaman ini khusus untuk Pengajar / Guru. Silakan masukkan PIN keamanan untuk mengakses ruang kendali kelas virtual.
+            Halaman ini khusus untuk Admin. Silakan masukkan PIN keamanan untuk mengakses ruang kendali kelas virtual.
           </p>
 
           <form onSubmit={handleVerify} className="space-y-3.5 pt-2">
@@ -190,7 +190,7 @@ export default function AdminPortalPage() {
                 alt="Admin"
                 className="w-5 h-5 image-pixelated"
               />
-              <h2 className="text-lg font-black text-amber-300">Ruang Kontrol Guru</h2>
+              <h2 className="text-lg font-black text-amber-300">Ruang Kontrol Admin</h2>
             </div>
             <span className="pixel-box-inset px-3 py-1 text-xs text-amber-300 inline-block">
               Terverifikasi sebagai <strong>Pengajar / Admin</strong>
@@ -259,7 +259,7 @@ export default function AdminPortalPage() {
               onClick={handleLogoutAdmin}
               className="text-xs text-amber-400/70 hover:text-amber-200"
             >
-              Keluar dari Sesi Guru
+              Keluar dari Sesi Admin
             </button>
           </div>
         </div>
@@ -271,10 +271,10 @@ export default function AdminPortalPage() {
   return (
     <main className="w-full h-full min-h-screen">
       <VirtualRoom
-        fullName="Instruktur Guru"
+        fullName="Instruktur Admin"
         attendanceNo=""
         studentClass={activeClass}
-        username="Guru"
+        username="Admin"
         roomCode={roomCode}
         initialRoomName={roomName}
         characterIndex={1}

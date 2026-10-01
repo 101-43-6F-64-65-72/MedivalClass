@@ -53,7 +53,7 @@ function PresentationScreen({
   isFocused: externalIsFocused,
   setIsFocused: externalSetIsFocused,
   isAdmin = false,
-  presenterName = 'Guru',
+  presenterName = 'Admin',
   presentation: externalPresentation,
 }) {
   const containerRef = useRef(null);

@@ -29,7 +29,7 @@ export default function StudentPresenterModal({
                 Akses Presentasi Kelas
               </h2>
               <span className="text-[10px] text-emerald-400 font-mono font-bold">
-                Ditunjuk Resmi oleh Guru
+                Ditunjuk Resmi oleh Admin
               </span>
             </div>
           </div>
@@ -49,7 +49,7 @@ export default function StudentPresenterModal({
         <div className="p-5 space-y-4">
           <div className="bg-[#1b0d05] border border-amber-600/70 rounded p-3 text-xs space-y-2">
             <p className="text-amber-200 leading-relaxed">
-              Halo <strong>{designatedPresenter.studentName}</strong>! Guru telah menunjuk Anda untuk mempresentasikan hasil karya game kelompok di depan kelas.
+              Halo <strong>{designatedPresenter.studentName}</strong>! Admin telah menunjuk Anda untuk mempresentasikan hasil karya game kelompok di depan kelas.
             </p>
             <div className="text-[11px] text-amber-400/80">
               Syarat presentasi terpenuhi: Link tugas Anda telah terdaftar dan tervalidasi di Rak Buku Kelas.
