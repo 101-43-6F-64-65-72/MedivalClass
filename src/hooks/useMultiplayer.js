@@ -12,8 +12,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     characterIndex = 1, 
     isAdmin = false,
     isCreator = false,
-    onRoomFull,
-    lowPingMode = false,
+    onRoomFull 
   } = options;
 
   const cleanRoomCode = (roomCode || 'LOBBY1').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -660,14 +659,10 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     setPendingJoinRequests((prev) => prev.filter((r) => r.requestId !== requestId));
   };
 
-  const allPlayerList = Array.from(players.values());
-  // Low Ping Mode: only show players in the same group to reduce render & presence load
-  const playerList = lowPingMode && !isAdmin
-    ? allPlayerList.filter((p) => p.roomCode && p.roomCode.trim().toUpperCase() === cleanRoomCode)
-    : allPlayerList;
-  const hasAdminOnline = isAdmin || allPlayerList.some((p) => p.isAdmin);
+  const playerList = Array.from(players.values());
+  const hasAdminOnline = isAdmin || playerList.some((p) => p.isAdmin);
   // Count how many players belong to my specific room/group
-  const myGroupCount = 1 + allPlayerList.filter(
+  const myGroupCount = 1 + playerList.filter(
     (p) => p.roomCode && p.roomCode.trim().toUpperCase() === cleanRoomCode
   ).length;
 

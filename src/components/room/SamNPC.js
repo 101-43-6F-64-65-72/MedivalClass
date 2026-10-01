@@ -17,6 +17,7 @@ const SUBMISSION_URL = 'https://forms.gle/pengumpulan-tugas-game';
 
 const DIALOGUE_TEXTS = {
   intro: 'Halo! Waktu terus berdetik di samping pendulum ini. Aku Sam, penjaga arsip karya game dan rak buku kelas XI. Kamu bisa menyetor link game kelompokmu ke rak buku kelas atau memeriksa karya teman-temanmu di sini.',
+  devDone: 'Woah! Kamu telah melewati semua milestone Dev 1 hingga Dev 4! Ini momen istimewa. Sekarang saatnya mengabadikan hasil kerja kerasmu — setor link game kelompokmu ke Rak Buku kelas agar semua bisa memainkan dan mengapresiasinya!',
   submit: 'Cukup berikan link hasil game timmu. Sistem otomatis mengenali platform dan kategorinya, lalu menatanya di rak buku kelas.',
   tips: 'Ingat kawan: teknologi dan AI adalah alat bantu, namun logika dan kreativitasmu adalah nahkodanya. Pastikan game-mu dapat dimainkan dan diuji dengan baik.',
   later: 'Baiklah, silakan kembali berkarya bersama kelompokmu. Pendulum ini akan setia menanti game hebat kalian!',
@@ -30,6 +31,7 @@ function SamNPC({
   isTracked = false,
   onOpenSubmission,
   onOpenBookshelf,
+  allDevDone = false,
 }) {
   const [mounted, setMounted] = useState(false);
   // Dialogue state: null | 'intro' | 'submit' | 'tips' | 'later'
@@ -127,7 +129,8 @@ function SamNPC({
   const handleInteract = () => {
     if (!dialogStage) {
       playDialogueOpen();
-      setDialogStage('intro');
+      // If all dev tasks are done, show special congratulatory dialogue first
+      setDialogStage(allDevDone ? 'devDone' : 'intro');
     }
   };
 
@@ -241,6 +244,10 @@ function SamNPC({
             alt="Sam"
             className="w-12 h-12 image-pixelated object-contain transition-transform group-hover:scale-105 active:scale-95"
           />
+          {/* Glow ring when all dev tasks are done */}
+          {allDevDone && (
+            <div className="absolute inset-0 rounded-full border-2 border-emerald-400 animate-pulse opacity-80 pointer-events-none" />
+          )}
           {/* Shadow directly at feet */}
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />
         </div>
@@ -344,6 +351,35 @@ function SamNPC({
                     <div className={`mt-3 pt-2 border-t border-[#c98d51]/50 space-y-1.5 transition-opacity duration-200 ${
                       isTyping ? 'opacity-40' : 'opacity-100'
                     }`}>
+                      {/* DEV DONE special stage */}
+                      {dialogStage === 'devDone' && (
+                        <>
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={() => {
+                              playChoiceClick();
+                              handleCloseAll();
+                              if (onOpenSubmission) onOpenSubmission();
+                            }}
+                            className="w-full text-left px-3 py-1.5 bg-[#2d7a28] hover:bg-[#3d9631] border-2 border-[#1a4f19] rounded text-xs sm:text-sm font-bold text-white flex items-center gap-2 group transition-all shadow-sm"
+                          >
+                            <span className="text-emerald-300 group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                            <span>Setor Link Hasil Karya Game Sekarang!</span>
+                          </button>
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={() => {
+                              playChoiceClick();
+                              setDialogStage('intro');
+                            }}
+                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] border-2 border-[#b87c42] rounded text-xs font-bold text-[#3d1e08] flex items-center gap-2"
+                          >
+                            <span className="font-mono">◀</span>
+                            <span>Lihat menu Sam lainnya</span>
+                          </button>
+                        </>
+                      )}
+
                       {dialogStage === 'intro' && (
                         <>
                           <button
@@ -535,5 +571,6 @@ export default React.memo(SamNPC, (prev, next) => {
   if (prev.onOpenChange !== next.onOpenChange) return false;
   if (prev.onOpenSubmission !== next.onOpenSubmission) return false;
   if (prev.onOpenBookshelf !== next.onOpenBookshelf) return false;
+  if (prev.allDevDone !== next.allDevDone) return false;
   return true;
 });

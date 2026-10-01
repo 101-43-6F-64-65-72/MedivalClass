@@ -21,6 +21,7 @@ import GameSubmissionModal from './GameSubmissionModal';
 import NetworkMonitor from './NetworkMonitor';
 import AnnouncementOverlay from './AnnouncementOverlay';
 import StudentPresenterModal from './StudentPresenterModal';
+import DevTodoWidget from './DevTodoWidget';
 import { usePresentation } from '@/hooks/usePresentation';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
@@ -57,8 +58,16 @@ export default function VirtualRoom({
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [activeTrackedNpcId, setActiveTrackedNpcId] = useState(null);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [lowLatencyMode, setLowLatencyMode] = useState(false);
+  const [allDevDone, setAllDevDone] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('virtual_dev_todos') : null;
+      if (!saved) return false;
+      const parsed = JSON.parse(saved);
+      return ['dev1', 'dev2', 'dev3', 'dev4'].every((k) => parsed[k]);
+    } catch (_) { return false; }
+  });
   const zoom = 1.15; // Optimal POV zoom for 3/4 classroom perspective
-  const [lowPingMode, setLowPingMode] = useState(false);
 
   // Bookshelf and Game Submissions Modals state
   const [isBookshelfModalOpen, setIsBookshelfModalOpen] = useState(false);
@@ -131,8 +140,13 @@ export default function VirtualRoom({
     localPlayer, 
     username, 
     color, 
-    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, characterIndex, isAdmin, isCreator, lowPingMode }
+    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, characterIndex, isAdmin, isCreator }
   );
+
+  // In Low Latency Mode, only render players from the same group (reduces realtime overhead)
+  const visibleRemotePlayers = lowLatencyMode
+    ? remotePlayers.filter((p) => (p.roomCode || '').toUpperCase() === (roomCode || '').toUpperCase())
+    : remotePlayers;
 
   const handleCopyCode = () => {
     if (roomCode) {
@@ -364,7 +378,7 @@ export default function VirtualRoom({
         )}
         
         {/* Render Remote Students / Players and their Pets */}
-        {remotePlayers.map((p) => {
+        {visibleRemotePlayers.map((p) => {
           const isPlayerSpotlighted = Boolean(
             spotlightPlayer && (
               spotlightPlayer.id === p.id ||
@@ -497,6 +511,7 @@ export default function VirtualRoom({
           isTracked={activeTrackedNpcId === 'npc-sam'}
           onOpenSubmission={handleOpenSubmission}
           onOpenBookshelf={handleOpenBookshelf}
+          allDevDone={allDevDone}
         />
       </div>
 
@@ -994,9 +1009,13 @@ export default function VirtualRoom({
       {/* Network & Bandwidth Monitor */}
       <NetworkMonitor
         playerId={myId}
-        roomCode={roomCode}
-        lowPingMode={lowPingMode}
-        onSetLowPingMode={setLowPingMode}
+        lowLatencyMode={lowLatencyMode}
+        onToggleLowLatency={setLowLatencyMode}
+      />
+
+      {/* Dev Todo Checklist Widget (tracks DEV 1-4 milestones, directs to Sam when done) */}
+      <DevTodoWidget
+        onDirectToSam={() => setActiveTrackedNpcId('npc-sam')}
       />
 
     </div>
