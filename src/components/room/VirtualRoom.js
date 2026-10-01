@@ -126,11 +126,24 @@ export default function VirtualRoom({
     }
   };
 
-  const handleSelectPet = (breedId) => {
+  const handleSelectPet = useCallback((breedId) => {
     setLocalPetBreed(breedId);
     updatePet(breedId);
     setShowPetModal(false);
-  };
+  }, [updatePet]);
+
+  const handleOpenPresentation = useCallback(() => {
+    setIsPresentationFocused(true);
+  }, []);
+
+  const handleOpenSubmission = useCallback(() => {
+    setIsSubmissionModalOpen(true);
+  }, []);
+
+  const handleOpenBookshelf = useCallback((targetCls) => {
+    if (targetCls) setSelectedBookshelfClass(targetCls);
+    setIsBookshelfModalOpen(true);
+  }, []);
 
   const handleSaveRoomName = (e) => {
     e.preventDefault();
@@ -181,14 +194,14 @@ export default function VirtualRoom({
     localPlayer.y <= 750
   );
 
-  // Keyboard shortcut listener to interact with Bookshelves via 'E'
+  // Keyboard shortcut listener to interact with Bookshelves via 'R' or 'B' (distinct from NPC key 'E')
   useEffect(() => {
     const handleKeyDown = (e) => {
       const active = document.activeElement;
       const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
       if (isInput) return;
 
-      if ((e.key === 'e' || e.key === 'E') && !isModalBlocking) {
+      if ((e.key === 'r' || e.key === 'R' || e.key === 'b' || e.key === 'B') && !isModalBlocking) {
         if (isNearWestShelf) {
           e.preventDefault();
           setSelectedBookshelfClass('XI PPLG-A');
@@ -280,56 +293,56 @@ export default function VirtualRoom({
           );
         })}
 
-        {/* Bookshelf Identity Signs on Classroom Walls */}
+        {/* Bookshelf Identity Signs at Side of Bookshelves (Clearly Visible in Aisle) */}
         <div 
-          className="absolute z-20 pointer-events-none select-none text-center"
-          style={{ left: '105px', top: '120px', transform: 'translate(-50%, -100%)' }}
+          className="absolute z-30 pointer-events-none select-none"
+          style={{ left: '180px', top: '210px' }}
         >
-          <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-wider shadow border border-amber-900 flex items-center gap-1">
-            <BookOpen className="w-2.5 h-2.5 text-amber-900" />
+          <div className="pixel-panel-gold px-2.5 py-1 text-[10px] font-black text-amber-950 uppercase tracking-wider shadow-lg border border-amber-900 flex items-center gap-1.5 whitespace-nowrap">
+            <BookOpen className="w-3 h-3 text-amber-900" />
             <span>Rak Buku XI PPLG-A</span>
           </div>
         </div>
 
         <div 
-          className="absolute z-20 pointer-events-none select-none text-center"
-          style={{ left: '1695px', top: '120px', transform: 'translate(-50%, -100%)' }}
+          className="absolute z-30 pointer-events-none select-none"
+          style={{ left: '1620px', top: '210px', transform: 'translate(-100%, 0)' }}
         >
-          <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-wider shadow border border-amber-900 flex items-center gap-1">
-            <BookOpen className="w-2.5 h-2.5 text-amber-900" />
+          <div className="pixel-panel-gold px-2.5 py-1 text-[10px] font-black text-amber-950 uppercase tracking-wider shadow-lg border border-amber-900 flex items-center gap-1.5 whitespace-nowrap">
+            <BookOpen className="w-3 h-3 text-amber-900" />
             <span>Rak Buku XI PPLG-B</span>
           </div>
         </div>
 
-        {/* Proximity Interaction Prompts for Bookshelves */}
+        {/* Proximity Interaction Prompts at Side of Bookshelves [R] */}
         {isNearWestShelf && !isModalBlocking && (
           <div 
-            className="absolute z-40 pointer-events-auto cursor-pointer"
-            style={{ left: '105px', top: '230px', transform: 'translate(-50%, -100%)' }}
+            className="absolute z-40 pointer-events-auto cursor-pointer animate-bounce-short"
+            style={{ left: '180px', top: '250px' }}
             onClick={() => {
               setSelectedBookshelfClass('XI PPLG-A');
               setIsBookshelfModalOpen(true);
             }}
           >
-            <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 animate-bounce-short">
-              <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1 py-0.2">E</span>
-              <span className="text-[11px] font-bold text-amber-200">Periksa Rak Buku XI PPLG-A</span>
+            <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 whitespace-nowrap">
+              <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2">R</span>
+              <span className="text-[11px] font-bold text-amber-200">Tekan R untuk Buka Rak Buku XI PPLG-A</span>
             </div>
           </div>
         )}
 
         {isNearEastShelf && !isModalBlocking && (
           <div 
-            className="absolute z-40 pointer-events-auto cursor-pointer"
-            style={{ left: '1695px', top: '230px', transform: 'translate(-50%, -100%)' }}
+            className="absolute z-40 pointer-events-auto cursor-pointer animate-bounce-short"
+            style={{ left: '1620px', top: '250px', transform: 'translate(-100%, 0)' }}
             onClick={() => {
               setSelectedBookshelfClass('XI PPLG-B');
               setIsBookshelfModalOpen(true);
             }}
           >
-            <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 animate-bounce-short">
-              <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1 py-0.2">E</span>
-              <span className="text-[11px] font-bold text-amber-200">Periksa Rak Buku XI PPLG-B</span>
+            <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 whitespace-nowrap">
+              <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2">R</span>
+              <span className="text-[11px] font-bold text-amber-200">Tekan R untuk Buka Rak Buku XI PPLG-B</span>
             </div>
           </div>
         )}
@@ -444,7 +457,7 @@ export default function VirtualRoom({
           y={530} 
           localPlayer={localPlayer} 
           onOpenChange={setIsKrisnaOpen} 
-          onOpenPresentation={() => setIsPresentationFocused(true)}
+          onOpenPresentation={handleOpenPresentation}
           isTracked={activeTrackedNpcId === 'npc-krisna'}
         />
 
@@ -466,11 +479,8 @@ export default function VirtualRoom({
           localPlayer={localPlayer} 
           onOpenChange={setIsSamOpen} 
           isTracked={activeTrackedNpcId === 'npc-sam'}
-          onOpenSubmission={() => setIsSubmissionModalOpen(true)}
-          onOpenBookshelf={(targetCls) => {
-            setSelectedBookshelfClass(targetCls);
-            setIsBookshelfModalOpen(true);
-          }}
+          onOpenSubmission={handleOpenSubmission}
+          onOpenBookshelf={handleOpenBookshelf}
         />
       </div>
 

@@ -14,8 +14,8 @@ export const CLASSROOM_NPCS = [
     location: 'Lorong Rak Buku Timur',
     x: 1715,
     y: 720,
-    portrait: '/assets/OwnAssets/qeebos/blush.png',
-    spriteSheet: '/assets/RPG Maker MZ (48x48)/characters/$Char_001.png',
+    portrait: '/assets/OwnAssets/qeebos/normal.png',
+    spriteSheet: '/assets/OwnAssets/qeebos/qeebos.png',
     color: '#f59e0b',
   },
   {
@@ -26,8 +26,8 @@ export const CLASSROOM_NPCS = [
     location: 'Panggung Utama Depan',
     x: 730,
     y: 530,
-    portrait: null, // Ready for custom portrait when available
-    spriteSheet: '/assets/RPG Maker MZ (48x48)/characters/$Char_004.png',
+    portrait: '/assets/OwnAssets/krisna/normal.png',
+    spriteSheet: '/assets/OwnAssets/krisna/krisna.png',
     color: '#3b82f6',
   },
   {
@@ -38,8 +38,8 @@ export const CLASSROOM_NPCS = [
     location: 'Lorong Meja Belajar Barat',
     x: 95,
     y: 800,
-    portrait: null, // Ready for custom portrait when available
-    spriteSheet: '/assets/RPG Maker MZ (48x48)/characters/$Char_003.png',
+    portrait: '/assets/OwnAssets/imanuel/normal.png',
+    spriteSheet: '/assets/OwnAssets/imanuel/imanuel.png',
     color: '#10b981',
   },
   {
@@ -62,8 +62,8 @@ export const CLASSROOM_NPCS = [
     location: 'Meja Siswa Baris Kedua',
     x: 1250,
     y: 955,
-    portrait: null, // Ready for custom portrait when available
-    spriteSheet: '/assets/RPG Maker MZ (48x48)/characters/$Char_005.png',
+    portrait: '/assets/OwnAssets/dzakih/normal.png',
+    spriteSheet: '/assets/OwnAssets/dzakih/dzakih.png',
     color: '#ec4899',
   },
 ];

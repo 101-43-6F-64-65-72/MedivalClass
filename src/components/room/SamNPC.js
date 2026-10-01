@@ -22,7 +22,7 @@ const DIALOGUE_TEXTS = {
   later: 'Baiklah, silakan kembali berkarya bersama kelompokmu. Pendulum ini akan setia menanti game hebat kalian!',
 };
 
-export default function SamNPC({
+function SamNPC({
   x = 135,
   y = 520,
   localPlayer,
@@ -525,3 +525,15 @@ export default function SamNPC({
     </>
   );
 }
+
+export default React.memo(SamNPC, (prev, next) => {
+  const wasNear = prev.localPlayer && Math.hypot(prev.localPlayer.x - prev.x, prev.localPlayer.y - prev.y) <= 130;
+  const isNear = next.localPlayer && Math.hypot(next.localPlayer.x - next.x, next.localPlayer.y - next.y) <= 130;
+  if (wasNear !== isNear) return false;
+  if (prev.isTracked !== next.isTracked) return false;
+  if (prev.x !== next.x || prev.y !== next.y) return false;
+  if (prev.onOpenChange !== next.onOpenChange) return false;
+  if (prev.onOpenSubmission !== next.onOpenSubmission) return false;
+  if (prev.onOpenBookshelf !== next.onOpenBookshelf) return false;
+  return true;
+});

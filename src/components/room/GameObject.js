@@ -9,7 +9,7 @@ import React from 'react';
  * - Heavy oak crown molding and baseboards
  * - Cozy wooden side walls with rich ambient depth
  */
-export default function GameObject({ object }) {
+function GameObject({ object }) {
   if (!object.visible) return null;
 
   const zIndex = Math.floor(object.y + object.height);
@@ -137,3 +137,5 @@ export default function GameObject({ object }) {
       return null;
   }
 }
+
+export default React.memo(GameObject);

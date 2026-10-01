@@ -122,7 +122,7 @@ const SPRITE_DEFS = {
   },
 };
 
-export default function RoomSprite({ type, x, y, width, height, zIndex, className = '' }) {
+function RoomSprite({ type, x, y, width, height, zIndex, className = '' }) {
   const def = SPRITE_DEFS[type];
   // If undefined (such as legacy 'chair' which is now integrated into 'desk'), return null
   if (!def) return null;
@@ -190,3 +190,5 @@ export default function RoomSprite({ type, x, y, width, height, zIndex, classNam
     </div>
   );
 }
+
+export default React.memo(RoomSprite);

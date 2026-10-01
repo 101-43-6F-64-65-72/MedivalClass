@@ -9,7 +9,7 @@ import { CLASSROOM_EMOTES } from './CircularEmoteMenu';
  * Scaled to 48x48px with accurate walk cycle, 4-direction offsets,
  * realtime speech bubbles, emote reaction bubbles, and group nametags.
  */
-export default function Player(props) {
+function Player(props) {
   const player = props.player || {
     userId: props.id || props.userId,
     x: props.x || 0,
@@ -420,3 +420,5 @@ export default function Player(props) {
     </div>
   );
 }
+
+export default React.memo(Player);

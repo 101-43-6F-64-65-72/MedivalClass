@@ -14,7 +14,7 @@ import {
   playSuccessChime
 } from '@/lib/soundEffects';
 
-export default function QeebosNPC({
+function QeebosNPC({
   x = 1715,
   y = 720,
   localPlayer,
@@ -646,12 +646,12 @@ Wait for my approval before proceeding to the next phase.`;
           </div>
         )}
 
-        {/* Qeebos Avatar Sprite */}
+        {/* Qeebos Avatar Sprite (Using authentic OwnAssets/qeebos/qeebos.png) */}
         <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
           <img 
-            src="/assets/OwnAssets/qeebos/normal.png" 
+            src="/assets/OwnAssets/qeebos/qeebos.png" 
             alt="Qeebos" 
-            className="w-10 h-10 object-contain image-pixelated transition-transform group-hover:scale-105 active:scale-95" 
+            className="w-12 h-12 object-contain image-pixelated transition-transform group-hover:scale-105 active:scale-95" 
           />
           {/* Shadow directly at feet */}
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1 pointer-events-none" />
@@ -893,7 +893,7 @@ Wait for my approval before proceeding to the next phase.`;
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 pixel-box-inset flex items-center justify-center bg-[#1a0a03] border border-amber-600/50">
                       <img
-                        src="/assets/OwnAssets/qeebos/QEEBOS.png"
+                        src="/assets/OwnAssets/qeebos/qeebos.png"
                         alt="Qeebos"
                         className="w-7 h-7 object-contain image-pixelated"
                       />
@@ -1439,3 +1439,13 @@ Wait for my approval before proceeding to the next phase.`;
     </>
   );
 }
+
+export default React.memo(QeebosNPC, (prev, next) => {
+  const wasNear = prev.localPlayer && Math.hypot(prev.localPlayer.x - prev.x, prev.localPlayer.y - prev.y) <= 130;
+  const isNear = next.localPlayer && Math.hypot(next.localPlayer.x - next.x, next.localPlayer.y - next.y) <= 130;
+  if (wasNear !== isNear) return false;
+  if (prev.isTracked !== next.isTracked) return false;
+  if (prev.x !== next.x || prev.y !== next.y) return false;
+  if (prev.onOpenChange !== next.onOpenChange) return false;
+  return true;
+});

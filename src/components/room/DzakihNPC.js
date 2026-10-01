@@ -23,7 +23,7 @@ const DIALOGUE_TEXTS = {
   bye: 'Yaelah, ya udah sana hus hus, aku mau lanjut menikmati ketenaranku dan main bareng kucing!',
 };
 
-export default function DzakihNPC({
+function DzakihNPC({
   x = 1250,
   y = 955,
   localPlayer,
@@ -244,16 +244,12 @@ export default function DzakihNPC({
           </div>
         )}
 
-        {/* Dzakih Character Avatar ($Char_005.png - Green mohawk playful student) */}
+        {/* Dzakih Character Avatar (Using authentic OwnAssets/dzakih/dzakih.png) */}
         <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
-          <div
-            className="w-12 h-12 image-pixelated transition-transform group-hover:scale-105 active:scale-95"
-            style={{
-              backgroundImage: "url('/assets/RPG Maker MZ (48x48)/characters/$Char_005.png')",
-              backgroundPosition: '-48px 0px', // Center facing front
-              backgroundSize: '144px 192px',
-              backgroundRepeat: 'no-repeat',
-            }}
+          <img
+            src="/assets/OwnAssets/dzakih/dzakih.png"
+            alt="Dzakih"
+            className="w-12 h-12 image-pixelated object-contain transition-transform group-hover:scale-105 active:scale-95"
           />
           {/* Shadow directly at feet */}
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />
@@ -514,15 +510,10 @@ export default function DzakihNPC({
                         boxShadow: 'inset 0 0 8px rgba(0,0,0,0.3)',
                       }}
                     >
-                      <div
-                        className="w-24 h-24 image-pixelated pointer-events-none select-none"
-                        style={{
-                          backgroundImage: "url('/assets/RPG Maker MZ (48x48)/characters/$Char_005.png')",
-                          backgroundPosition: '-96px 0px', // Front portrait angle
-                          backgroundSize: '288px 384px',
-                          backgroundRepeat: 'no-repeat',
-                          transform: 'scale(1.35) translateY(6px)',
-                        }}
+                      <img
+                        src="/assets/OwnAssets/dzakih/normal.png"
+                        alt="Dzakih"
+                        className="w-24 h-24 sm:w-28 sm:h-28 object-contain image-pixelated pointer-events-none select-none drop-shadow"
                       />
                     </div>
 
@@ -553,3 +544,15 @@ export default function DzakihNPC({
     </>
   );
 }
+
+export default React.memo(DzakihNPC, (prev, next) => {
+  const wasNear = prev.localPlayer && Math.hypot(prev.localPlayer.x - prev.x, prev.localPlayer.y - prev.y) <= 130;
+  const isNear = next.localPlayer && Math.hypot(next.localPlayer.x - next.x, next.localPlayer.y - next.y) <= 130;
+  if (wasNear !== isNear) return false;
+  if (prev.isTracked !== next.isTracked) return false;
+  if (prev.localPetBreed !== next.localPetBreed) return false;
+  if (prev.x !== next.x || prev.y !== next.y) return false;
+  if (prev.onOpenChange !== next.onOpenChange) return false;
+  if (prev.onSelectPet !== next.onSelectPet) return false;
+  return true;
+});
