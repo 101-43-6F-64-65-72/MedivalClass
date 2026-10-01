@@ -18,8 +18,16 @@ import {
   Eye,
   EyeOff,
   UserCheck,
-  ShieldCheck
+  ShieldCheck,
+  MonitorPlay,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Share2,
+  Copy,
+  Check
 } from 'lucide-react';
+import { usePresentation } from '@/hooks/usePresentation';
 
 export default function AdminPanel({
   isOpen,
@@ -31,8 +39,37 @@ export default function AdminPanel({
   spotlightPlayer = null,
   onSetSpotlight,
 }) {
-  const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'classes'
+  const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'classes' | 'slide'
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Canva Realtime Presentation Sync Hook
+  const {
+    currentSlide,
+    presentationUrl,
+    canvaLiveCode,
+    changeSlide,
+    nextSlide,
+    prevSlide,
+    changePresentationUrl,
+    changeCanvaLiveCode,
+  } = usePresentation({
+    isAdmin: true,
+    presenterName: localPlayerInfo?.fullName || localPlayerInfo?.username || 'Guru',
+  });
+
+  const [inputUrl, setInputUrl] = useState('');
+  const [inputLiveCode, setInputLiveCode] = useState('');
+  const [copiedPanelCode, setCopiedPanelCode] = useState(false);
+  const [savedStatus, setSavedStatus] = useState('');
+
+  // Sync inputs with presentation state
+  React.useEffect(() => {
+    if (presentationUrl) setInputUrl(presentationUrl);
+  }, [presentationUrl]);
+
+  React.useEffect(() => {
+    if (canvaLiveCode !== undefined) setInputLiveCode(canvaLiveCode || '');
+  }, [canvaLiveCode]);
 
   // Combine local player (if in room) and remote players to form total universe players
   const allOnlinePlayers = useMemo(() => {
@@ -203,6 +240,18 @@ export default function AdminPanel({
           >
             <Sliders className="w-3.5 h-3.5" />
             <span>Pilih Kelas Aktif</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('slide')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all ${
+              activeTab === 'slide'
+                ? 'pixel-btn-gold text-amber-950 font-black'
+                : 'text-amber-300/80 hover:text-amber-100 hover:bg-amber-950/40'
+            }`}
+          >
+            <MonitorPlay className="w-3.5 h-3.5" />
+            <span>Slide Canva (Live)</span>
           </button>
         </div>
 
@@ -549,6 +598,210 @@ export default function AdminPanel({
                 <p>
                   Mengubah kelas aktif (misal dari <strong>XI PPLG-A</strong> ke <strong>XI PPLG-B</strong>) akan menyiarkan informasi kelas baru secara real-time ke semua peserta, sehingga hanya data siswa kelas tersebut yang akan tampil di absensi dan panel admin.
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              TAB 4: KONTROL SLIDE & CANVA LIVE REALTIME
+             ======================================================== */}
+          {activeTab === 'slide' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-amber-200">Kontrol Slide Canva &amp; Canva Live Realtime</h3>
+                  <p className="text-[11px] text-amber-400/70">
+                    Kendalikan pergantian slide presentasi dan siarkan ke seluruh layar siswa secara bersamaan.
+                  </p>
+                </div>
+                <div className="pixel-box-inset px-2.5 py-1 text-xs text-amber-300 font-mono flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span>Siaran Supabase Aktif</span>
+                </div>
+              </div>
+
+              {/* Slide Controller Card */}
+              <div className="pixel-box-inset p-4 bg-[#1c0c04] border border-[#5c3416] space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-xs font-bold text-amber-300">Navigasi Slide Realtime:</span>
+                  <span className="text-[10px] text-amber-400/70 font-mono">
+                    Perubahan slide langsung tersinkron ke semua siswa
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-center gap-3 py-2 bg-[#120702] rounded border border-[#4a2608]">
+                  <button
+                    onClick={prevSlide}
+                    disabled={currentSlide <= 1}
+                    className="pixel-btn-wood px-4 py-2 text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-amber-300" />
+                    <span>Sebelumnya</span>
+                  </button>
+
+                  <div className="flex items-center gap-2 px-4 py-1.5 bg-[#241105] rounded border border-[#5c3416]">
+                    <span className="text-xs text-amber-400 font-mono font-bold">Slide Saat Ini:</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={currentSlide}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        if (!isNaN(val) && val >= 1) {
+                          changeSlide(val);
+                        }
+                      }}
+                      className="w-16 bg-slate-900 border border-amber-800 rounded px-2 py-1 text-center text-sm font-mono text-amber-200 font-bold focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  <button
+                    onClick={nextSlide}
+                    className="pixel-btn-wood px-4 py-2 text-xs font-bold flex items-center gap-1.5"
+                  >
+                    <span>Berikutnya</span>
+                    <ChevronRight className="w-4 h-4 text-amber-300" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Presentation Link & Canva Live Code Settings */}
+              <div className="pixel-box-inset p-4 bg-[#1c0c04] border border-[#5c3416] space-y-4">
+                <h4 className="text-xs font-bold text-amber-200 border-b border-[#5c3416] pb-1.5">
+                  Pengaturan Tautan Canva &amp; Kode Live
+                </h4>
+
+                <div className="space-y-3">
+                  {/* Presets */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Pilihan Cepat / Preset Papan Tulis:</span>
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setInputUrl('https://www.canva.com/design/DAHWqHcG_Jw/4VfIFITHxeJqwMWPd1KeKA/view?embed')}
+                        className="pixel-box-inset p-2 text-left hover:border-amber-400 transition-colors"
+                      >
+                        <div className="font-bold text-[11px] text-amber-100">Canva Pembelajaran</div>
+                        <div className="text-[9px] text-amber-400/70">Slide Materi Kelas</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInputUrl('https://excalidraw.com')}
+                        className="pixel-box-inset p-2 text-left hover:border-amber-400 transition-colors"
+                      >
+                        <div className="font-bold text-[11px] text-amber-100">Excalidraw</div>
+                        <div className="text-[9px] text-amber-400/70">Papan Corat-coret</div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInputUrl('https://witeboard.com')}
+                        className="pixel-box-inset p-2 text-left hover:border-amber-400 transition-colors"
+                      >
+                        <div className="font-bold text-[11px] text-amber-100">Witeboard Online</div>
+                        <div className="text-[9px] text-amber-400/70">Kolaborasi Instan</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5 mb-1">
+                      <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Link Tampilan Papan Tulis (Canva / Slides / Whiteboard / Video):</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={inputUrl}
+                      onChange={(e) => setInputUrl(e.target.value)}
+                      placeholder="https://www.canva.com/... atau https://excalidraw.com atau https://docs.google.com/presentation/..."
+                      className="w-full bg-[#120702] border border-[#5c3416] rounded px-3 py-2 text-xs font-mono text-amber-100 focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-emerald-300 flex items-center gap-1.5 mb-1">
+                      <Radio className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Kode Canva Live (6 Digit):</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        maxLength={10}
+                        value={inputLiveCode}
+                        onChange={(e) => setInputLiveCode(e.target.value.toUpperCase())}
+                        placeholder="Contoh: 123456"
+                        className="w-44 bg-[#120702] border border-[#5c3416] rounded px-3 py-2 text-xs font-mono font-bold tracking-widest text-emerald-300 focus:outline-none focus:border-emerald-400"
+                      />
+                      {inputLiveCode && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInputLiveCode('');
+                            changeCanvaLiveCode('');
+                            setSavedStatus('Kode Canva Live berhasil dihapus.');
+                            setTimeout(() => setSavedStatus(''), 3000);
+                          }}
+                          className="pixel-btn-wood px-2 py-1 text-[10px]"
+                        >
+                          Hapus Kode
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    {savedStatus ? (
+                      <span className="text-[11px] text-emerald-400 font-bold animate-in fade-in">
+                        {savedStatus}
+                      </span>
+                    ) : (
+                      <span></span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (inputUrl.trim()) {
+                          changePresentationUrl(inputUrl.trim());
+                        }
+                        changeCanvaLiveCode(inputLiveCode.trim());
+                        setSavedStatus('Berhasil disimpan dan disiarkan ke semua siswa.');
+                        setTimeout(() => setSavedStatus(''), 3000);
+                      }}
+                      className="pixel-btn-gold px-4 py-2 text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Simpan &amp; Siarkan Perubahan</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview Box */}
+              <div className="pixel-box-inset p-3 bg-[#120702] border border-[#5c3416] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-200">Pratinjau Presentasi Saat Ini:</span>
+                  <a
+                    href={presentationUrl.replace(/\?embed.*$/, '').replace(/&embed.*$/, '')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pixel-btn-wood text-[10px] px-2 py-0.5 flex items-center gap-1 text-amber-300"
+                  >
+                    <span>Buka Tab Canva</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <div className="w-full h-56 bg-slate-950 rounded overflow-hidden border border-slate-800">
+                  <iframe
+                    src={presentationUrl}
+                    title="Admin Preview Canva"
+                    className="w-full h-full border-0"
+                    loading="lazy"
+                  />
+                </div>
               </div>
             </div>
           )}

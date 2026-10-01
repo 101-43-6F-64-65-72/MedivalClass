@@ -26,11 +26,43 @@ export default function AdminPortalPage() {
   const [inputCode, setInputCode] = useState('');
   const [joinError, setJoinError] = useState('');
 
+  // Restore admin session on page refresh so admin does not have to re-login
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('virtual_admin_session');
+      if (saved) {
+        const session = JSON.parse(saved);
+        if (session && session.isAuthenticated) {
+          setIsAuthenticated(true);
+          if (session.roomCode) setRoomCode(session.roomCode);
+          if (session.roomName) setRoomName(session.roomName);
+          setStep(session.step || 'GAME');
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal memulihkan sesi admin:', err);
+    }
+  }, []);
+
+  const saveAdminSession = (code, name, targetStep = 'GAME') => {
+    try {
+      const session = {
+        isAuthenticated: true,
+        step: targetStep,
+        roomCode: code,
+        roomName: name,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem('virtual_admin_session', JSON.stringify(session));
+    } catch (e) {}
+  };
+
   const handleVerify = (e) => {
     e.preventDefault();
     if (pin.trim() === ADMIN_PIN) {
       setIsAuthenticated(true);
       setError('');
+      saveAdminSession(roomCode, roomName, 'LOBBY');
       setStep('LOBBY');
     } else {
       setError('PIN Pengajar salah! Silakan periksa kembali.');
@@ -49,6 +81,7 @@ export default function AdminPortalPage() {
   const handleCreateRoom = () => {
     const newCode = generateRoomCode();
     setRoomCode(newCode);
+    saveAdminSession(newCode, roomName, 'GAME');
     setStep('GAME');
   };
 
@@ -61,7 +94,17 @@ export default function AdminPortalPage() {
     }
     setRoomCode(clean);
     setJoinError('');
+    saveAdminSession(clean, roomName, 'GAME');
     setStep('GAME');
+  };
+
+  const handleLogoutAdmin = () => {
+    try {
+      localStorage.removeItem('virtual_admin_session');
+    } catch (e) {}
+    setIsAuthenticated(false);
+    setPin('');
+    setStep('AUTH');
   };
 
   // STEP 1: AUTH WITH PIN 6769
@@ -213,7 +256,7 @@ export default function AdminPortalPage() {
 
           <div className="pt-2 border-t border-[#5c3416] text-center">
             <button
-              onClick={() => setStep('AUTH')}
+              onClick={handleLogoutAdmin}
               className="text-xs text-amber-400/70 hover:text-amber-200"
             >
               Keluar dari Sesi Guru
@@ -237,7 +280,10 @@ export default function AdminPortalPage() {
         characterIndex={1}
         color="#fbbf24"
         isAdmin={true}
-        onLeave={() => setStep('LOBBY')}
+        onLeave={() => {
+          saveAdminSession(roomCode, roomName, 'LOBBY');
+          setStep('LOBBY');
+        }}
       />
     </main>
   );

@@ -185,8 +185,8 @@ export default function Player(props) {
         top: `${posY}px`,
         transform: 'translate(-50%, -100%)', // Anchor at player's feet
         zIndex: Math.floor(player.y) || 10,
-        willChange: isLocalPlayer ? 'none' : 'transform',
-        transition: isLocalPlayer ? 'none' : 'all 0.05s linear',
+        willChange: isLocalPlayer ? 'none' : 'left, top',
+        transition: isLocalPlayer ? 'none' : 'left 0.06s linear, top 0.06s linear',
       }}
     >
       {/* ========================================================

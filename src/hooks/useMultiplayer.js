@@ -50,9 +50,12 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   const channelRef = useRef(null);
   const myIdRef = useRef(`player-${Math.random().toString(36).substring(2, 9)}`);
   
-  // Throttle broadcast
+  // Throttle broadcast & RAF batching
   const lastBroadcastRef = useRef(0);
+  const lastBroadcastPosRef = useRef({ x: 0, y: 0, isMoving: false });
   const localPlayerStateRef = useRef(localPlayerState);
+  const pendingMovementUpdatesRef = useRef(new Map());
+  const movementRafRef = useRef(null);
 
   useEffect(() => {
     localPlayerStateRef.current = localPlayerState;
@@ -222,29 +225,42 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       .on('broadcast', { event: 'movement' }, ({ payload }) => {
         if (!payload || payload.id === myIdRef.current) return;
 
-        setPlayers((prev) => {
-          const next = new Map(prev);
-          const existing = next.get(payload.id);
+        // Buffer incoming updates per player ID to prevent high-frequency state churn
+        pendingMovementUpdatesRef.current.set(payload.id, payload);
 
-          next.set(payload.id, {
-            id: payload.id,
-            username: payload.username || (existing ? existing.username : 'Student'),
-            fullName: payload.fullName || (existing ? existing.fullName : ''),
-            attendanceNo: payload.attendanceNo || (existing ? existing.attendanceNo : ''),
-            studentClass: payload.studentClass || (existing ? existing.studentClass : 'XI PPLG-B'),
-            characterIndex: payload.characterIndex || (existing ? existing.characterIndex : 1),
-            isAdmin: typeof payload.isAdmin !== 'undefined' ? !!payload.isAdmin : (existing ? !!existing.isAdmin : false),
-            color: payload.color || (existing ? existing.color : '#3b82f6'),
-            roomCode: payload.roomCode || (existing ? existing.roomCode : cleanRoomCode),
-            roomName: payload.roomName || (existing ? existing.roomName : ''),
-            x: payload.x,
-            y: payload.y,
-            direction: payload.direction || (existing ? existing.direction : 'down'),
-            isMoving: !!payload.isMoving,
+        if (!movementRafRef.current) {
+          movementRafRef.current = requestAnimationFrame(() => {
+            movementRafRef.current = null;
+            const updates = pendingMovementUpdatesRef.current;
+            if (updates.size === 0) return;
+
+            setPlayers((prev) => {
+              const next = new Map(prev);
+              updates.forEach((data, id) => {
+                const existing = next.get(id);
+                next.set(id, {
+                  id,
+                  username: data.username || (existing ? existing.username : 'Student'),
+                  fullName: data.fullName || (existing ? existing.fullName : ''),
+                  attendanceNo: data.attendanceNo || (existing ? existing.attendanceNo : ''),
+                  studentClass: data.studentClass || (existing ? existing.studentClass : 'XI PPLG-B'),
+                  characterIndex: data.characterIndex || (existing ? existing.characterIndex : 1),
+                  isAdmin: typeof data.isAdmin !== 'undefined' ? !!data.isAdmin : (existing ? !!existing.isAdmin : false),
+                  color: data.color || (existing ? existing.color : '#3b82f6'),
+                  roomCode: data.roomCode || (existing ? existing.roomCode : cleanRoomCode),
+                  roomName: data.roomName || (existing ? existing.roomName : ''),
+                  x: data.x,
+                  y: data.y,
+                  direction: data.direction || (existing ? existing.direction : 'down'),
+                  isMoving: !!data.isMoving,
+                });
+              });
+              return next;
+            });
+
+            updates.clear();
           });
-
-          return next;
-        });
+        }
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
@@ -271,6 +287,11 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       });
 
     return () => {
+      if (movementRafRef.current) {
+        cancelAnimationFrame(movementRafRef.current);
+        movementRafRef.current = null;
+      }
+      pendingMovementUpdatesRef.current.clear();
       channel.unsubscribe();
       supabase.removeChannel(channel);
       channelRef.current = null;
@@ -483,20 +504,30 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     }
   };
 
-  // Broadcast movement
+  // Broadcast movement with deadband and frame throttling
   useEffect(() => {
     if (!channelRef.current || !process.env.NEXT_PUBLIC_SUPABASE_URL) return;
     if (!localPlayerState.isMoving && lastBroadcastRef.current === -1) return;
 
     const now = Date.now();
-    if (now - lastBroadcastRef.current > 50 || !localPlayerState.isMoving) {
+    const lastPos = lastBroadcastPosRef.current;
+    const distMoved = Math.hypot(localPlayerState.x - lastPos.x, localPlayerState.y - lastPos.y);
+
+    // Broadcast when:
+    // 1. Moving state changed (just started or just stopped moving)
+    // 2. OR moving, at least 60ms elapsed, and moved at least 1.5px
+    const stateChanged = localPlayerState.isMoving !== lastPos.isMoving;
+    const timeElapsed = now - lastBroadcastRef.current >= 60;
+    const movedEnough = distMoved >= 1.5;
+
+    if (stateChanged || (localPlayerState.isMoving && timeElapsed && movedEnough)) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'movement',
         payload: {
           id: myIdRef.current,
-          x: localPlayerState.x,
-          y: localPlayerState.y,
+          x: Math.round(localPlayerState.x * 10) / 10,
+          y: Math.round(localPlayerState.y * 10) / 10,
           direction: localPlayerState.direction,
           isMoving: localPlayerState.isMoving,
           username,
@@ -511,8 +542,28 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
         },
       });
       lastBroadcastRef.current = localPlayerState.isMoving ? now : -1;
+      lastBroadcastPosRef.current = {
+        x: localPlayerState.x,
+        y: localPlayerState.y,
+        isMoving: localPlayerState.isMoving,
+      };
     }
-  }, [localPlayerState.x, localPlayerState.y, localPlayerState.direction, localPlayerState.isMoving, isAdmin, cleanRoomCode, studentClass, activeClass]);
+  }, [
+    localPlayerState.x, 
+    localPlayerState.y, 
+    localPlayerState.direction, 
+    localPlayerState.isMoving, 
+    isAdmin, 
+    cleanRoomCode, 
+    studentClass, 
+    activeClass,
+    username,
+    fullName,
+    attendanceNo,
+    characterIndex,
+    color,
+    roomName
+  ]);
 
   // Spotlight functions
   const setSpotlight = (targetPlayerOrNull) => {

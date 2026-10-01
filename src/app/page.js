@@ -124,6 +124,47 @@ export default function Home() {
     return code;
   };
 
+  // Restore student session on page refresh so user does not repeat login
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('virtual_student_session');
+      if (saved) {
+        const session = JSON.parse(saved);
+        if (session && session.fullName && session.username && session.roomCode) {
+          setFullName(session.fullName);
+          setAttendanceNo(session.attendanceNo || '');
+          setUsername(session.username);
+          setCharacterIndex(session.characterIndex || 1);
+          setColor(session.color || '#3b82f6');
+          if (session.activeClass) setActiveClass(session.activeClass);
+          setRoomCode(session.roomCode);
+          setCreatedRoomName(session.createdRoomName || 'Kelompok 1');
+          setStep('GAME');
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal memulihkan sesi siswa:', err);
+    }
+  }, []);
+
+  const saveStudentSession = (targetRoomCode, targetRoomName) => {
+    try {
+      const session = {
+        fullName,
+        attendanceNo,
+        username,
+        characterIndex,
+        color,
+        activeClass,
+        roomCode: targetRoomCode,
+        createdRoomName: targetRoomName,
+        step: 'GAME',
+        savedAt: Date.now(),
+      };
+      localStorage.setItem('virtual_student_session', JSON.stringify(session));
+    } catch (e) {}
+  };
+
   const handleCreateRoom = () => {
     const clean = createdRoomName.trim();
     if (!clean) {
@@ -137,6 +178,7 @@ export default function Home() {
     setCreateRoomError('');
     const newCode = generateRoomCode();
     setRoomCode(newCode);
+    saveStudentSession(newCode, clean);
     setStep('GAME');
   };
 
@@ -153,11 +195,15 @@ export default function Home() {
     }
     setRoomCode(clean);
     setJoinError('');
+    saveStudentSession(clean, `Kelompok ${clean}`);
     setStep('GAME');
   };
 
   const handleLeaveGame = () => {
-    setStep('LOBBY');
+    try {
+      localStorage.removeItem('virtual_student_session');
+    } catch (e) {}
+    setStep('REGISTER');
   };
 
   // STEP 1: FORM ABSENSI (Tanpa Input Room Name Manual)

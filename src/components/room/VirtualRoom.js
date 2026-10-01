@@ -149,7 +149,7 @@ export default function VirtualRoom({
       {/* 2D Virtual Classroom Camera Layer */}
       <div 
         ref={containerRef}
-        className="absolute top-0 left-0 shadow-2xl transition-transform duration-75 ease-out"
+        className="absolute top-0 left-0 shadow-2xl"
         style={{
           width: ROOM_WIDTH,
           height: ROOM_HEIGHT,
@@ -191,6 +191,8 @@ export default function VirtualRoom({
                 isFocused={isPresentationFocused}
                 setIsFocused={setIsPresentationFocused}
                 onFocusChange={setIsPresentationActive}
+                isAdmin={isAdmin}
+                presenterName={fullName || username || (isAdmin ? 'Guru Pengajar' : 'Siswa')}
               />
             );
           }
