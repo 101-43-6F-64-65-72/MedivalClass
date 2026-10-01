@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageSquare, Sparkles, Smile, X } from 'lucide-react';
+import { MessageSquare, Sparkles, Smile, X, Check, Footprints, Navigation } from 'lucide-react';
 import { 
   playTypewriterBlip, 
   playDialogueOpen, 
@@ -11,13 +11,16 @@ import {
   playCloseSound,
   playSuccessChime 
 } from '@/lib/soundEffects';
+import { CAT_BREEDS } from './PetCompanion';
 
 const DIALOGUE_TEXTS = {
-  intro: 'Eits! Ngapain kamu lihat-lihat? Mau minta tanda tangan ya? Atau terpesona sama aura ketampananku yang bersinar ini? Hahaha!',
-  who_are_you: 'Kenalin, Dzakih! Pria paling karismatik dan berwawasan luas di kelas ini. Jangan iri ya, pesona alami emang susah disembunyikan. Wkwkwk!',
-  no_info: 'Hah? Info? Materi? Ya nggak ada lah bro! Aku ini di sini buat menghibur diri sendiri dan menikmati hidup, bukan jadi search engine. Sana tanya Krisna atau Qeebos tuh yang rajin!',
+  intro: 'Eits! Mau adopsi atau ganti kucing peliharaan ya? Tepat sekali, selain tampan dan karismatik, aku ini juga master breeder kucing nomor satu di kelas ini! Hahaha!',
+  who_are_you: 'Kenalin, Dzakih! Pria paling karismatik dan berwawasan luas di kelas ini. Selain keren, aku dipercaya mengurus semua kucing peliharaan di kelas ini biar kalian nggak kesepian!',
+  why_cats: 'Soalnya kucing-kucing di sini cuma mau nurut sama aura cowok keren kayak aku. Kucing aja paham selera tinggi, masa kamu enggak? Hahaha!',
   joke: 'Kucing apa yang paling kuno? Kucing-galan zaman! Hahaha garing kan? Tapi tetep ketawa dong, hargai komedi berkelas ini!',
-  bye: 'Yaelah, selera humormu belum nyampe ke level seni tinggi kayak aku. Ya udah sana hus hus, aku mau lanjut menikmati ketenaranku!',
+  pet_selected: 'Pilihan berkelas! Kucing itu bakal setia mengikutimu keliling kelas virtual. Rawat baik-baik ya, jangan sampai kalah ganteng sama kucingnya!',
+  pet_removed: 'Oke, kucingmu sudah diistirahatkan di lounge santai Dzakih. Kapanpun kamu butuh teman jalan-jalan lagi, tinggal bilang ke aku ya!',
+  bye: 'Yaelah, ya udah sana hus hus, aku mau lanjut menikmati ketenaranku dan main bareng kucing!',
 };
 
 export default function DzakihNPC({
@@ -25,9 +28,12 @@ export default function DzakihNPC({
   y = 955,
   localPlayer,
   onOpenChange,
+  localPetBreed = null,
+  onSelectPet,
+  isTracked = false,
 }) {
   const [mounted, setMounted] = useState(false);
-  // Dialogue state: null | 'intro' | 'who_are_you' | 'no_info' | 'joke' | 'bye'
+  // Dialogue state: null | 'intro' | 'pet_select' | 'who_are_you' | 'why_cats' | 'joke' | 'pet_selected' | 'pet_removed' | 'bye'
   const [dialogStage, setDialogStage] = useState(null);
 
   // Typewriter effect state
@@ -57,6 +63,12 @@ export default function DzakihNPC({
   useEffect(() => {
     if (!dialogStage) {
       setDisplayedText('');
+      setIsTyping(false);
+      return;
+    }
+
+    if (dialogStage === 'pet_select') {
+      setDisplayedText('Pilih kucing mana yang mau kamu bawa jalan-jalan keliling kelas:');
       setIsTyping(false);
       return;
     }
@@ -95,9 +107,7 @@ export default function DzakihNPC({
     }
   };
 
-  // Keyboard shortcut listener:
-  // - Press 'E' when near to interact
-  // - Press 'Escape' to close dialog
+  // Keyboard shortcut listener
   useEffect(() => {
     const handleKeyDown = (e) => {
       const active = document.activeElement;
@@ -130,9 +140,25 @@ export default function DzakihNPC({
     setDialogStage(null);
   };
 
+  const handleChoosePet = (breedId) => {
+    playSuccessChime();
+    if (onSelectPet) {
+      onSelectPet(breedId);
+    }
+    setDialogStage('pet_selected');
+  };
+
+  const handleRemovePet = () => {
+    playSuccessChime();
+    if (onSelectPet) {
+      onSelectPet(null);
+    }
+    setDialogStage('pet_removed');
+  };
+
   // Render dialogue text with keyword highlights
   const renderTypedContent = (text) => {
-    const keywords = ['Dzakih', 'tanda tangan', 'aura ketampananku', 'karismatik', 'search engine', 'Kucing-galan zaman', 'Krisna', 'Qeebos', 'Wkwkwk', 'Hahaha'];
+    const keywords = ['Dzakih', 'kucing', 'adopsi', 'karismatik', 'breeder', 'Kucing-galan zaman', 'Wkwkwk', 'Hahaha'];
     let parts = [text];
 
     keywords.forEach((kw) => {
@@ -176,7 +202,7 @@ export default function DzakihNPC({
           width: '56px',
           height: '68px',
         }}
-        title="Klik atau tekan E untuk bicara dengan Dzakih"
+        title="Klik atau tekan E untuk setting pet dengan Dzakih"
       >
         {/* Floating NPC Indicator Arrow */}
         <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center animate-bounce">
@@ -206,6 +232,17 @@ export default function DzakihNPC({
           </div>
         </div>
 
+        {/* Active Waypoint Beacon Marker (100% centered on NPC) */}
+        {isTracked && (
+          <div className="absolute -top-11 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
+            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-xl border border-amber-900 flex items-center gap-1 whitespace-nowrap">
+              <Navigation className="w-2.5 h-2.5 text-amber-900 fill-amber-900" />
+              <span>TARGET</span>
+            </div>
+            <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-amber-400 drop-shadow" />
+          </div>
+        )}
+
         {/* Dzakih Character Avatar ($Char_005.png - Green mohawk playful student) */}
         <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
           <div
@@ -220,6 +257,11 @@ export default function DzakihNPC({
           {/* Shadow directly at feet */}
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />
         </div>
+
+        {/* Golden Target Pulse Ring at Feet */}
+        {isTracked && (
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-3 border-2 border-amber-400 rounded-full animate-pulse pointer-events-none shadow-[0_0_12px_rgba(251,191,36,0.9)] z-10" />
+        )}
       </div>
 
       {/* ========================================================
@@ -230,7 +272,7 @@ export default function DzakihNPC({
           {dialogStage && (
             <div className="fixed inset-0 z-[999999] pointer-events-auto flex items-end justify-center pb-6 sm:pb-8 px-4 bg-black/40 backdrop-blur-[1px] animate-in fade-in duration-150">
               <div 
-                className="w-full max-w-[800px] select-none rounded shadow-2xl relative"
+                className="w-full max-w-[820px] select-none rounded shadow-2xl relative"
                 style={{
                   backgroundColor: '#733814',
                   border: '4px solid #4a210b',
@@ -251,17 +293,17 @@ export default function DzakihNPC({
                 <div className="flex flex-col sm:flex-row gap-2.5 items-stretch">
                   {/* LEFT: Dialogue Parchment Box */}
                   <div 
-                    className="flex-1 rounded p-4 sm:p-5 flex flex-col justify-between min-h-[170px] relative shadow-inner"
+                    className="flex-1 rounded p-4 sm:p-5 flex flex-col justify-between min-h-[220px] relative shadow-inner"
                     style={{
                       backgroundColor: '#f5cb85',
                       border: '3px solid #b87c42',
                       boxShadow: 'inset 0 0 12px rgba(139, 75, 26, 0.25)',
                     }}
                   >
-                    {/* Dialogue Text Area (Clickable to skip typing) */}
+                    {/* Top Dialogue Text Area */}
                     <div 
                       onClick={handleSkipTyping}
-                      className="text-[#3b1c06] font-medium leading-relaxed text-sm sm:text-base select-text cursor-pointer min-h-[56px]"
+                      className="text-[#3b1c06] font-medium leading-relaxed text-sm sm:text-base select-text cursor-pointer min-h-[48px]"
                       title={isTyping ? "Klik untuk mempercepat teks" : ""}
                     >
                       <p className="font-semibold text-sm sm:text-base">
@@ -272,99 +314,178 @@ export default function DzakihNPC({
                       </p>
                     </div>
 
-                    {/* Dialogue Choice List */}
-                    <div className={`mt-3 pt-2 border-t border-[#c98d51]/50 space-y-1.5 transition-opacity duration-200 ${
-                      isTyping ? 'opacity-40' : 'opacity-100'
-                    }`}>
-                      {dialogStage === 'intro' && (
-                        <>
-                          <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playChoiceClick();
-                              setDialogStage('who_are_you');
-                            }}
-                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
-                          >
-                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Kamu siapa sih?</span>
-                          </button>
+                    {/* PET SELECTION GRID (Shown in 'pet_select' stage) */}
+                    {dialogStage === 'pet_select' && (
+                      <div className="mt-3 space-y-2.5 animate-in fade-in duration-200">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[190px] overflow-y-auto p-1">
+                          {CAT_BREEDS.map((cat) => {
+                            const isSelected = localPetBreed === cat.id;
+                            return (
+                              <div
+                                key={cat.id}
+                                className={`p-2 rounded border flex flex-col items-center text-center gap-1 transition-all ${
+                                  isSelected
+                                    ? 'bg-[#ffe9c2] border-[#733814] ring-2 ring-[#733814]'
+                                    : 'bg-[#fae2b8] border-[#c48d56] hover:border-[#733814]'
+                                }`}
+                              >
+                                {/* Animated Cat Preview */}
+                                <div className="w-9 h-9 flex items-center justify-center bg-[#ebd1a0] rounded-full border border-[#b87c42]">
+                                  <div
+                                    className="w-8 h-8 image-pixelated"
+                                    style={{
+                                      backgroundImage: `url('${cat.idle}')`,
+                                      backgroundPosition: '0px 0px',
+                                      backgroundSize: `${cat.idleFrames * 32}px 32px`,
+                                      backgroundRepeat: 'no-repeat',
+                                    }}
+                                  />
+                                </div>
+                                <div className="text-[11px] font-bold text-[#3d1e08] truncate w-full">
+                                  {cat.name}
+                                </div>
+                                <button
+                                  onClick={() => handleChoosePet(cat.id)}
+                                  className={`w-full py-1 text-[10px] font-bold uppercase tracking-wider rounded ${
+                                    isSelected
+                                      ? 'bg-[#3d7a28] text-white'
+                                      : 'bg-[#f0d099] hover:bg-[#ffebd0] text-[#3d1e08] border border-[#a8743a]'
+                                  }`}
+                                >
+                                  {isSelected ? '✓ Dipakai' : 'Pilih'}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Bottom Action Bar inside Pet Select */}
+                        <div className="pt-2 border-t border-[#c98d51]/50 flex items-center justify-between gap-2">
+                          {localPetBreed ? (
+                            <button
+                              onClick={handleRemovePet}
+                              className="px-2.5 py-1 bg-[#8c3b28] hover:bg-[#a64732] text-white text-[10px] font-bold rounded border border-[#521d12]"
+                            >
+                              Lepas Kucing (Tanpa Pet)
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-[#733814] italic">Belum ada kucing aktif</span>
+                          )}
 
                           <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playChoiceClick();
-                              setDialogStage('no_info');
-                            }}
-                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
-                          >
-                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Ada info penting atau link materi gak?</span>
-                          </button>
-
-                          <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playChoiceClick();
-                              setDialogStage('joke');
-                            }}
-                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
-                          >
-                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Coba tebak-tebakan dong</span>
-                          </button>
-
-                          <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playChoiceClick();
-                              setDialogStage('bye');
-                            }}
-                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#6d2716] flex items-center gap-2 group transition-all shadow-sm"
-                          >
-                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Aduh garing banget, bye</span>
-                          </button>
-                        </>
-                      )}
-
-                      {(dialogStage === 'who_are_you' || dialogStage === 'no_info' || dialogStage === 'joke') && (
-                        <div className="flex gap-2">
-                          <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playChoiceClick();
-                              setDialogStage('joke');
-                            }}
-                            className="flex-1 text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] border-2 border-[#b87c42] rounded text-xs font-bold text-[#3d1e08] flex items-center gap-1.5"
-                          >
-                            <span className="font-mono text-[#a0521e]">▶</span>
-                            <span>Lelucon lainnya</span>
-                          </button>
-
-                          <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playChoiceClick();
-                              setDialogStage('intro');
-                            }}
-                            className="px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] border-2 border-[#b87c42] rounded text-xs font-bold text-[#3d1e08]"
+                            onClick={() => setDialogStage('intro')}
+                            className="px-3 py-1 bg-[#fde5bc] hover:bg-[#fff3db] border border-[#b87c42] rounded text-[10px] font-bold text-[#3d1e08]"
                           >
                             ◀ Kembali
                           </button>
                         </div>
-                      )}
+                      </div>
+                    )}
 
-                      {dialogStage === 'bye' && (
-                        <button
-                          onMouseEnter={() => playChoiceHover()}
-                          onClick={handleCloseAll}
-                          className="w-full text-center px-4 py-2 bg-[#8c3b28] hover:bg-[#a64732] active:bg-[#6e2e1f] border-2 border-[#4a1c12] rounded text-xs sm:text-sm font-bold text-amber-100 transition-all shadow"
-                        >
-                          Tinggalkan Dzakih
-                        </button>
-                      )}
-                    </div>
+                    {/* Dialogue Choice List (when NOT in pet_select) */}
+                    {dialogStage !== 'pet_select' && (
+                      <div className={`mt-3 pt-2 border-t border-[#c98d51]/50 space-y-1.5 transition-opacity duration-200 ${
+                        isTyping ? 'opacity-40' : 'opacity-100'
+                      }`}>
+                        {dialogStage === 'intro' && (
+                          <>
+                            {/* Primary Button: Open Pet Setting */}
+                            <button
+                              onMouseEnter={() => playChoiceHover()}
+                              onClick={() => {
+                                playChoiceClick();
+                                setDialogStage('pet_select');
+                              }}
+                              className="w-full text-left px-3 py-2 bg-[#ffe8bd] hover:bg-[#fff5dc] active:bg-[#ebd09d] border-2 border-[#8c4315] hover:border-[#733814] rounded text-xs sm:text-sm font-black text-[#3d1e08] flex items-center justify-between group transition-all shadow-sm"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                                <span>Pilih / Atur Kucing Peliharaan (Pet)</span>
+                              </div>
+                              <span className="text-[10px] text-[#733814] font-semibold bg-[#f5cb85] px-2 py-0.5 rounded border border-[#b87c42]">
+                                {localPetBreed ? 'Ganti Pet' : 'Adopsi Pet'}
+                              </span>
+                            </button>
+
+                            {/* Secondary Button: Why cats */}
+                            <button
+                              onMouseEnter={() => playChoiceHover()}
+                              onClick={() => {
+                                playChoiceClick();
+                                setDialogStage('why_cats');
+                              }}
+                              className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
+                            >
+                              <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                              <span>Kenapa kamu yang ngurus kucing di kelas?</span>
+                            </button>
+
+                            {/* Joke Button */}
+                            <button
+                              onMouseEnter={() => playChoiceHover()}
+                              onClick={() => {
+                                playChoiceClick();
+                                setDialogStage('joke');
+                              }}
+                              className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
+                            >
+                              <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                              <span>Coba tebak-tebakan komedi dong</span>
+                            </button>
+
+                            {/* Bye */}
+                            <button
+                              onMouseEnter={() => playChoiceHover()}
+                              onClick={() => {
+                                playChoiceClick();
+                                setDialogStage('bye');
+                              }}
+                              className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#6d2716] flex items-center gap-2 group transition-all shadow-sm"
+                            >
+                              <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                              <span>Nggak jadi, pamit dulu</span>
+                            </button>
+                          </>
+                        )}
+
+                        {(dialogStage === 'who_are_you' || dialogStage === 'why_cats' || dialogStage === 'joke' || dialogStage === 'pet_selected' || dialogStage === 'pet_removed') && (
+                          <div className="flex gap-2">
+                            <button
+                              onMouseEnter={() => playChoiceHover()}
+                              onClick={() => {
+                                playChoiceClick();
+                                setDialogStage('pet_select');
+                              }}
+                              className="flex-1 text-left px-3 py-1.5 bg-[#ffe8bd] hover:bg-[#fff3db] border-2 border-[#8c4315] rounded text-xs font-bold text-[#3d1e08] flex items-center gap-1.5 shadow-sm"
+                            >
+                              <span className="font-mono text-[#a0521e]">▶</span>
+                              <span>Atur Pet Kucing Lainnya</span>
+                            </button>
+
+                            <button
+                              onMouseEnter={() => playChoiceHover()}
+                              onClick={() => {
+                                playChoiceClick();
+                                setDialogStage('intro');
+                              }}
+                              className="px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] border-2 border-[#b87c42] rounded text-xs font-bold text-[#3d1e08]"
+                            >
+                              ◀ Kembali
+                            </button>
+                          </div>
+                        )}
+
+                        {dialogStage === 'bye' && (
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={handleCloseAll}
+                            className="w-full text-center px-4 py-2 bg-[#8c3b28] hover:bg-[#a64732] active:bg-[#6e2e1f] border-2 border-[#4a1c12] rounded text-xs sm:text-sm font-bold text-amber-100 transition-all shadow"
+                          >
+                            Tinggalkan Dzakih
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {/* Stardew Indicator */}
                     <div className="absolute bottom-2 right-2.5 pointer-events-none select-none text-xs text-[#a0521e] animate-bounce font-mono">
@@ -413,7 +534,7 @@ export default function DzakihNPC({
                         Dzakih
                       </div>
                       <div className="text-[10px] text-[#733814] font-semibold">
-                        Si Paling Asik Sendiri
+                        Master Pet Kucing
                       </div>
                     </div>
                   </div>

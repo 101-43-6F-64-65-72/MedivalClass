@@ -62,17 +62,29 @@ export default function ChatBox({ messages = [], onSendMessage, currentRoomCode 
 
   const handleSubmit = (e) => {
     e?.preventDefault();
-    if (!inputText.trim() || cooldown > 0) return;
+    if (!inputText.trim()) {
+      // If user pressed Enter on empty input, immediately return control to player
+      inputRef.current?.blur();
+      return;
+    }
+    if (cooldown > 0) {
+      inputRef.current?.blur();
+      return;
+    }
 
     onSendMessage(inputText.trim(), filterScope === 'team');
     setInputText('');
     setCooldown(2); // 2 second anti-spam cooldown
+    // Immediately blur input field so keyboard returns to player movement (WASD / Arrows)
+    inputRef.current?.blur();
   };
 
   const handleQuickSend = (text) => {
     if (cooldown > 0) return;
     onSendMessage(text, filterScope === 'team');
     setCooldown(2);
+    // Immediately blur input field so keyboard returns to player movement
+    inputRef.current?.blur();
   };
 
   const filteredMessages = messages.filter((msg) => {

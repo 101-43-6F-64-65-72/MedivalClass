@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ExternalLink, Copy, Check, Tv, BookOpen, ArrowRight } from 'lucide-react';
+import { ExternalLink, Copy, Check, Tv, BookOpen, ArrowRight, Navigation } from 'lucide-react';
 import { 
   playTypewriterBlip, 
   playDialogueOpen, 
@@ -18,15 +18,16 @@ const DIALOGUE_TEXTS = {
   intro: 'Halo kawan! Aku Krisna. Sedang mencari slide materi pembelajaran hari ini? Aku pegang link presentasi Canva resmi untuk kelas kita lho!',
   open_slide: 'Ini slide pembelajarannya! Kamu bisa buka langsung di layar proyektor kelas atau buka di tab baru browser-mu agar bisa dibaca dengan nyaman.',
   topics: 'Materi hari ini membahas: Konsep Game Multiplayer Web, Arsitektur Next.js & Supabase Realtime, serta Prompting AI untuk Game Development!',
-  later: 'Siap! Kapan pun kamu butuh menyimak materi atau slide presentasi, datang saja ke rak buku ini ya!',
+  later: 'Siap! Kapan pun kamu butuh menyimak materi atau slide presentasi, datang saja ke panggung depan ini ya!',
 };
 
 export default function KrisnaNPC({
-  x = 1715,
-  y = 720,
+  x = 730,
+  y = 530,
   localPlayer,
   onOpenChange,
   onOpenPresentation,
+  isTracked = false,
 }) {
   const [mounted, setMounted] = useState(false);
   // Dialogue state: null | 'intro' | 'open_slide' | 'topics' | 'later'
@@ -224,13 +225,24 @@ export default function KrisnaNPC({
           </div>
         </div>
 
-        {/* Krisna Character Avatar & Grounded Shadow (Facing Left towards aisle: Row 1 = -48px -48px) */}
+        {/* Active Waypoint Beacon Marker (100% centered on NPC) */}
+        {isTracked && (
+          <div className="absolute -top-11 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
+            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-xl border border-amber-900 flex items-center gap-1 whitespace-nowrap">
+              <Navigation className="w-2.5 h-2.5 text-amber-900 fill-amber-900" />
+              <span>TARGET</span>
+            </div>
+            <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-amber-400 drop-shadow" />
+          </div>
+        )}
+
+        {/* Krisna Character Avatar & Grounded Shadow (Facing Front towards classroom: Row 0 = -48px 0px) */}
         <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
           <div
             className="w-12 h-12 image-pixelated transition-transform group-hover:scale-105 active:scale-95"
             style={{
               backgroundImage: "url('/assets/RPG Maker MZ (48x48)/characters/$Char_004.png')",
-              backgroundPosition: '-48px -48px', // Row 1 Col 1 = Facing LEFT
+              backgroundPosition: '-48px 0px', // Row 0 Col 1 = Facing FRONT
               backgroundSize: '144px 192px',
               backgroundRepeat: 'no-repeat',
             }}
@@ -238,6 +250,11 @@ export default function KrisnaNPC({
           {/* Shadow directly at feet */}
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />
         </div>
+
+        {/* Golden Target Pulse Ring at Feet */}
+        {isTracked && (
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-3 border-2 border-amber-400 rounded-full animate-pulse pointer-events-none shadow-[0_0_12px_rgba(251,191,36,0.9)] z-10" />
+        )}
       </div>
 
       {/* ========================================================

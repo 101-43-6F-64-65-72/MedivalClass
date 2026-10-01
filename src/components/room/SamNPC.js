@@ -2,36 +2,36 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ExternalLink, Copy, Check, Gamepad2, Sparkles, X, ArrowRight, Navigation } from 'lucide-react';
+import { ExternalLink, Copy, Check, SendHorizontal, Award, Navigation } from 'lucide-react';
 import { 
   playTypewriterBlip, 
   playDialogueOpen, 
   playChoiceHover, 
   playChoiceClick, 
   playCloseSound,
-  playSuccessChime,
-  playScrollOpen
+  playSuccessChime 
 } from '@/lib/soundEffects';
 
-const GAME_URL = 'https://pixel-arena-coin-grabber.vercel.app/';
+// Default submission URL - can be updated to specific Google Form / LMS link
+const SUBMISSION_URL = 'https://forms.gle/pengumpulan-tugas-game';
 
 const DIALOGUE_TEXTS = {
-  intro: 'Halo kawan! Kamu sedang belajar membuat game multiplayer dengan AI ya? Aku punya contoh game seru yang 100% dibuat dengan bantuan AI lho!',
-  what_game: 'Namanya Pixel Arena: Coin Grabber! Game 2D multiplayer berbasis web di mana para pemain saling berebut koin secara realtime, lengkap dengan skor live dan arena seru!',
-  play_now: 'Keren! Ini link arenanya. Langsung buka dan gas coba mainkan bersama teman-teman sekelasmu sekarang juga!',
-  learn: 'Banyak banget! Kamu bisa pelajari sinkronisasi Realtime posisi pemain, mekanik collision koin, leaderboard skor live, dan styling UI pixel art yang clean!',
-  later: 'Oke siap! Kalau kamu butuh inspirasi referensi untuk tugas game-mu, datang ke aku lagi ya!',
+  intro: 'Yo. Santai aja, gak usah tegang. Sudah selesai merancang konsep game bareng timmu? Kalau sudah siap, kumpulkan tugasnya lewat aku ya.',
+  submit: 'Bagus. Link pengumpulan tugas sudah siap. Pastikan link repository GitHub dan link deploy Vercel timmu sudah rapi sebelum submit ya.',
+  tips: 'Tips dari gue: AI itu rekan kerjamu, bukan pengganti logika berpikirmu. Pahami flow game loop-nya, baru minta AI bantu kodenya. Tetap tenang, eksekusi rapi.',
+  later: 'Take your time. Jangan sampai keteteran di menit-menit akhir. See ya.',
 };
 
-export default function ImanuelNPC({
-  x = 95,
-  y = 800,
+export default function SamNPC({
+  x = 180,
+  y = 515,
   localPlayer,
   onOpenChange,
+  submissionUrl = SUBMISSION_URL,
   isTracked = false,
 }) {
   const [mounted, setMounted] = useState(false);
-  // Dialogue state: null | 'intro' | 'what_game' | 'play_now' | 'learn' | 'later'
+  // Dialogue state: null | 'intro' | 'submit' | 'tips' | 'later'
   const [dialogStage, setDialogStage] = useState(null);
   const [copied, setCopied] = useState(false);
 
@@ -100,35 +100,19 @@ export default function ImanuelNPC({
     }
   };
 
-  useEffect(() => {
-    const handleKeySkip = (e) => {
-      const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
-
-      if ((e.key === ' ' || e.key === 'Enter') && isTyping) {
-        e.preventDefault();
-        handleSkipTyping();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeySkip);
-    return () => window.removeEventListener('keydown', handleKeySkip);
-  }, [isTyping, dialogStage]);
-
-  const handleOpenIntro = () => {
-    playDialogueOpen();
-    setDialogStage('intro');
-  };
-
-  // Keyboard 'E' to interact when nearby
+  // Keyboard shortcut listener:
+  // - Press 'E' when near to interact
+  // - Press 'Escape' to close dialog
   useEffect(() => {
     const handleKeyDown = (e) => {
       const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+      const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+      if (isInput) return;
 
       if ((e.key === 'e' || e.key === 'E') && isNear && !dialogStage) {
         e.preventDefault();
-        handleOpenIntro();
+        playDialogueOpen();
+        setDialogStage('intro');
       } else if (e.key === 'Escape' && dialogStage) {
         e.preventDefault();
         handleCloseAll();
@@ -139,81 +123,79 @@ export default function ImanuelNPC({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isNear, dialogStage]);
 
-  const handleCloseAll = () => {
-    playCloseSound();
-    setDialogStage(null);
-    if (onOpenChange) {
-      onOpenChange(false);
+  const handleInteract = () => {
+    if (!dialogStage) {
+      playDialogueOpen();
+      setDialogStage('intro');
     }
   };
 
+  const handleCloseAll = () => {
+    playCloseSound();
+    setDialogStage(null);
+  };
+
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(GAME_URL);
+    navigator.clipboard?.writeText(submissionUrl);
     playSuccessChime();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Format keyword highlights in the typewriter text
+  // Render dialogue text with keyword highlights
   const renderTypedContent = (text) => {
-    if (!text) return null;
+    const keywords = ['Sam', 'tugas', 'GitHub', 'Vercel', 'submit', 'game loop', 'See ya', 'Yo'];
+    let parts = [text];
 
-    const keywords = [
-      { word: 'Imanuel', className: 'text-[#7d3204] font-black underline decoration-[#a0521e]' },
-      { word: 'Pixel Arena: Coin Grabber', className: 'text-[#873906] font-black underline decoration-[#b87c42]' },
-      { word: '100% dibuat dengan bantuan AI', className: 'text-[#1e6126] font-black' },
-      { word: 'berebut koin', className: 'text-[#8c4a00] font-black' },
-      { word: 'realtime', className: 'text-[#094770] font-black' },
-      { word: 'skor live', className: 'text-[#1e6126] font-black' },
-      { word: 'Realtime', className: 'text-[#094770] font-black' },
-      { word: 'leaderboard', className: 'text-[#8c4a00] font-black' },
-    ];
-
-    const regex = new RegExp(`(${keywords.map(k => k.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g');
-    const parts = text.split(regex);
-
-    return parts.map((part, idx) => {
-      const match = keywords.find(k => k.word.toLowerCase() === part.toLowerCase());
-      if (match) {
-        return (
-          <span key={idx} className={match.className}>
-            {part}
-          </span>
-        );
-      }
-      return <span key={idx}>{part}</span>;
+    keywords.forEach((kw) => {
+      const newParts = [];
+      parts.forEach((part) => {
+        if (typeof part === 'string' && part.includes(kw)) {
+          const split = part.split(kw);
+          split.forEach((s, idx) => {
+            newParts.push(s);
+            if (idx < split.length - 1) {
+              newParts.push(
+                <span key={`${kw}-${idx}`} className="text-[#8c2e1b] font-black underline decoration-[#c98d51]/50 underline-offset-2">
+                  {kw}
+                </span>
+              );
+            }
+          });
+        } else {
+          newParts.push(part);
+        }
+      });
+      parts = newParts;
     });
+
+    return parts;
   };
 
   return (
     <>
       {/* ========================================================
-          1. IN-ROOM PHYSICAL NPC: IMANUEL (Faces Right)
-             Coordinates: West wall open aisle (x: 95, y: 800)
-             Row 2 Col 1 in RPG Maker MZ sheet faces RIGHT
+          1. MAP ENTITY: SAM NPC (West Wall near Pendulum Clock)
          ======================================================== */}
       <div
-        onClick={(e) => {
-          e.stopPropagation();
-          handleOpenIntro();
-        }}
+        onClick={handleInteract}
         className="absolute cursor-pointer pointer-events-auto select-none group"
         style={{
           left: `${x}px`,
           top: `${y}px`,
           transform: 'translate(-50%, -100%)',
-          zIndex: Math.floor(y) || 500,
+          zIndex: Math.floor(y) || 515,
           width: '56px',
           height: '68px',
         }}
-        title="Klik atau tekan E untuk bicara dengan Imanuel"
+        title="Klik atau tekan E untuk bicara dengan Sam"
       >
         {/* Floating NPC Indicator Arrow */}
         <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center animate-bounce">
           <img 
             src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
             alt="NPC Pointer" 
-            className="w-4 h-4 image-rendering-pixelated drop-shadow"
+            className="w-4 h-4 image-rendering-pixelated drop-shadow" 
           />
         </div>
 
@@ -224,34 +206,21 @@ export default function ImanuelNPC({
               <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2 pointer-events-none">
                 E
               </span>
-              <span className="text-[11px] font-bold text-amber-200">Bicara dgn Imanuel</span>
+              <span className="text-[11px] font-bold text-amber-200">Bicara dgn Sam</span>
             </div>
           </div>
         )}
 
         {/* NPC Nametag */}
-        <div className="absolute -top-1 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none">
+        <div className="absolute top-1 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none z-20">
           <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#140802]/90 border border-amber-600/70 text-amber-300 shadow-md">
-            <span>Imanuel</span>
+            <span>Sam</span>
           </div>
-        </div>
-
-        {/* Imanuel Character Avatar (Facing RIGHT: Row 2 Col 1 = -48px -96px) */}
-        <div className="relative w-12 h-12 mx-auto mt-4 flex items-center justify-center">
-          <div
-            className="w-12 h-12 image-pixelated transition-transform group-hover:scale-105 active:scale-95"
-            style={{
-              backgroundImage: "url('/assets/RPG Maker MZ (48x48)/characters/$Char_003.png')",
-              backgroundPosition: '-48px -96px', // Row 2 = Facing RIGHT
-              backgroundSize: '144px 192px',
-              backgroundRepeat: 'no-repeat',
-            }}
-          />
         </div>
 
         {/* Active Waypoint Beacon Marker (100% centered on NPC) */}
         {isTracked && (
-          <div className="absolute -top-12 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
+          <div className="absolute -top-11 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
             <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-xl border border-amber-900 flex items-center gap-1 whitespace-nowrap">
               <Navigation className="w-2.5 h-2.5 text-amber-900 fill-amber-900" />
               <span>TARGET</span>
@@ -260,8 +229,20 @@ export default function ImanuelNPC({
           </div>
         )}
 
-        {/* Shadow at feet */}
-        <div className="w-8 h-2.5 bg-black/50 rounded-full blur-[1px] mx-auto -mt-1 pointer-events-none" />
+        {/* Sam Character Avatar (Row 0 Col 1 = Facing Front towards camera) */}
+        <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
+          <div
+            className="w-12 h-12 image-pixelated transition-transform group-hover:scale-105 active:scale-95"
+            style={{
+              backgroundImage: "url('/assets/RPG Maker MZ (48x48)/characters/$Char_002.png')",
+              backgroundPosition: '-48px 0px', // Row 0 Col 1 = Facing FRONT towards camera
+              backgroundSize: '144px 192px',
+              backgroundRepeat: 'no-repeat',
+            }}
+          />
+          {/* Shadow directly at feet */}
+          <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />
+        </div>
 
         {/* Golden Target Pulse Ring at Feet */}
         {isTracked && (
@@ -319,43 +300,43 @@ export default function ImanuelNPC({
                       </p>
                     </div>
 
-                    {/* Example Game Card Preview (shown in what_game and play_now stages) */}
-                    {(dialogStage === 'what_game' || dialogStage === 'play_now' || dialogStage === 'learn') && (
+                    {/* Submission Preview Card (shown in submit stage) */}
+                    {(dialogStage === 'submit' || dialogStage === 'tips') && (
                       <div className="mt-2.5 p-2 bg-[#fae3ba] border-2 border-[#b87c42] rounded flex items-center justify-between gap-2 shadow-sm animate-in fade-in duration-200">
                         <div className="flex items-center gap-2 min-w-0">
-                          <Gamepad2 className="w-5 h-5 text-[#733814] shrink-0" />
+                          <SendHorizontal className="w-5 h-5 text-[#733814] shrink-0" />
                           <div className="min-w-0">
                             <div className="font-bold text-xs text-[#3d1e08] truncate">
-                              Pixel Arena: Coin Grabber
+                              Form Pengumpulan Tugas Game
                             </div>
                             <div className="text-[10px] text-[#8c4a00] font-mono truncate">
-                              pixel-arena-coin-grabber.vercel.app
+                              {submissionUrl}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             onClick={handleCopyLink}
-                            title="Salin Link Game"
+                            title="Salin Link Pengumpulan"
                             className="px-2 py-1 bg-[#f0d099] hover:bg-[#ffe5bc] border border-[#a8743a] rounded text-[10px] font-bold text-[#3d1e08] flex items-center gap-1 shadow-xs"
                           >
                             {copied ? <Check className="w-3 h-3 text-emerald-700" /> : <Copy className="w-3 h-3 text-[#733814]" />}
                             <span>{copied ? 'Tersalin' : 'Salin'}</span>
                           </button>
                           <a
-                            href={GAME_URL}
+                            href={submissionUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-2.5 py-1 bg-[#3d7a28] hover:bg-[#4b9631] border border-[#275319] rounded text-[10px] font-bold text-white flex items-center gap-1 shadow transition-transform hover:scale-105 active:scale-95"
                           >
-                            <span>Mainkan</span>
+                            <span>Buka Form</span>
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         </div>
                       </div>
                     )}
 
-                    {/* Stardew Dialogue Choice List */}
+                    {/* Dialogue Choice List */}
                     <div className={`mt-3 pt-2 border-t border-[#c98d51]/50 space-y-1.5 transition-opacity duration-200 ${
                       isTyping ? 'opacity-40' : 'opacity-100'
                     }`}>
@@ -365,36 +346,24 @@ export default function ImanuelNPC({
                             onMouseEnter={() => playChoiceHover()}
                             onClick={() => {
                               playChoiceClick();
-                              setDialogStage('what_game');
+                              setDialogStage('submit');
                             }}
                             className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
                           >
                             <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Game apa itu?</span>
+                            <span>Boleh minta link pengumpulan tugasnya?</span>
                           </button>
 
                           <button
                             onMouseEnter={() => playChoiceHover()}
                             onClick={() => {
                               playChoiceClick();
-                              setDialogStage('play_now');
+                              setDialogStage('tips');
                             }}
                             className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
                           >
                             <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Mau coba mainkan</span>
-                          </button>
-
-                          <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playChoiceClick();
-                              setDialogStage('learn');
-                            }}
-                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
-                          >
-                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Apa yang bisa dipelajari dari game itu?</span>
+                            <span>Ada tips sebelum kami submit tugas?</span>
                           </button>
 
                           <button
@@ -406,21 +375,21 @@ export default function ImanuelNPC({
                             className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#6d2716] flex items-center gap-2 group transition-all shadow-sm"
                           >
                             <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Nanti dulu</span>
+                            <span>Belum selesai, nanti balik lagi</span>
                           </button>
                         </>
                       )}
 
-                      {dialogStage === 'what_game' && (
+                      {dialogStage === 'submit' && (
                         <>
                           <a
-                            href={GAME_URL}
+                            href={submissionUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             onMouseEnter={() => playChoiceHover()}
                             className="w-full text-center px-4 py-2 bg-[#3d7a28] hover:bg-[#4b9631] border-2 border-[#275319] rounded text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.02] active:scale-98"
                           >
-                            <span>Buka Pixel Arena: Coin Grabber (Tab Baru)</span>
+                            <span>Buka Form Pengumpulan Tugas (Tab Baru)</span>
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
 
@@ -429,12 +398,12 @@ export default function ImanuelNPC({
                               onMouseEnter={() => playChoiceHover()}
                               onClick={() => {
                                 playChoiceClick();
-                                setDialogStage('learn');
+                                setDialogStage('tips');
                               }}
                               className="flex-1 text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] border-2 border-[#b87c42] rounded text-xs font-bold text-[#3d1e08] flex items-center gap-1.5"
                             >
                               <span className="font-mono text-[#a0521e]">▶</span>
-                              <span>Apa yg bisa dipelajari?</span>
+                              <span>Minta tips submit</span>
                             </button>
 
                             <button
@@ -451,43 +420,16 @@ export default function ImanuelNPC({
                         </>
                       )}
 
-                      {dialogStage === 'play_now' && (
+                      {dialogStage === 'tips' && (
                         <>
                           <a
-                            href={GAME_URL}
+                            href={submissionUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             onMouseEnter={() => playChoiceHover()}
-                            className="w-full text-center px-4 py-2.5 bg-[#3d7a28] hover:bg-[#4b9631] border-2 border-[#275319] rounded text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.02] active:scale-98 animate-pulse"
+                            className="w-full text-center px-4 py-2 bg-[#3d7a28] hover:bg-[#4b9631] border-2 border-[#275319] rounded text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow"
                           >
-                            <span>Buka Pixel Arena Sekarang</span>
-                            <ExternalLink className="w-4 h-4 ml-1" />
-                          </a>
-
-                          <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playChoiceClick();
-                              setDialogStage('intro');
-                            }}
-                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] border-2 border-[#b87c42] rounded text-xs font-bold text-[#3d1e08] flex items-center gap-2"
-                          >
-                            <span className="font-mono">◀</span>
-                            <span>Kembali ke pilihan</span>
-                          </button>
-                        </>
-                      )}
-
-                      {dialogStage === 'learn' && (
-                        <>
-                          <a
-                            href={GAME_URL}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onMouseEnter={() => playChoiceHover()}
-                            className="w-full text-center px-4 py-2 bg-[#3d7a28] hover:bg-[#4b9631] border-2 border-[#275319] rounded text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.02] active:scale-98"
-                          >
-                            <span>Buka Contoh Game (Pixel Arena)</span>
+                            <span>Langsung Buka Form Pengumpulan</span>
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
 
@@ -522,7 +464,7 @@ export default function ImanuelNPC({
                     </div>
                   </div>
 
-                  {/* RIGHT: Stardew Character Portrait Box for Imanuel */}
+                  {/* RIGHT: Stardew Character Portrait Box for Sam */}
                   <div 
                     className="w-full sm:w-44 shrink-0 rounded p-2.5 flex flex-col items-center justify-between"
                     style={{
@@ -542,7 +484,7 @@ export default function ImanuelNPC({
                       <div
                         className="w-24 h-24 image-pixelated pointer-events-none select-none"
                         style={{
-                          backgroundImage: "url('/assets/RPG Maker MZ (48x48)/characters/$Char_003.png')",
+                          backgroundImage: "url('/assets/RPG Maker MZ (48x48)/characters/$Char_002.png')",
                           backgroundPosition: '-96px 0px', // Front portrait angle
                           backgroundSize: '288px 384px',
                           backgroundRepeat: 'no-repeat',
@@ -560,10 +502,10 @@ export default function ImanuelNPC({
                       }}
                     >
                       <div className="font-serif font-black text-sm sm:text-base tracking-wider text-[#3d1e08]">
-                        Imanuel
+                        Sam
                       </div>
-                      <div className="text-[9px] text-[#8c4a00] font-mono">
-                        AI Game Showcase
+                      <div className="text-[10px] text-[#733814] font-semibold">
+                        Pengumpulan Tugas
                       </div>
                     </div>
                   </div>
@@ -571,7 +513,8 @@ export default function ImanuelNPC({
               </div>
             </div>
           )}
-        </>,
+        </>
+        ,
         document.body
       )}
     </>

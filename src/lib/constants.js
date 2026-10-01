@@ -85,10 +85,11 @@ export const DECORATIVE_ASSETS = [
 ];
 
 export const NPC_COLLIDERS = [
-  { id: 'npc-qeebos', name: 'Qeebos', x: 730, y: 530 },
+  { id: 'npc-qeebos', name: 'Qeebos', x: 1715, y: 720 },
   { id: 'npc-imanuel', name: 'Imanuel', x: 95, y: 800 },
-  { id: 'npc-krisna', name: 'Krisna', x: 1715, y: 720 },
+  { id: 'npc-krisna', name: 'Krisna', x: 730, y: 530 },
   { id: 'npc-dzakih', name: 'Dzakih', x: 1250, y: 955 },
+  { id: 'npc-sam', name: 'Sam', x: 135, y: 520 },
 ];
 
 export const ASSET_PATHS = {

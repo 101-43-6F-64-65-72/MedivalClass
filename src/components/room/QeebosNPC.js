@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, Copy, Check, Sparkles, X, ChevronRight, Database, Gamepad2, ArrowRight, AlertCircle } from 'lucide-react';
+import { Bot, Copy, Check, Sparkles, X, ChevronRight, Database, Gamepad2, ArrowRight, AlertCircle, FileText, Settings, Navigation } from 'lucide-react';
 import { 
   playTypewriterBlip, 
   playDialogueOpen, 
@@ -15,16 +15,23 @@ import {
 } from '@/lib/soundEffects';
 
 export default function QeebosNPC({
-  x = 730,
-  y = 530,
+  x = 1715,
+  y = 720,
   localPlayer,
   onOpenChange,
+  isTracked = false,
 }) {
   const [mounted, setMounted] = useState(false);
-  // Dialogue state: null | 'intro' | 'explain' | 'ya' | 'gak' | 'sayang' | 'form'
+  // Dialogue state: null | 'intro' | 'explain' | 'sayang' | 'form'
   const [dialogStage, setDialogStage] = useState(null);
-  const [activeTab, setActiveTab] = useState('brainstorm'); // 'brainstorm' | 'supabase' | 'preview'
-  const [copied, setCopied] = useState(false);
+  
+  // Independent tabs: 'brainstorm' | 'mcp'
+  const [activeTab, setActiveTab] = useState('brainstorm');
+  // Independent view modes per tab: 'form' | 'preview'
+  const [brainstormView, setBrainstormView] = useState('form');
+  const [mcpView, setMcpView] = useState('form');
+
+  const [copiedType, setCopiedType] = useState(null); // 'brainstorm' | 'mcp' | null
   const [validationError, setValidationError] = useState('');
 
   // Visual Novel Typing Effect State
@@ -32,11 +39,9 @@ export default function QeebosNPC({
   const [isTyping, setIsTyping] = useState(false);
 
   const DIALOGUE_TEXTS = {
-    intro: 'Halo aku Qeebos dan aku punya scroll prompt yang akan kamu butuhkan.',
-    explain: 'Halah alah, ini digunakan untuk membantu mu dalam prompting agar AI menghasilkan output yang enak, mantap, dan keren!',
-    ya: 'Siap!',
-    gak: 'Ya sudah.',
-    sayang: 'Aduh jadi malu... Nih >///<',
+    intro: 'Halo aku Qeebos dan aku punya scroll prompt yang akan kamu butuhkan. Mau buat prompt Brainstorming atau setup MCP Server?',
+    explain: 'Halah alah, ini digunakan untuk membantu mu dalam prompting agar AI menghasilkan output yang enak, mantap, dan terarah!',
+    sayang: 'Aduh jadi malu... Nih pilih scroll yang kamu mau >///<',
   };
 
   useEffect(() => {
@@ -63,7 +68,6 @@ export default function QeebosNPC({
       const currentSlice = fullText.slice(0, currentIndex);
       setDisplayedText(currentSlice);
       
-      // Play vocal blip on characters (every 2 characters for gentle rhythm)
       const char = fullText[currentIndex - 1];
       if (currentIndex % 2 === 0) {
         playTypewriterBlip(char);
@@ -73,7 +77,7 @@ export default function QeebosNPC({
         clearInterval(interval);
         setIsTyping(false);
       }
-    }, 24); // 24ms per character: snappy & authentic VN feel
+    }, 24);
 
     return () => clearInterval(interval);
   }, [dialogStage]);
@@ -108,9 +112,11 @@ export default function QeebosNPC({
     const keywords = [
       { word: 'Qeebos', className: 'text-[#7d3204] font-black underline decoration-[#a0521e]' },
       { word: 'scroll prompt', className: 'text-[#873906] font-black' },
+      { word: 'Brainstorming', className: 'text-[#1e6126] font-black' },
+      { word: 'MCP Server', className: 'text-[#094770] font-black' },
       { word: 'enak', className: 'text-[#1e6126] font-black' },
       { word: 'mantap', className: 'text-[#8c4a00] font-black' },
-      { word: 'keren', className: 'text-[#094770] font-black' },
+      { word: 'terarah', className: 'text-[#094770] font-black' },
       { word: '>///<', className: 'text-[#8c1b48] font-black' },
     ];
 
@@ -130,7 +136,7 @@ export default function QeebosNPC({
     });
   };
 
-  // Proximity check: Generous radius (130px) so player is comfortably within range
+  // Proximity check: Generous radius (130px)
   const isNear = Boolean(
     localPlayer &&
     Math.hypot(localPlayer.x - x, localPlayer.y - y) <= 130
@@ -169,8 +175,9 @@ export default function QeebosNPC({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isNear, dialogStage]);
 
-  // Form Parameters for Brainstorming & Supabase Setup (EMPTY BY DEFAULT, REQUIRED)
+  // Form Parameters for Brainstorming & Supabase Setup (SEPARATED)
   const [formData, setFormData] = useState({
+    // Brainstorming fields
     gameName: '',
     genre: '',
     ideDescription: '',
@@ -178,6 +185,7 @@ export default function QeebosNPC({
     gameStyle: '',
     targetDuration: '',
     developer: 'PEMULA',
+    // Supabase MCP fields
     supabaseProjectName: '',
     supabaseRefId: '',
     supabaseUrl: '',
@@ -191,7 +199,7 @@ export default function QeebosNPC({
     }
   };
 
-  // Validation Checks
+  // Validation Checks - Completely Independent
   const isBrainstormValid = Boolean(
     formData.gameName.trim() &&
     formData.genre.trim() &&
@@ -201,33 +209,15 @@ export default function QeebosNPC({
     formData.targetDuration.trim()
   );
 
-  const isSupabaseValid = Boolean(
+  const isMcpValid = Boolean(
     formData.supabaseProjectName.trim() &&
     formData.supabaseRefId.trim() &&
     formData.supabaseUrl.trim() &&
     formData.supabaseAnonKey.trim()
   );
 
-  const handleNextToSupabase = () => {
-    if (!isBrainstormValid) {
-      setValidationError('Semua kolom ide game wajib diisi sebelum lanjut!');
-      return;
-    }
-    setValidationError('');
-    setActiveTab('supabase');
-  };
-
-  const handleNextToPreview = () => {
-    if (!isSupabaseValid) {
-      setValidationError('Semua kolom Supabase wajib diisi sebelum membuat Master Prompt!');
-      return;
-    }
-    setValidationError('');
-    setActiveTab('preview');
-  };
-
-  // Generate Master Prompt exactly according to user template specification
-  const generatePrompt = () => {
+  // Prompt Generator 1: Brainstorming ONLY
+  const generateBrainstormPrompt = () => {
     return `# AI GAME ARCHITECT — BRAINSTORMING
 
 Saya ingin membuat game multiplayer berbasis web dengan bantuan AI Agent.
@@ -239,22 +229,22 @@ Saya adalah Product Owner. Bantu saya mengembangkan ide, tetapi jangan langsung 
 ## PROJECT INPUT
 
 Nama Game:
-${formData.gameName.trim() || '[ISI]'}
+${formData.gameName.trim() || '[ISI NAMA GAME]'}
 
 Genre:
-${formData.genre.trim() || '[ISI]'}
+${formData.genre.trim() || '[ISI GENRE GAME]'}
 
 Deskripsi Ide:
 ${formData.ideDescription.trim() || '[ISI 2–3 KALIMAT]'}
 
 Target Pemain:
-${formData.targetPlayer.trim() || '[ISI]'}
+${formData.targetPlayer.trim() || '[ISI TARGET PEMAIN]'}
 
 Gaya Game:
-${formData.gameStyle.trim() || '[PIXEL ART / CARTOON / DLL]'}
+${formData.gameStyle.trim() || '[PIXEL ART / CARTOON / RETRO / DLL]'}
 
 Target Waktu Pembuatan:
-${formData.targetDuration.trim() || '[ISI]'}
+${formData.targetDuration.trim() || '[ISI TARGET WAKTU]'}
 
 Developer:
 PEMULA
@@ -323,11 +313,12 @@ SIMPLE
 → STABLE
 → FUN
 
-Setelah brainstorming selesai, berhenti dan tunggu keputusan saya.
+Setelah brainstorming selesai, berhenti dan tunggu keputusan saya.`;
+  };
 
-
-
-# SUPABASE CONNECTION & MCP SETUP
+  // Prompt Generator 2: Supabase Connection & MCP Server Setup ONLY
+  const generateMcpPrompt = () => {
+    return `# SUPABASE CONNECTION & MCP SETUP
 
 You are the Software Engineer responsible for connecting this existing project to the student's Supabase project.
 
@@ -424,7 +415,8 @@ NEXT_PUBLIC_SUPABASE_URL=${formData.supabaseUrl.trim() || '[ISI PROJECT URL]'}
 
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${formData.supabaseAnonKey.trim() || '[ISI PUBLISHABLE KEY]'}
 
-If the project already uses the legacy \`NEXT_PUBLIC_SUPABASE_ANON_KEY\`, do not create duplicate variables unnecessarily. Keep the existing convention and report it in the final report
+If the project already uses the legacy \`NEXT_PUBLIC_SUPABASE_ANON_KEY\`, do not create duplicate variables unnecessarily. Keep the existing convention and report it in the final report.
+
 IMPORTANT:
 
 * \`.env.local\` must remain ignored by Git.
@@ -549,16 +541,42 @@ Do not continue to database schema or game implementation.
 Wait for my approval before proceeding to the next phase.`;
   };
 
-  const handleCopy = () => {
-    if (!isBrainstormValid || !isSupabaseValid) {
-      setValidationError('Semua kolom form wajib diisi terlebih dahulu sebelum menyalin prompt!');
+  const handleCopyBrainstorm = () => {
+    if (!isBrainstormValid) {
+      setValidationError('Semua kolom ide game wajib diisi sebelum menyalin prompt brainstorming!');
       return;
     }
-    const text = generatePrompt();
+    const text = generateBrainstormPrompt();
     navigator.clipboard.writeText(text);
     playSuccessChime();
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedType('brainstorm');
+    setTimeout(() => setCopiedType(null), 2000);
+  };
+
+  const handleCopyMcp = () => {
+    if (!isMcpValid) {
+      setValidationError('Semua kolom Supabase & MCP wajib diisi sebelum menyalin prompt MCP server!');
+      return;
+    }
+    const text = generateMcpPrompt();
+    navigator.clipboard.writeText(text);
+    playSuccessChime();
+    setCopiedType('mcp');
+    setTimeout(() => setCopiedType(null), 2000);
+  };
+
+  const handleOpenBrainstorm = () => {
+    playScrollOpen();
+    setActiveTab('brainstorm');
+    setValidationError('');
+    setDialogStage('form');
+  };
+
+  const handleOpenMcp = () => {
+    playScrollOpen();
+    setActiveTab('mcp');
+    setValidationError('');
+    setDialogStage('form');
   };
 
   const handleCloseAll = () => {
@@ -574,36 +592,30 @@ Wait for my approval before proceeding to the next phase.`;
       {/* ========================================================
           1. IN-ROOM PHYSICAL NPC: QEEBOS
              Rendered in 2D Classroom Camera Layer
-             - No shine/aura
-             - Clean downward pointing pixel arrow
-             - Large clickable hitbox
          ======================================================== */}
-      <div
-        onClick={(e) => {
-          e.stopPropagation();
-          handleOpenIntro();
-        }}
+      <div 
+        onClick={handleOpenIntro}
         className="absolute cursor-pointer pointer-events-auto select-none group"
         style={{
           left: `${x}px`,
           top: `${y}px`,
           transform: 'translate(-50%, -100%)',
-          zIndex: Math.floor(y) || 500,
+          zIndex: Math.floor(y) || 530,
           width: '56px',
           height: '68px',
         }}
         title="Klik atau tekan E untuk bicara dengan Qeebos"
       >
-        {/* Floating NPC Indicator Arrow (Classic RPG Gold Pointer) */}
+        {/* Floating NPC Pointer Arrow */}
         <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center animate-bounce">
           <img 
             src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
             alt="NPC Pointer" 
-            className="w-4 h-4 image-rendering-pixelated drop-shadow"
+            className="w-4 h-4 image-rendering-pixelated drop-shadow" 
           />
         </div>
 
-        {/* Proximity Interaction Hint [E] - shown only when near and dialog closed */}
+        {/* Proximity Interaction Hint [E] */}
         {isNear && !dialogStage && (
           <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none whitespace-nowrap animate-bounce-short">
             <div className="pixel-panel-wood text-amber-100 px-2.5 py-1 flex items-center gap-1.5 shadow-2xl border border-amber-600/70">
@@ -616,36 +628,46 @@ Wait for my approval before proceeding to the next phase.`;
         )}
 
         {/* NPC Nametag */}
-        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none z-20">
+        <div className="absolute top-1 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none z-20">
           <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#140802]/90 border border-amber-600/70 text-amber-300 shadow-md">
             <span>Qeebos</span>
           </div>
         </div>
 
-        {/* Qeebos Character Avatar & Grounded Shadow */}
+        {/* Active Waypoint Beacon Marker (100% centered on NPC) */}
+        {isTracked && (
+          <div className="absolute -top-11 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
+            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-xl border border-amber-900 flex items-center gap-1 whitespace-nowrap">
+              <Navigation className="w-2.5 h-2.5 text-amber-900 fill-amber-900" />
+              <span>TARGET</span>
+            </div>
+            <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-amber-400 drop-shadow" />
+          </div>
+        )}
+
+        {/* Qeebos Avatar Sprite */}
         <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
-          <img
-            src="/assets/OwnAssets/qeebos/QEEBOS.png"
-            alt="Qeebos"
-            className="w-10 h-10 object-contain object-bottom image-pixelated transition-transform group-hover:scale-105 active:scale-95"
-            style={{
-              transformOrigin: 'bottom center',
-            }}
+          <img 
+            src="/assets/OwnAssets/qeebos/normal.png" 
+            alt="Qeebos" 
+            className="w-10 h-10 object-contain image-pixelated transition-transform group-hover:scale-105 active:scale-95" 
           />
-          {/* Shadow directly under the bottom of the sprite */}
-          <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />
+          {/* Shadow directly at feet */}
+          <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1 pointer-events-none" />
         </div>
+
+        {/* Golden Target Pulse Ring at Feet */}
+        {isTracked && (
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-3 border-2 border-amber-400 rounded-full animate-pulse pointer-events-none shadow-[0_0_12px_rgba(251,191,36,0.9)] z-10" />
+        )}
       </div>
 
       {/* ========================================================
-          2. PORTALED OVERLAYS (Directly into document.body)
-             Critical fix: Escapes parent translate3d() & scale()!
+          2. PORTAL DIALOG & MODALS (Portaled to document.body)
          ======================================================== */}
       {mounted && createPortal(
         <>
-          {/* ========================================================
-              A. STARDEW VALLEY DIALOGUE BOX (Visual Novel Encounter)
-             ======================================================== */}
+          {/* A. STARDEW VALLEY DIALOGUE BOX */}
           {dialogStage && dialogStage !== 'form' && (
             <div className="fixed inset-0 z-[999999] pointer-events-auto flex items-end justify-center pb-6 sm:pb-8 px-4 bg-black/40 backdrop-blur-[1px] animate-in fade-in duration-150">
               <div 
@@ -691,12 +713,49 @@ Wait for my approval before proceeding to the next phase.`;
                       </p>
                     </div>
 
-                    {/* Stardew Dialogue Choice List (Dimmed while typing, fully interactive once finished or clicked) */}
-                    <div className={`mt-4 pt-2.5 border-t border-[#c98d51]/50 space-y-1.5 transition-opacity duration-200 ${
+                    {/* Dialogue Choice List */}
+                    <div className={`mt-3 pt-2 border-t border-[#c98d51]/50 space-y-1.5 transition-opacity duration-200 ${
                       isTyping ? 'opacity-40' : 'opacity-100'
                     }`}>
                       {dialogStage === 'intro' && (
                         <>
+                          {/* Option 1: Brainstorming */}
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={() => {
+                              playChoiceClick();
+                              handleOpenBrainstorm();
+                            }}
+                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center justify-between group transition-all shadow-sm"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                              <span>Scroll 1: Brainstorming Ide Game</span>
+                            </div>
+                            <span className="text-[10px] text-[#733814] bg-[#ebd1a0] px-1.5 py-0.5 rounded font-mono">
+                              Konsep & Loop
+                            </span>
+                          </button>
+
+                          {/* Option 2: MCP Server & Supabase */}
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={() => {
+                              playChoiceClick();
+                              handleOpenMcp();
+                            }}
+                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center justify-between group transition-all shadow-sm"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                              <span>Scroll 2: MCP Server & Supabase</span>
+                            </div>
+                            <span className="text-[10px] text-[#094770] bg-[#ebd1a0] px-1.5 py-0.5 rounded font-mono">
+                              Koneksi Database
+                            </span>
+                          </button>
+
+                          {/* Option 3: Explanation */}
                           <button
                             onMouseEnter={() => playChoiceHover()}
                             onClick={() => {
@@ -709,30 +768,7 @@ Wait for my approval before proceeding to the next phase.`;
                             <span>Apa itu scroll prompt?</span>
                           </button>
 
-                          <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playChoiceClick();
-                              setDialogStage('ya');
-                            }}
-                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
-                          >
-                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Ya</span>
-                          </button>
-
-                          <button
-                            onMouseEnter={() => playChoiceHover()}
-                            onClick={() => {
-                              playCloseSound();
-                              setDialogStage('gak');
-                            }}
-                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#6d2716] flex items-center gap-2 group transition-all shadow-sm"
-                          >
-                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Gak</span>
-                          </button>
-
+                          {/* Option 4: Cute flirt */}
                           <button
                             onMouseEnter={() => playChoiceHover()}
                             onClick={() => {
@@ -743,6 +779,16 @@ Wait for my approval before proceeding to the next phase.`;
                           >
                             <span className="text-[#96264d] group-hover:translate-x-1 transition-transform font-mono">▶</span>
                             <span>Tolong ya sayang</span>
+                          </button>
+
+                          {/* Option 5: Gak */}
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={handleCloseAll}
+                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#6d2716] flex items-center gap-2 group transition-all shadow-sm"
+                          >
+                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                            <span>Nanti dulu, pamit ya</span>
                           </button>
                         </>
                       )}
@@ -757,46 +803,27 @@ Wait for my approval before proceeding to the next phase.`;
                           className="w-full text-left px-3 py-2 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
                         >
                           <span className="text-[#a0521e] group-hover:-translate-x-1 transition-transform font-mono">◀</span>
-                          <span>Kembali ke pilihan</span>
-                        </button>
-                      )}
-
-                      {dialogStage === 'ya' && (
-                        <button
-                          onMouseEnter={() => playChoiceHover()}
-                          onClick={() => {
-                            playScrollOpen();
-                            setDialogStage('form');
-                          }}
-                          className="w-full text-center px-4 py-2.5 bg-[#4c8435] hover:bg-[#599e3e] active:bg-[#3d6a2a] border-2 border-[#2b4c1e] rounded text-xs sm:text-sm font-black text-amber-100 flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.02] active:scale-98 animate-pulse"
-                        >
-                          <span>Buka Scroll Prompt</span>
-                          <ArrowRight className="w-4 h-4 ml-1" />
-                        </button>
-                      )}
-
-                      {dialogStage === 'gak' && (
-                        <button
-                          onMouseEnter={() => playChoiceHover()}
-                          onClick={handleCloseAll}
-                          className="w-full text-center px-4 py-2 bg-[#8c3b28] hover:bg-[#a64732] active:bg-[#6e2e1f] border-2 border-[#4a1c12] rounded text-xs sm:text-sm font-bold text-amber-100 transition-all shadow"
-                        >
-                          Tutup
+                          <span>Kembali ke pilihan scroll</span>
                         </button>
                       )}
 
                       {dialogStage === 'sayang' && (
-                        <button
-                          onMouseEnter={() => playChoiceHover()}
-                          onClick={() => {
-                            playScrollOpen();
-                            setDialogStage('form');
-                          }}
-                          className="w-full text-center px-4 py-2.5 bg-gradient-to-r from-[#b33660] to-[#c44964] hover:from-[#c4416e] hover:to-[#d65773] border-2 border-[#691832] rounded text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.02] active:scale-98"
-                        >
-                          <span>Buka Scroll Prompt</span>
-                          <ArrowRight className="w-4 h-4 ml-1" />
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={handleOpenBrainstorm}
+                            className="flex-1 py-2 px-3 bg-[#b33660] hover:bg-[#c4416e] text-white text-xs font-bold rounded shadow flex items-center justify-center gap-1"
+                          >
+                            <span>Scroll Brainstorming</span>
+                          </button>
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={handleOpenMcp}
+                            className="flex-1 py-2 px-3 bg-[#1e4a6d] hover:bg-[#255c87] text-white text-xs font-bold rounded shadow flex items-center justify-center gap-1"
+                          >
+                            <span>Scroll MCP Server</span>
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -841,6 +868,9 @@ Wait for my approval before proceeding to the next phase.`;
                       <div className="font-serif font-black text-sm sm:text-base tracking-wider text-[#3d1e08]">
                         Qeebos
                       </div>
+                      <div className="text-[10px] text-[#733814] font-semibold">
+                        Scroll Prompt Master
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -849,8 +879,7 @@ Wait for my approval before proceeding to the next phase.`;
           )}
 
           {/* ========================================================
-              B. FULL FORM MODAL (Scroll Prompt Generator)
-                 Opens after 'Ya' or 'Tolong ya sayang'
+              B. FULL FORM MODAL (Separate Brainstorming & MCP Server)
              ======================================================== */}
           {dialogStage === 'form' && (
             <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[999999] flex items-center justify-center p-3 sm:p-6 select-none animate-in fade-in duration-150">
@@ -869,11 +898,13 @@ Wait for my approval before proceeding to the next phase.`;
                       <h2 className="font-black text-sm text-amber-300 flex items-center gap-2">
                         <span>Qeebos</span>
                         <span className="text-[10px] pixel-btn-gold text-amber-950 px-1.5 py-0.2 pointer-events-none">
-                          Scroll Prompt Master
+                          Scroll Prompt Generator
                         </span>
                       </h2>
                       <p className="text-[11px] text-amber-200/80">
-                        Form Wajib Diisi: Brainstorming Ide Game & Konfigurasi Supabase MCP
+                        {activeTab === 'brainstorm' 
+                          ? 'Scroll 1: Brainstorming Ide Game (Konsep, Loop, & MVP)' 
+                          : 'Scroll 2: MCP Server & Koneksi Supabase Database'}
                       </p>
                     </div>
                   </div>
@@ -890,57 +921,38 @@ Wait for my approval before proceeding to the next phase.`;
                   </button>
                 </div>
 
-                {/* Navigation Tabs */}
-                <div className="flex items-center gap-1.5 p-2 bg-[#200e04] border-b border-[#5a3012] text-xs">
+                {/* Primary Category Tabs: Strictly Separated */}
+                <div className="flex items-center gap-2 p-2 bg-[#200e04] border-b border-[#5a3012] text-xs">
                   <button
                     onClick={() => {
                       setValidationError('');
                       setActiveTab('brainstorm');
                     }}
-                    className={`flex-1 py-1.5 px-3 font-bold flex items-center justify-center gap-1.5 transition-all ${
-                      activeTab === 'brainstorm' ? 'pixel-btn-gold text-amber-950' : 'pixel-btn-wood text-amber-200/80'
+                    className={`flex-1 py-2 px-3 font-bold flex items-center justify-center gap-2 transition-all ${
+                      activeTab === 'brainstorm' 
+                        ? 'pixel-btn-gold text-amber-950 shadow-md ring-1 ring-amber-300' 
+                        : 'pixel-btn-wood text-amber-200/80 hover:text-amber-100'
                     }`}
                   >
-                    <Gamepad2 className="w-3.5 h-3.5" />
-                    <span>1. Brainstorming Ide</span>
-                    {isBrainstormValid && <span className="text-emerald-400 text-[10px]">✓</span>}
+                    <Gamepad2 className="w-4 h-4" />
+                    <span>Scroll 1: Brainstorming Ide Game</span>
+                    {isBrainstormValid && <span className="text-emerald-400 text-xs font-bold">✓</span>}
                   </button>
+
                   <button
                     onClick={() => {
-                      if (!isBrainstormValid) {
-                        setValidationError('Lengkapi data ide game terlebih dahulu sebelum ke tab Supabase!');
-                        return;
-                      }
                       setValidationError('');
-                      setActiveTab('supabase');
+                      setActiveTab('mcp');
                     }}
-                    className={`flex-1 py-1.5 px-3 font-bold flex items-center justify-center gap-1.5 transition-all ${
-                      activeTab === 'supabase' ? 'pixel-btn-gold text-amber-950' : 'pixel-btn-wood text-amber-200/80'
+                    className={`flex-1 py-2 px-3 font-bold flex items-center justify-center gap-2 transition-all ${
+                      activeTab === 'mcp' 
+                        ? 'pixel-btn-gold text-amber-950 shadow-md ring-1 ring-amber-300' 
+                        : 'pixel-btn-wood text-amber-200/80 hover:text-amber-100'
                     }`}
                   >
-                    <Database className="w-3.5 h-3.5" />
-                    <span>2. Supabase MCP Setup</span>
-                    {isSupabaseValid && <span className="text-emerald-400 text-[10px]">✓</span>}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!isBrainstormValid) {
-                        setValidationError('Lengkapi data ide game terlebih dahulu!');
-                        return;
-                      }
-                      if (!isSupabaseValid) {
-                        setValidationError('Lengkapi data Supabase terlebih dahulu!');
-                        return;
-                      }
-                      setValidationError('');
-                      setActiveTab('preview');
-                    }}
-                    className={`flex-1 py-1.5 px-3 font-bold flex items-center justify-center gap-1.5 transition-all ${
-                      activeTab === 'preview' ? 'pixel-btn-gold text-amber-950' : 'pixel-btn-wood text-amber-200/80'
-                    }`}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>3. Master Prompt Siap</span>
+                    <Database className="w-4 h-4" />
+                    <span>Scroll 2: MCP Server & Supabase</span>
+                    {isMcpValid && <span className="text-emerald-400 text-xs font-bold">✓</span>}
                   </button>
                 </div>
 
@@ -954,293 +966,463 @@ Wait for my approval before proceeding to the next phase.`;
 
                 {/* Modal Body */}
                 <div className="flex-1 p-4 overflow-y-auto bg-[#170802]/90 space-y-4 text-xs">
-                  {/* TAB 1: BRAINSTORMING GAME */}
+                  {/* ========================================================
+                      TAB 1: BRAINSTORMING GAME (Completely Independent)
+                     ======================================================== */}
                   {activeTab === 'brainstorm' && (
                     <div className="space-y-3.5 animate-in fade-in duration-150">
-                      <div className="pixel-box-inset p-3 bg-[#241105] text-[11px] text-amber-200/90 leading-relaxed flex items-center justify-between">
-                        <div>
-                          <strong>Form Ide Game:</strong> Semua kolom di bawah <strong>wajib diisi</strong> agar AI Agent memahami konsep game yang ingin dibuat.
+                      {/* Sub-navigation: Form vs Preview */}
+                      <div className="flex items-center justify-between border-b border-[#3d1d07] pb-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setBrainstormView('form')}
+                            className={`px-3 py-1 text-xs font-bold rounded ${
+                              brainstormView === 'form' 
+                                ? 'bg-[#733814] text-amber-200 border border-[#b87c42]' 
+                                : 'text-amber-400/80 hover:text-amber-200'
+                            }`}
+                          >
+                            Input Form Brainstorming
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (!isBrainstormValid) {
+                                setValidationError('Lengkapi data ide game di bawah terlebih dahulu!');
+                                return;
+                              }
+                              setValidationError('');
+                              setBrainstormView('preview');
+                            }}
+                            className={`px-3 py-1 text-xs font-bold rounded flex items-center gap-1.5 ${
+                              brainstormView === 'preview' 
+                                ? 'bg-[#733814] text-amber-200 border border-[#b87c42]' 
+                                : 'text-amber-400/80 hover:text-amber-200'
+                            }`}
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>Preview Prompt Brainstorming</span>
+                          </button>
                         </div>
-                        <span className="text-[10px] text-amber-400/70 font-mono shrink-0 ml-2">
-                          * = Wajib Diisi
-                        </span>
+
+                        {brainstormView === 'form' && isBrainstormValid && (
+                          <button
+                            onClick={() => {
+                              setValidationError('');
+                              setBrainstormView('preview');
+                            }}
+                            className="pixel-btn-gold text-[10px] px-2.5 py-1 font-bold flex items-center gap-1"
+                          >
+                            <span>Lihat Prompt</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            1. Nama Game <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.gameName}
-                            onChange={(e) => handleChange('gameName', e.target.value)}
-                            placeholder="Contoh: Medival Dungeon Runner"
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
-                              validationError && !formData.gameName.trim() ? 'border-red-500 bg-red-950/30' : ''
-                            }`}
-                          />
-                        </div>
+                      {/* View 1: Form Input */}
+                      {brainstormView === 'form' && (
+                        <div className="space-y-3">
+                          <div className="pixel-box-inset p-3 bg-[#241105] text-[11px] text-amber-200/90 leading-relaxed flex items-center justify-between">
+                            <div>
+                              <strong>Scroll Brainstorming:</strong> Fokus pada konsep game, gameplay loop, dan fitur MVP. Prompt ini <strong>bebas dari kode dan setup database</strong>.
+                            </div>
+                            <span className="text-[10px] text-amber-400/70 font-mono shrink-0 ml-2">
+                              * = Wajib
+                            </span>
+                          </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            2. Genre Game <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.genre}
-                            onChange={(e) => handleChange('genre', e.target.value)}
-                            placeholder="Contoh: 2D Pixel Action RPG / Puzzle"
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
-                              validationError && !formData.genre.trim() ? 'border-red-500 bg-red-950/30' : ''
-                            }`}
-                          />
-                        </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                1. Nama Game <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.gameName}
+                                onChange={(e) => handleChange('gameName', e.target.value)}
+                                placeholder="Contoh: Medival Dungeon Runner"
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
+                                  validationError && !formData.gameName.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                            </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            3. Deskripsi Ide (2–3 Kalimat) <span className="text-red-400">*</span>
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={formData.ideDescription}
-                            onChange={(e) => handleChange('ideDescription', e.target.value)}
-                            placeholder="Jelaskan inti gameplay, interaksi pemain, dan tujuan utama dalam 2-3 kalimat..."
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
-                              validationError && !formData.ideDescription.trim() ? 'border-red-500 bg-red-950/30' : ''
-                            }`}
-                          />
-                        </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                2. Genre Game <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.genre}
+                                onChange={(e) => handleChange('genre', e.target.value)}
+                                placeholder="Contoh: 2D Pixel Action RPG / Puzzle"
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
+                                  validationError && !formData.genre.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                            </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            4. Target Pemain <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.targetPlayer}
-                            onChange={(e) => handleChange('targetPlayer', e.target.value)}
-                            placeholder="Contoh: Siswa SMK / Gamer Casual Web"
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
-                              validationError && !formData.targetPlayer.trim() ? 'border-red-500 bg-red-950/30' : ''
-                            }`}
-                          />
-                        </div>
+                            <div className="sm:col-span-2">
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                3. Deskripsi Ide (2–3 Kalimat) <span className="text-red-400">*</span>
+                              </label>
+                              <textarea
+                                rows={3}
+                                value={formData.ideDescription}
+                                onChange={(e) => handleChange('ideDescription', e.target.value)}
+                                placeholder="Jelaskan inti gameplay, interaksi pemain, dan tujuan menang dalam 2-3 kalimat..."
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
+                                  validationError && !formData.ideDescription.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                            </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            5. Gaya Game <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.gameStyle}
-                            onChange={(e) => handleChange('gameStyle', e.target.value)}
-                            placeholder="Contoh: PIXEL ART / CARTOON / RETRO"
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
-                              validationError && !formData.gameStyle.trim() ? 'border-red-500 bg-red-950/30' : ''
-                            }`}
-                          />
-                        </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                4. Target Pemain <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.targetPlayer}
+                                onChange={(e) => handleChange('targetPlayer', e.target.value)}
+                                placeholder="Contoh: Siswa SMK / Gamer Casual Web"
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
+                                  validationError && !formData.targetPlayer.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                            </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            6. Target Waktu Pembuatan <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.targetDuration}
-                            onChange={(e) => handleChange('targetDuration', e.target.value)}
-                            placeholder="Contoh: 3 Hari / 1 Minggu"
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
-                              validationError && !formData.targetDuration.trim() ? 'border-red-500 bg-red-950/30' : ''
-                            }`}
-                          />
-                        </div>
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                5. Gaya Game <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.gameStyle}
+                                onChange={(e) => handleChange('gameStyle', e.target.value)}
+                                placeholder="Contoh: PIXEL ART / CARTOON / RETRO"
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
+                                  validationError && !formData.gameStyle.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                            </div>
 
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            7. Tingkat Developer
-                          </label>
-                          <div className="pixel-box-inset px-3 py-2 text-xs text-amber-300 font-bold bg-[#1a0a03]">
-                            PEMULA (Otomatis disesuaikan oleh Qeebos)
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                6. Target Waktu Pembuatan <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.targetDuration}
+                                onChange={(e) => handleChange('targetDuration', e.target.value)}
+                                placeholder="Contoh: 3 Hari / 1 Minggu"
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
+                                  validationError && !formData.targetDuration.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                7. Tingkat Developer
+                              </label>
+                              <div className="pixel-box-inset px-3 py-2 text-xs text-amber-300 font-bold bg-[#1a0a03]">
+                                PEMULA (Otomatis)
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 flex justify-between items-center">
+                            <span className="text-[10px] text-amber-400/70">
+                              {isBrainstormValid ? '✓ Semua kolom terisi siap salin' : 'Isi semua kolom untuk membuat prompt'}
+                            </span>
+                            <button
+                              onClick={() => {
+                                if (!isBrainstormValid) {
+                                  setValidationError('Semua kolom ide game wajib diisi terlebih dahulu!');
+                                  return;
+                                }
+                                setValidationError('');
+                                setBrainstormView('preview');
+                              }}
+                              className="pixel-btn-gold px-4 py-2 font-bold flex items-center gap-1.5"
+                            >
+                              <span>Lihat & Salin Prompt Brainstorming</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
-                      </div>
+                      )}
 
-                      <div className="pt-2 flex justify-end">
-                        <button
-                          onClick={handleNextToSupabase}
-                          className="pixel-btn-gold px-4 py-2 font-bold flex items-center gap-1.5"
-                        >
-                          <span>Lanjut ke Setup Supabase MCP</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      {/* View 2: Prompt Preview */}
+                      {brainstormView === 'preview' && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between border-b border-[#5a3012] pb-1.5">
+                            <div>
+                              <h4 className="font-bold text-amber-300 flex items-center gap-1.5 text-xs">
+                                <Check className="w-4 h-4 text-emerald-400" />
+                                <span>Prompt Brainstorming Siap Digunakan!</span>
+                              </h4>
+                              <p className="text-[10px] text-amber-200/70">
+                                Berikan prompt ini ke AI Agent untuk merumuskan konsep game secara terarah.
+                              </p>
+                            </div>
+                            <button
+                              onClick={handleCopyBrainstorm}
+                              className="pixel-btn-gold px-3.5 py-1.5 font-bold text-xs flex items-center gap-1.5 shadow-lg"
+                            >
+                              {copiedType === 'brainstorm' ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-950" />
+                                  <span>Tersalin!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>Salin Prompt</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Code Block for Brainstorming */}
+                          <div className="pixel-box-inset p-3 max-h-[340px] overflow-y-auto font-mono text-[10.5px] text-amber-100/90 leading-relaxed whitespace-pre-wrap select-text bg-[#120501]">
+                            {generateBrainstormPrompt()}
+                          </div>
+
+                          <div className="pt-1 flex justify-between items-center">
+                            <button
+                              onClick={() => setBrainstormView('form')}
+                              className="pixel-btn-wood px-3 py-1.5 text-xs"
+                            >
+                              Edit Input Ide Game
+                            </button>
+                            <button
+                              onClick={handleCopyBrainstorm}
+                              className="pixel-btn-gold px-5 py-2 font-bold text-xs flex items-center gap-2 shadow-xl"
+                            >
+                              {copiedType === 'brainstorm' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                              <span>{copiedType === 'brainstorm' ? 'Berhasil Disalin ke Clipboard!' : 'Salin Prompt Brainstorming'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* TAB 2: SUPABASE & MCP CONFIGURATION */}
-                  {activeTab === 'supabase' && (
+                  {/* ========================================================
+                      TAB 2: MCP SERVER & SUPABASE SETUP (Completely Independent)
+                     ======================================================== */}
+                  {activeTab === 'mcp' && (
                     <div className="space-y-3.5 animate-in fade-in duration-150">
-                      <div className="pixel-box-inset p-3 bg-[#1d1007] text-[11px] text-amber-200/90 leading-relaxed space-y-1">
-                        <div>
-                          ⚡ <strong>Koneksi Supabase & Supabase MCP:</strong> Semua kredensial di bawah <strong>wajib diisi</strong>.
-                        </div>
-                        <p className="text-amber-400/80">
-                          Ambil dari Dashboard Supabase Anda: <em>Project Settings → General (Ref ID) & API (URL + anon key)</em>.
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            1. Nama Project Supabase <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.supabaseProjectName}
-                            onChange={(e) => handleChange('supabaseProjectName', e.target.value)}
-                            placeholder="Contoh: My Awesome Game"
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
-                              validationError && !formData.supabaseProjectName.trim() ? 'border-red-500 bg-red-950/30' : ''
+                      {/* Sub-navigation: Form vs Preview */}
+                      <div className="flex items-center justify-between border-b border-[#3d1d07] pb-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setMcpView('form')}
+                            className={`px-3 py-1 text-xs font-bold rounded ${
+                              mcpView === 'form' 
+                                ? 'bg-[#733814] text-amber-200 border border-[#b87c42]' 
+                                : 'text-amber-400/80 hover:text-amber-200'
                             }`}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            2. Project Reference ID <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.supabaseRefId}
-                            onChange={(e) => handleChange('supabaseRefId', e.target.value)}
-                            placeholder="Contoh: wxyzkabcxyz123"
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 font-mono ${
-                              validationError && !formData.supabaseRefId.trim() ? 'border-red-500 bg-red-950/30' : ''
+                          >
+                            Input Data Supabase
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (!isMcpValid) {
+                                setValidationError('Lengkapi data Supabase di bawah terlebih dahulu!');
+                                return;
+                              }
+                              setValidationError('');
+                              setMcpView('preview');
+                            }}
+                            className={`px-3 py-1 text-xs font-bold rounded flex items-center gap-1.5 ${
+                              mcpView === 'preview' 
+                                ? 'bg-[#733814] text-amber-200 border border-[#b87c42]' 
+                                : 'text-amber-400/80 hover:text-amber-200'
                             }`}
-                          />
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>Preview Prompt MCP Server</span>
+                          </button>
                         </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            3. Project URL Supabase <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.supabaseUrl}
-                            onChange={(e) => handleChange('supabaseUrl', e.target.value)}
-                            placeholder="Contoh: https://wxyzkabcxyz123.supabase.co"
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 font-mono ${
-                              validationError && !formData.supabaseUrl.trim() ? 'border-red-500 bg-red-950/30' : ''
-                            }`}
-                          />
+                        {mcpView === 'form' && isMcpValid && (
+                          <button
+                            onClick={() => {
+                              setValidationError('');
+                              setMcpView('preview');
+                            }}
+                            className="pixel-btn-gold text-[10px] px-2.5 py-1 font-bold flex items-center gap-1"
+                          >
+                            <span>Lihat Prompt</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* View 1: Form Input */}
+                      {mcpView === 'form' && (
+                        <div className="space-y-3">
+                          <div className="pixel-box-inset p-3 bg-[#1d1007] text-[11px] text-amber-200/90 leading-relaxed space-y-1">
+                            <div>
+                              <strong>Scroll MCP Server:</strong> Konfigurasi koneksi proyek ke Supabase dan MCP Server. Prompt ini <strong>khusus untuk integrasi teknis</strong>.
+                            </div>
+                            <p className="text-amber-400/80">
+                              Dapatkan dari Dashboard Supabase: <em>Project Settings → General (Ref ID) & API (URL + anon key)</em>.
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                1. Nama Project Supabase <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.supabaseProjectName}
+                                onChange={(e) => handleChange('supabaseProjectName', e.target.value)}
+                                placeholder="Contoh: My Pixel Game"
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
+                                  validationError && !formData.supabaseProjectName.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                2. Project Reference ID <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.supabaseRefId}
+                                onChange={(e) => handleChange('supabaseRefId', e.target.value)}
+                                placeholder="Contoh: wxyzkabcxyz123"
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 font-mono ${
+                                  validationError && !formData.supabaseRefId.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                3. Project URL Supabase <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.supabaseUrl}
+                                onChange={(e) => handleChange('supabaseUrl', e.target.value)}
+                                placeholder="Contoh: https://wxyzkabcxyz123.supabase.co"
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 font-mono ${
+                                  validationError && !formData.supabaseUrl.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                            </div>
+
+                            <div className="sm:col-span-2">
+                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
+                                4. Publishable Key (Anon Key) <span className="text-red-400">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.supabaseAnonKey}
+                                onChange={(e) => handleChange('supabaseAnonKey', e.target.value)}
+                                placeholder="Contoh: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                                required
+                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 font-mono ${
+                                  validationError && !formData.supabaseAnonKey.trim() ? 'border-red-500 bg-red-950/30' : ''
+                                }`}
+                              />
+                              <span className="text-[10px] text-amber-400/70 mt-1 block">
+                                * Gunakan publishable/anon key saja. Jangan gunakan service_role key.
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 flex justify-between items-center">
+                            <span className="text-[10px] text-amber-400/70">
+                              {isMcpValid ? '✓ Semua data Supabase terisi' : 'Isi semua data Supabase untuk membuat prompt'}
+                            </span>
+                            <button
+                              onClick={() => {
+                                if (!isMcpValid) {
+                                  setValidationError('Semua kolom Supabase & MCP wajib diisi terlebih dahulu!');
+                                  return;
+                                }
+                                setValidationError('');
+                                setMcpView('preview');
+                              }}
+                              className="pixel-btn-gold px-4 py-2 font-bold flex items-center gap-1.5"
+                            >
+                              <span>Lihat & Salin Prompt MCP Server</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
+                      )}
 
-                        <div className="sm:col-span-2">
-                          <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                            4. Publishable Key (Anon Key) <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.supabaseAnonKey}
-                            onChange={(e) => handleChange('supabaseAnonKey', e.target.value)}
-                            placeholder="Contoh: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                            required
-                            className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 font-mono ${
-                              validationError && !formData.supabaseAnonKey.trim() ? 'border-red-500 bg-red-950/30' : ''
-                            }`}
-                          />
-                          <span className="text-[10px] text-amber-400/60 mt-1 block">
-                            * Jangan gunakan service_role key. Gunakan publishable/anon key saja.
-                          </span>
+                      {/* View 2: Prompt Preview */}
+                      {mcpView === 'preview' && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between border-b border-[#5a3012] pb-1.5">
+                            <div>
+                              <h4 className="font-bold text-amber-300 flex items-center gap-1.5 text-xs">
+                                <Check className="w-4 h-4 text-emerald-400" />
+                                <span>Prompt MCP Server & Supabase Siap Digunakan!</span>
+                              </h4>
+                              <p className="text-[10px] text-amber-200/70">
+                                Berikan prompt ini ke AI Agent untuk mengonfigurasi koneksi Supabase MCP dan client Next.js.
+                              </p>
+                            </div>
+                            <button
+                              onClick={handleCopyMcp}
+                              className="pixel-btn-gold px-3.5 py-1.5 font-bold text-xs flex items-center gap-1.5 shadow-lg"
+                            >
+                              {copiedType === 'mcp' ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-950" />
+                                  <span>Tersalin!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>Salin Prompt MCP</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Code Block for MCP Server */}
+                          <div className="pixel-box-inset p-3 max-h-[340px] overflow-y-auto font-mono text-[10.5px] text-amber-100/90 leading-relaxed whitespace-pre-wrap select-text bg-[#120501]">
+                            {generateMcpPrompt()}
+                          </div>
+
+                          <div className="pt-1 flex justify-between items-center">
+                            <button
+                              onClick={() => setMcpView('form')}
+                              className="pixel-btn-wood px-3 py-1.5 text-xs"
+                            >
+                              Edit Data Supabase
+                            </button>
+                            <button
+                              onClick={handleCopyMcp}
+                              className="pixel-btn-gold px-5 py-2 font-bold text-xs flex items-center gap-2 shadow-xl"
+                            >
+                              {copiedType === 'mcp' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                              <span>{copiedType === 'mcp' ? 'Berhasil Disalin ke Clipboard!' : 'Salin Prompt MCP Server'}</span>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="pt-2 flex justify-between items-center">
-                        <button
-                          onClick={() => {
-                            setValidationError('');
-                            setActiveTab('brainstorm');
-                          }}
-                          className="pixel-btn-wood px-3 py-1.5 text-xs"
-                        >
-                          Kembali
-                        </button>
-                        <button
-                          onClick={handleNextToPreview}
-                          className="pixel-btn-gold px-4 py-2 font-bold flex items-center gap-1.5"
-                        >
-                          <span>Lihat & Salin Master Prompt</span>
-                          <Sparkles className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB 3: MASTER PROMPT PREVIEW & ONE-CLICK COPY */}
-                  {activeTab === 'preview' && (
-                    <div className="space-y-3.5 animate-in fade-in duration-150">
-                      <div className="flex items-center justify-between border-b border-[#5a3012] pb-1.5">
-                        <div>
-                          <h4 className="font-bold text-amber-300 flex items-center gap-1.5 text-xs">
-                            <Check className="w-4 h-4 text-emerald-400" />
-                            <span>Master Prompt Siap Diberikan ke AI Agent!</span>
-                          </h4>
-                          <p className="text-[10px] text-amber-200/70">
-                            Klik tombol salin di bawah lalu tempelkan ke AI Agent kamu di terminal atau chat.
-                          </p>
-                        </div>
-                        <button
-                          onClick={handleCopy}
-                          className="pixel-btn-gold px-3.5 py-1.5 font-bold text-xs flex items-center gap-1.5 shadow-lg"
-                        >
-                          {copied ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-emerald-950" />
-                              <span>Tersalin!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3.5 h-3.5" />
-                              <span>Salin Prompt</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Formatted Code Block */}
-                      <div className="pixel-box-inset p-3 max-h-[360px] overflow-y-auto font-mono text-[10.5px] text-amber-100/90 leading-relaxed whitespace-pre-wrap select-text bg-[#120501]">
-                        {generatePrompt()}
-                      </div>
-
-                      <div className="pt-1 flex justify-between items-center">
-                        <button
-                          onClick={() => {
-                            setValidationError('');
-                            setActiveTab('brainstorm');
-                          }}
-                          className="pixel-btn-wood px-3 py-1.5 text-xs"
-                        >
-                          Edit Input
-                        </button>
-                        <button
-                          onClick={handleCopy}
-                          className="pixel-btn-gold px-5 py-2 font-bold text-xs flex items-center gap-2 shadow-xl"
-                        >
-                          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          <span>{copied ? 'Berhasil Disalin ke Clipboard!' : 'Salin Seluruh Master Prompt'}</span>
-                        </button>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>

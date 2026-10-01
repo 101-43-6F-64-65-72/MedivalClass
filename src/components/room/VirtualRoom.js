@@ -10,12 +10,14 @@ import QeebosNPC from './QeebosNPC';
 import ImanuelNPC from './ImanuelNPC';
 import KrisnaNPC from './KrisnaNPC';
 import DzakihNPC from './DzakihNPC';
+import SamNPC from './SamNPC';
 import CircularEmoteMenu from './CircularEmoteMenu';
 import ChatBox from './ChatBox';
 import PetCompanion, { CAT_BREEDS } from './PetCompanion';
+import NpcTracker, { CLASSROOM_NPCS } from './NpcTracker';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
-import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp } from 'lucide-react';
+import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 
 export default function VirtualRoom({ 
   username, 
@@ -39,13 +41,16 @@ export default function VirtualRoom({
   const [isImanuelOpen, setIsImanuelOpen] = useState(false);
   const [isKrisnaOpen, setIsKrisnaOpen] = useState(false);
   const [isDzakihOpen, setIsDzakihOpen] = useState(false);
+  const [isSamOpen, setIsSamOpen] = useState(false);
   const [isHudCollapsed, setIsHudCollapsed] = useState(false);
   const [localPetBreed, setLocalPetBreed] = useState(null);
   const [showPetModal, setShowPetModal] = useState(false);
+  const [isTrackerOpen, setIsTrackerOpen] = useState(false);
+  const [activeTrackedNpcId, setActiveTrackedNpcId] = useState(null);
   const zoom = 1.15; // Optimal POV zoom for 3/4 classroom perspective
   
   // Initialize local player with dynamic safe spawn in entrance aisle, disabled when presentation or dialogue modal is open
-  const localPlayer = usePlayerControls(undefined, undefined, !isPresentationActive && !isQeebosOpen && !isImanuelOpen && !isKrisnaOpen && !isDzakihOpen);
+  const localPlayer = usePlayerControls(undefined, undefined, !isPresentationActive && !isQeebosOpen && !isImanuelOpen && !isKrisnaOpen && !isDzakihOpen && !isSamOpen);
 
   // Initialize multiplayer with room metadata & shared universe cross-group presence
   const { 
@@ -246,12 +251,13 @@ export default function VirtualRoom({
           />
         )}
 
-        {/* Physical Mentor NPC Qeebos (Rendered on stage carpet near teacher desk) */}
+        {/* Physical Mentor NPC Qeebos (Rendered at east bookshelf aisle) */}
         <QeebosNPC 
-          x={730} 
-          y={530} 
+          x={1715} 
+          y={720} 
           localPlayer={localPlayer} 
           onOpenChange={setIsQeebosOpen} 
+          isTracked={activeTrackedNpcId === 'npc-qeebos'}
         />
 
         {/* NPC Imanuel (Rendered on west aisle facing right, showcases AI Game example) */}
@@ -260,23 +266,37 @@ export default function VirtualRoom({
           y={800} 
           localPlayer={localPlayer} 
           onOpenChange={setIsImanuelOpen} 
+          isTracked={activeTrackedNpcId === 'npc-imanuel'}
         />
 
-        {/* NPC Krisna (Rendered at east bookshelf aisle, shares Canva presentation) */}
+        {/* NPC Krisna (Rendered on stage platform, shares Canva presentation) */}
         <KrisnaNPC 
-          x={1715} 
-          y={720} 
+          x={730} 
+          y={530} 
           localPlayer={localPlayer} 
           onOpenChange={setIsKrisnaOpen} 
           onOpenPresentation={() => setIsPresentationFocused(true)}
+          isTracked={activeTrackedNpcId === 'npc-krisna'}
         />
 
-        {/* NPC Dzakih (Rendered at student desk row 2, acts funny / in his own world) */}
+        {/* NPC Dzakih (Rendered at student desk row 2, acts as the Pet Master & setting pet) */}
         <DzakihNPC 
           x={1250} 
           y={955} 
           localPlayer={localPlayer} 
           onOpenChange={setIsDzakihOpen} 
+          localPetBreed={localPetBreed}
+          onSelectPet={handleSelectPet}
+          isTracked={activeTrackedNpcId === 'npc-dzakih'}
+        />
+
+        {/* NPC Sam (Rendered directly next to west wall clock, poetic mentor with task submission link) */}
+        <SamNPC 
+          x={135} 
+          y={520} 
+          localPlayer={localPlayer} 
+          onOpenChange={setIsSamOpen} 
+          isTracked={activeTrackedNpcId === 'npc-sam'}
         />
       </div>
 
@@ -305,7 +325,7 @@ export default function VirtualRoom({
               className="w-4 h-4 image-rendering-pixelated shrink-0" 
             />
             <span className="font-bold text-xs text-amber-200 truncate max-w-[120px]">
-              {roomName || 'Kelas Virtual'}
+              {roomName || 'Kelompok 1'}
             </span>
             <span className="font-mono text-[10px] text-amber-950 font-bold pixel-btn-gold px-1.5 py-0.2 pointer-events-none">
               {roomCode}
@@ -326,7 +346,7 @@ export default function VirtualRoom({
             </button>
             <button
               onClick={() => setIsHudCollapsed(false)}
-              title="Buka Informasi Kelas"
+              title="Buka Informasi Kelompok"
               className="pixel-btn-wood w-6 h-6 p-0 shrink-0 ml-0.5"
             >
               <img 
@@ -348,7 +368,7 @@ export default function VirtualRoom({
                     className="w-4 h-4 image-rendering-pixelated shrink-0" 
                   />
                   <h1 className="font-bold text-xs text-amber-200 truncate" title={roomName}>
-                    {roomName || 'Kelas Virtual'}
+                    {roomName || 'Kelompok 1'}
                   </h1>
                   {isAdmin && (
                     <button
@@ -356,7 +376,7 @@ export default function VirtualRoom({
                         setEditingNameInput(roomName || '');
                         setIsEditingName(true);
                       }}
-                      title="Ubah Nama Kelas"
+                      title="Ubah Nama Kelompok"
                       className="pixel-btn-wood p-1 shrink-0 ml-1"
                     >
                       <Edit2 className="w-3 h-3 text-amber-300" />
@@ -459,11 +479,12 @@ export default function VirtualRoom({
                   <span>Presentasi</span>
                 </button>
                 <button
-                  onClick={() => setShowPetModal(true)}
-                  title="Pilih / Ganti Pet Kucing"
+                  onClick={() => setIsTrackerOpen(prev => !prev)}
+                  title="Buka Pelacak Lokasi NPC (Qeebos, Krisna, Imanuel, Sam, Dzakih)"
                   className="pixel-btn-wood text-[10px] px-2 py-0.5 text-amber-200 flex items-center gap-1 font-bold"
                 >
-                  <span>{localPetBreed ? CAT_BREEDS.find(c => c.id === localPetBreed)?.name.split(' ')[0] : 'Pet'}</span>
+                  <Navigation className="w-3 h-3 text-amber-400" />
+                  <span>Lacak NPC</span>
                 </button>
               </div>
 
@@ -491,9 +512,9 @@ export default function VirtualRoom({
                 className="w-5 h-5 image-pixelated" 
               />
             </div>
-            <h2 className="text-lg font-bold text-amber-300">Kelas Sudah Penuh!</h2>
+            <h2 className="text-lg font-bold text-amber-300">Kelompok Sudah Penuh!</h2>
             <p className="text-xs text-amber-100/90 leading-relaxed">
-              Maaf, Kode Kelas <span className="font-mono font-bold text-amber-300 tracking-wider">"{roomCode}"</span> sudah mencapai batas kapasitas <strong className="text-white">4/4 peserta</strong>. Silakan minta kode kelas lain atau buat room baru.
+              Maaf, Kode Kelompok <span className="font-mono font-bold text-amber-300 tracking-wider">"{roomCode}"</span> sudah mencapai batas kapasitas <strong className="text-white">4/4 peserta</strong>. Silakan minta kode kelompok lain atau buat kelompok baru.
             </p>
             {onLeave && (
               <button
@@ -589,6 +610,19 @@ export default function VirtualRoom({
           </div>
         </div>
       )}
+
+      {/* Pelacak Lokasi NPC (NPC Tracker) */}
+      <NpcTracker
+        isOpen={isTrackerOpen}
+        onClose={() => setIsTrackerOpen(false)}
+        localPlayer={localPlayer}
+        activeTrackedId={activeTrackedNpcId}
+        onToggleTrack={(id) => setActiveTrackedNpcId(id)}
+        camX={camX}
+        camY={camY}
+        zoom={zoom}
+        viewport={viewport}
+      />
 
     </div>
   );

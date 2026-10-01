@@ -48,7 +48,7 @@ export default function Home() {
 
   // Room / Lobby state
   const [roomCode, setRoomCode] = useState('');
-  const [createdRoomName, setCreatedRoomName] = useState('Kelas Virtual');
+  const [createdRoomName, setCreatedRoomName] = useState('Kelompok 1');
   const [inputCode, setInputCode] = useState('');
   const [joinError, setJoinError] = useState('');
 
@@ -303,7 +303,7 @@ export default function Home() {
               disabled={!isFormValid}
               className="w-full mt-5 py-3 pixel-btn-gold text-sm font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              <span>Lanjut ke Pilihan Kelas</span>
+              <span>Lanjut ke Pilihan Kelompok</span>
               <img
                 src="/assets/fantasy_pixelart_ui/icons/gold_right.png"
                 alt="Next"
@@ -328,7 +328,7 @@ export default function Home() {
                 alt="Lobby"
                 className="w-5 h-5 image-pixelated"
               />
-              <h1 className="text-xl sm:text-2xl font-black text-amber-300 drop-shadow">Pilih / Buat Kelas</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-amber-300 drop-shadow">Pilih / Buat Kelompok</h1>
             </div>
             <div className="pixel-box-inset px-3 py-1 inline-block mt-1">
               <span className="text-xs text-amber-200">
@@ -346,19 +346,19 @@ export default function Home() {
                   alt="Host"
                   className="w-4 h-4 image-pixelated"
                 />
-                <h3 className="font-bold text-xs text-amber-300 uppercase tracking-wider">Buat Kelas Baru (Host)</h3>
+                <h3 className="font-bold text-xs text-amber-300 uppercase tracking-wider">Buat Kelompok Baru (Host)</h3>
               </div>
-              <p className="text-[11px] text-amber-200/70">Tentukan nama kelas dan dapatkan Kode Kelas acak.</p>
+              <p className="text-[11px] text-amber-200/70">Tentukan nama kelompok dan dapatkan Kode Kelompok acak.</p>
 
               <div>
                 <label className="block text-[10px] font-bold text-amber-300/80 mb-1 uppercase">
-                  Nama Kelas / Sesi
+                  Nama Kelompok / Tim
                 </label>
                 <input
                   type="text"
                   value={createdRoomName}
                   onChange={(e) => setCreatedRoomName(e.target.value)}
-                  placeholder="Contoh: Kelas Kolaborasi A"
+                  placeholder="Contoh: Kelompok Alpha / Tim 1"
                   className="w-full pixel-box-inset px-3 py-1.5 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                 />
               </div>
@@ -367,7 +367,7 @@ export default function Home() {
                 onClick={handleCreateRoom}
                 className="w-full py-2.5 pixel-btn-gold text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
               >
-                <span>Buat & Masuk Kelas</span>
+                <span>Buat & Masuk Kelompok</span>
                 <img
                   src="/assets/fantasy_pixelart_ui/icons/gold_star.png"
                   alt="Star"
@@ -400,9 +400,9 @@ export default function Home() {
                   alt="Join"
                   className="w-4 h-4 image-pixelated"
                 />
-                <h3 className="font-bold text-xs text-amber-300 uppercase tracking-wider">Masuk via Kode Kelas</h3>
+                <h3 className="font-bold text-xs text-amber-300 uppercase tracking-wider">Masuk via Kode Kelompok</h3>
               </div>
-              <p className="text-[11px] text-amber-200/70">Masukkan 6 karakter Kode Kelas yang dibagikan guru atau temanmu.</p>
+              <p className="text-[11px] text-amber-200/70">Masukkan 6 karakter Kode Kelompok yang dibagikan ketua atau temanmu.</p>
               
               <form onSubmit={handleJoinRoom} className="space-y-2.5">
                 <input
@@ -425,7 +425,7 @@ export default function Home() {
                   type="submit"
                   className="w-full py-2.5 pixel-btn-wood text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
                 >
-                  <span>Gabung Kelas</span>
+                  <span>Gabung Kelompok</span>
                   <img
                     src="/assets/fantasy_pixelart_ui/icons/gold_right.png"
                     alt="Join"
@@ -460,7 +460,7 @@ export default function Home() {
         attendanceNo={attendanceNo}
         username={username}
         roomCode={roomCode}
-        initialRoomName={createdRoomName || 'Kelas Virtual'}
+        initialRoomName={createdRoomName || 'Kelompok 1'}
         characterIndex={characterIndex}
         color={color} 
         isAdmin={isAdmin}
