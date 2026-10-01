@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="85" viewBox="0 0 150 85">
+  <defs>
+    <!-- Ground Shadow Filter -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+    <!-- Desk Wood Gradient -->
+    <linearGradient id="deskTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#dfa86a"/>
+      <stop offset="60%" stop-color="#cf9456"/>
+      <stop offset="100%" stop-color="#be8044"/>
+    </linearGradient>
+    <linearGradient id="deskFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#985c2b"/>
+      <stop offset="100%" stop-color="#6f401a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground Shadow under legs -->
+  <ellipse cx="75" cy="80" rx="70" ry="5" fill="#000000" opacity="0.25" filter="url(#shadow)"/>
+
+  <!-- ==========================================
+       TWO STUDENT CHAIRS (Behind desk)
+       ========================================== -->
+  <!-- Chair 1 (Left: x: 18, y: 4, width: 34, height: 36) -->
+  <g transform="translate(18, 2)">
+    <!-- Chair Backrest Slats (Stardew Style) -->
+    <rect x="2" y="2" width="30" height="24" fill="#a0632e" stroke="#4a270f" stroke-width="2" rx="3"/>
+    <rect x="6" y="6" width="22" height="15" fill="#c68a4e"/>
+    <line x1="12" y1="6" x2="12" y2="21" stroke="#4a270f" stroke-width="2"/>
+    <line x1="17" y1="6" x2="17" y2="21" stroke="#4a270f" stroke-width="2"/>
+    <line x1="22" y1="6" x2="22" y2="21" stroke="#4a270f" stroke-width="2"/>
+    <!-- Chair Seat Cushion (Teal/Blue Stardew Cushion) -->
+    <rect x="0" y="22" width="34" height="10" fill="#3b7a82" stroke="#1d4349" stroke-width="2" rx="2"/>
+    <rect x="4" y="24" width="26" height="4" fill="#589ea6" rx="1"/>
+  </g>
+
+  <!-- Chair 2 (Right: x: 98, y: 4, width: 34, height: 36) -->
+  <g transform="translate(98, 2)">
+    <!-- Chair Backrest Slats (Stardew Style) -->
+    <rect x="2" y="2" width="30" height="24" fill="#a0632e" stroke="#4a270f" stroke-width="2" rx="3"/>
+    <rect x="6" y="6" width="22" height="15" fill="#c68a4e"/>
+    <line x1="12" y1="6" x2="12" y2="21" stroke="#4a270f" stroke-width="2"/>
+    <line x1="17" y1="6" x2="17" y2="21" stroke="#4a270f" stroke-width="2"/>
+    <line x1="22" y1="6" x2="22" y2="21" stroke="#4a270f" stroke-width="2"/>
+    <!-- Chair Seat Cushion (Ruby Red Stardew Cushion) -->
+    <rect x="0" y="22" width="34" height="10" fill="#8b333a" stroke="#4a151a" stroke-width="2" rx="2"/>
+    <rect x="4" y="24" width="26" height="4" fill="#ab464f" rx="1"/>
+  </g>
+
+  <!-- ==========================================
+       DESK LEGS (Behind front apron)
+       ========================================== -->
+  <rect x="12" y="44" width="8" height="34" fill="#693c18" stroke="#3a1c09" stroke-width="1.5" rx="1"/>
+  <rect x="130" y="44" width="8" height="34" fill="#693c18" stroke="#3a1c09" stroke-width="1.5" rx="1"/>
+  <!-- Leg foot caps -->
+  <rect x="10" y="75" width="12" height="3" fill="#3a1c09" rx="1"/>
+  <rect x="128" y="75" width="12" height="3" fill="#3a1c09" rx="1"/>
+
+  <!-- ==========================================
+       DESK FRONT APRON & COMPARTMENTS
+       ========================================== -->
+  <rect x="8" y="44" width="134" height="18" fill="url(#deskFront)" stroke="#3a1c09" stroke-width="2" rx="2"/>
+  <!-- Center Drawer Seam & Handles -->
+  <rect x="14" y="47" width="56" height="11" fill="#844f22" stroke="#3a1c09" stroke-width="1.5" rx="1"/>
+  <circle cx="42" cy="52.5" r="2" fill="#e8c366" stroke="#5a3d09" stroke-width="1"/>
+  <rect x="80" y="47" width="56" height="11" fill="#844f22" stroke="#3a1c09" stroke-width="1.5" rx="1"/>
+  <circle cx="108" cy="52.5" r="2" fill="#e8c366" stroke="#5a3d09" stroke-width="1"/>
+
+  <!-- ==========================================
+       DESK TOP SURFACE (Main Honey-Oak Wood Top)
+       ========================================== -->
+  <rect x="2" y="24" width="146" height="24" fill="url(#deskTop)" stroke="#3a1c09" stroke-width="2" rx="3"/>
+  <!-- Beveled Highlight on Top Edge -->
+  <line x1="4" y1="26" x2="146" y2="26" stroke="#f6c994" stroke-width="1.5"/>
+
+  <!-- ==========================================
+       STUDENT ACCESSORIES ON DESK
+       ========================================== -->
+  <!-- Left Student Notebook -->
+  <g transform="translate(18, 27)">
+    <rect x="0" y="0" width="22" height="16" fill="#fcf8f0" stroke="#3a1c09" stroke-width="1.5" rx="1"/>
+    <line x1="11" y1="0" x2="11" y2="16" stroke="#c0966a" stroke-width="1"/>
+    <!-- Pencil Lines on page -->
+    <line x1="3" y1="4" x2="9" y2="4" stroke="#8c7866" stroke-width="1"/>
+    <line x1="3" y1="8" x2="9" y2="8" stroke="#8c7866" stroke-width="1"/>
+    <line x1="3" y1="12" x2="8" y2="12" stroke="#8c7866" stroke-width="1"/>
+    <!-- Blue Ribbon Bookmark -->
+    <path d="M11,16 L11,19 L13,17.5 L15,19 L15,16 Z" fill="#2b6cb0"/>
+    <!-- Yellow Pencil with Pink Eraser -->
+    <line x1="26" y1="2" x2="26" y2="14" stroke="#e0a526" stroke-width="2" stroke-linecap="round"/>
+    <line x1="26" y1="2" x2="26" y2="5" stroke="#e8788a" stroke-width="2" stroke-linecap="round"/>
+    <line x1="26" y1="13" x2="26" y2="15" stroke="#222222" stroke-width="1.5"/>
+  </g>
+
+  <!-- Right Student Notebook & Ink Mug -->
+  <g transform="translate(98, 27)">
+    <rect x="0" y="0" width="22" height="16" fill="#fcf8f0" stroke="#3a1c09" stroke-width="1.5" rx="1"/>
+    <line x1="11" y1="0" x2="11" y2="16" stroke="#c0966a" stroke-width="1"/>
+    <!-- Pencil Lines on page -->
+    <line x1="13" y1="4" x2="19" y2="4" stroke="#8c7866" stroke-width="1"/>
+    <line x1="13" y1="8" x2="19" y2="8" stroke="#8c7866" stroke-width="1"/>
+    <line x1="13" y1="12" x2="18" y2="12" stroke="#8c7866" stroke-width="1"/>
+    <!-- Red Bookmark Ribbon -->
+    <path d="M11,16 L11,19 L13,17.5 L15,19 L15,16 Z" fill="#c53030"/>
+    <!-- Wooden Quill / Pen -->
+    <line x1="26" y1="2" x2="26" y2="14" stroke="#718096" stroke-width="2" stroke-linecap="round"/>
+    <!-- Ceramic Coffee/Tea Mug (Green Stardew Mug) -->
+    <rect x="-10" y="5" width="8" height="9" fill="#38a169" stroke="#1c4d32" stroke-width="1.5" rx="1"/>
+    <path d="M-10,7 C-12,7 -12,11 -10,11" fill="none" stroke="#1c4d32" stroke-width="1.5"/>
+  </g>
+</svg>

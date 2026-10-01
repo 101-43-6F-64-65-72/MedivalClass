@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="74" viewBox="0 0 36 74">
+  <defs>
+    <filter id="cShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="1.5"/>
+    </filter>
+  </defs>
+
+  <!-- Wall Shadow -->
+  <rect x="2" y="4" width="32" height="66" rx="3" fill="#000000" opacity="0.3" filter="url(#cShadow)"/>
+
+  <!-- Wooden Clock Case (Rich Mahogany) -->
+  <rect x="4" y="2" width="28" height="68" fill="#5c2e0e" stroke="#2b1204" stroke-width="2" rx="3"/>
+  <rect x="2" y="0" width="32" height="5" fill="#8c4e1e" stroke="#2b1204" stroke-width="1.5" rx="1"/>
+  <rect x="2" y="67" width="32" height="5" fill="#8c4e1e" stroke="#2b1204" stroke-width="1.5" rx="1"/>
+
+  <!-- Clock Face Dial Housing -->
+  <circle cx="18" cy="18" r="11" fill="#fdfaf2" stroke="#2b1204" stroke-width="2"/>
+  <circle cx="18" cy="18" r="9" fill="none" stroke="#e0caa0" stroke-width="0.8"/>
+
+  <!-- Hour Marks -->
+  <line x1="18" y1="9" x2="18" y2="11" stroke="#2b1204" stroke-width="1.5"/>
+  <line x1="18" y1="25" x2="18" y2="27" stroke="#2b1204" stroke-width="1.5"/>
+  <line x1="9" y1="18" x2="11" y2="18" stroke="#2b1204" stroke-width="1.5"/>
+  <line x1="25" y1="18" x2="27" y2="18" stroke="#2b1204" stroke-width="1.5"/>
+
+  <!-- Clock Hands (10:10) -->
+  <line x1="18" y1="18" x2="14" y2="13" stroke="#2b1204" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="18" y1="18" x2="23" y2="15" stroke="#2b1204" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="18" cy="18" r="1.5" fill="#b45309"/>
+
+  <!-- Lower Glass Pendulum Compartment -->
+  <rect x="8" y="32" width="20" height="32" fill="#221107" stroke="#2b1204" stroke-width="1.5" rx="2"/>
+  <!-- Brass Pendulum Rod & Bob -->
+  <line x1="18" y1="34" x2="18" y2="52" stroke="#eab308" stroke-width="1.5"/>
+  <circle cx="18" cy="54" r="5" fill="#fbbf24" stroke="#b45309" stroke-width="1.5"/>
+  <circle cx="17" cy="53" r="2" fill="#fef08a"/>
+</svg>

@@ -2,13 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { PLAYER_SPEED, ROOM_WIDTH, ROOM_HEIGHT } from '@/lib/constants';
 import { checkCollision, getSafeSpawnPosition } from '@/lib/collision';
 
-export function usePlayerControls(initialX, initialY) {
+export function usePlayerControls(initialX, initialY, isControlsEnabled = true) {
   const [playerState, setPlayerState] = useState(() => {
     if (initialX != null && initialY != null) {
-      return { x: initialX, y: initialY, direction: 'down', isMoving: false };
+      return { x: initialX, y: initialY, direction: 'up', isMoving: false };
     }
     const safeSpawn = getSafeSpawnPosition();
-    return { x: safeSpawn.x, y: safeSpawn.y, direction: 'down', isMoving: false };
+    return { x: safeSpawn.x, y: safeSpawn.y, direction: 'up', isMoving: false };
   });
 
   const keysRef = useRef({
@@ -19,6 +19,18 @@ export function usePlayerControls(initialX, initialY) {
   const stateRef = useRef(playerState);
   const requestRef = useRef(null);
   const lastTimeRef = useRef(null);
+  const isEnabledRef = useRef(isControlsEnabled);
+
+  useEffect(() => {
+    isEnabledRef.current = isControlsEnabled;
+    if (!isControlsEnabled) {
+      // Reset all keys when controls are disabled (e.g. presentation focused)
+      Object.keys(keysRef.current).forEach((k) => {
+        keysRef.current[k] = false;
+      });
+      setPlayerState((prev) => (prev.isMoving ? { ...prev, isMoving: false } : prev));
+    }
+  }, [isControlsEnabled]);
 
   // Define player size for collision
   const playerWidth = 32;
@@ -30,6 +42,7 @@ export function usePlayerControls(initialX, initialY) {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (!isEnabledRef.current) return;
       if (keysRef.current.hasOwnProperty(e.key) || keysRef.current.hasOwnProperty(e.key.toLowerCase())) {
         keysRef.current[e.key] = true;
         keysRef.current[e.key.toLowerCase()] = true; // Handle uppercase letters

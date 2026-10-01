@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="68" viewBox="0 0 96 68">
+  <defs>
+    <filter id="cbShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="1.5"/>
+    </filter>
+  </defs>
+
+  <!-- Shadow -->
+  <rect x="2" y="4" width="92" height="62" rx="2" fill="#000000" opacity="0.3" filter="url(#cbShadow)"/>
+
+  <!-- Heavy Oak Frame -->
+  <rect x="4" y="2" width="88" height="60" fill="#5c3416" stroke="#2b1404" stroke-width="2.5" rx="2"/>
+  <!-- Green Slate Chalkboard Surface -->
+  <rect x="8" y="6" width="80" height="50" fill="#1b382b" stroke="#0a1a13" stroke-width="1.5"/>
+
+  <!-- Chalk Drawings & Notes -->
+  <!-- Header: "Welcome!" in chalk script -->
+  <path d="M14,14 L16,20 L18,15 L20,20 L22,14" fill="none" stroke="#e2e8f0" stroke-width="1.2" stroke-linecap="round"/>
+  <circle cx="27" cy="18" r="2" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+  <line x1="33" y1="13" x2="33" y2="20" stroke="#e2e8f0" stroke-width="1.2"/>
+
+  <!-- Math / Science Diagram: Triangle & Formula -->
+  <polygon points="14,44 26,44 26,30" fill="none" stroke="#fef08a" stroke-width="1"/>
+  <line x1="14" y1="46" x2="26" y2="46" stroke="#fef08a" stroke-width="0.8"/>
+  <text x="32" y="38" fill="#cbd5e1" font-family="monospace" font-size="7" font-weight="bold">a² + b² = c²</text>
+  <text x="32" y="48" fill="#86efac" font-family="monospace" font-size="7">E = mc²</text>
+
+  <!-- Chalk Eraser Dust Smudges -->
+  <ellipse cx="64" cy="22" rx="12" ry="5" fill="#ffffff" opacity="0.08"/>
+  <ellipse cx="70" cy="38" rx="8" ry="4" fill="#ffffff" opacity="0.08"/>
+
+  <!-- Chalk Tray at Bottom of Board -->
+  <rect x="2" y="58" width="92" height="6" fill="#8c5324" stroke="#2b1404" stroke-width="1.5" rx="1"/>
+  <!-- Wooden Chalk Eraser with Felt Base -->
+  <rect x="18" y="55" width="14" height="4" fill="#3a1e09" rx="0.5"/>
+  <rect x="18" y="58" width="14" height="2" fill="#d1d5db" rx="0.5"/>
+  <!-- Sticks of White & Yellow Chalk in tray -->
+  <rect x="42" y="57" width="8" height="2.5" fill="#f8fafc" rx="0.5"/>
+  <rect x="53" y="57" width="8" height="2.5" fill="#fef08a" rx="0.5"/>
+  <rect x="64" y="57" width="8" height="2.5" fill="#93c5fd" rx="0.5"/>
+</svg>

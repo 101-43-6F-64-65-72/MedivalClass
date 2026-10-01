@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="56" height="64" viewBox="0 0 56 64">
+  <defs>
+    <filter id="pShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="1.5"/>
+    </filter>
+  </defs>
+
+  <!-- Ground Shadow -->
+  <ellipse cx="28" cy="61" rx="20" ry="3" fill="#000000" opacity="0.25" filter="url(#pShadow)"/>
+
+  <!-- ==========================================
+       LUSH MONSTERA & FERN LEAVES (Stardew Style)
+       ========================================== -->
+  <!-- Back Dark Leaves -->
+  <path d="M28,34 Q20,18 12,14 Q8,22 18,36 Z" fill="#1b4d24" stroke="#0a260f" stroke-width="1.5"/>
+  <path d="M28,34 Q36,18 44,14 Q48,22 38,36 Z" fill="#1b4d24" stroke="#0a260f" stroke-width="1.5"/>
+
+  <!-- Large Center Fan Leaves -->
+  <path d="M28,34 Q28,10 24,4 Q32,8 32,34 Z" fill="#2d6a33" stroke="#0a260f" stroke-width="1.5"/>
+  <path d="M28,34 Q14,24 6,28 Q12,38 28,38 Z" fill="#38803f" stroke="#0a260f" stroke-width="1.5"/>
+  <path d="M28,34 Q42,24 50,28 Q44,38 28,38 Z" fill="#38803f" stroke="#0a260f" stroke-width="1.5"/>
+
+  <!-- Front Highlights -->
+  <path d="M28,36 Q22,28 16,30 Q20,38 28,38 Z" fill="#52a45a"/>
+  <path d="M28,36 Q34,28 40,30 Q36,38 28,38 Z" fill="#52a45a"/>
+  <circle cx="28" cy="20" r="2" fill="#74c27c"/>
+
+  <!-- ==========================================
+       TERRACOTTA POT & SAUCER
+       ========================================== -->
+  <!-- Pot Rim -->
+  <rect x="14" y="36" width="28" height="6" fill="#c26338" stroke="#5a240c" stroke-width="2" rx="2"/>
+  <line x1="16" y1="38" x2="40" y2="38" stroke="#e0865c" stroke-width="1"/>
+  <!-- Pot Body (Tapered) -->
+  <polygon points="17,42 39,42 36,58 20,58" fill="#a84e27" stroke="#5a240c" stroke-width="2"/>
+  <!-- Highlight on pot curve -->
+  <path d="M20,44 L24,44 L22,56 L19,56 Z" fill="#c26338"/>
+  <!-- Ceramic Saucer at Base -->
+  <ellipse cx="28" cy="59" rx="12" ry="2.5" fill="#8f3e1b" stroke="#5a240c" stroke-width="1.5"/>
+</svg>

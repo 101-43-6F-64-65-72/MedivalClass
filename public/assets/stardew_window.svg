@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="96" viewBox="0 0 80 96">
+  <defs>
+    <!-- Sunlight Glow -->
+    <linearGradient id="sunbeam" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#fff8db" stop-opacity="0.85"/>
+      <stop offset="60%" stop-color="#fde047" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#eab308" stop-opacity="0.05"/>
+    </linearGradient>
+    <!-- Sky View Gradient -->
+    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7dd3fc"/>
+      <stop offset="70%" stop-color="#bae6fd"/>
+      <stop offset="100%" stop-color="#e0f2fe"/>
+    </linearGradient>
+    <filter id="winShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+  </defs>
+
+  <!-- Window Sill Shadow -->
+  <rect x="2" y="90" width="76" height="6" fill="#000000" opacity="0.3" filter="url(#winShadow)"/>
+
+  <!-- Outer Wooden Frame (Dark Honey Oak) -->
+  <path d="M8,90 L8,36 A32,32 0 0,1 72,36 L72,90 Z" fill="#6c3b16" stroke="#381c08" stroke-width="3"/>
+  <path d="M12,88 L12,36 A28,28 0 0,1 68,36 L68,88 Z" fill="#9e5d26" stroke="#381c08" stroke-width="1.5"/>
+
+  <!-- Window Glass Pane (Arched) -->
+  <path d="M16,86 L16,36 A24,24 0 0,1 64,36 L64,86 Z" fill="url(#skyGrad)" stroke="#2b1404" stroke-width="1.5"/>
+
+  <!-- Fluffy Pixel Cloud in Glass -->
+  <ellipse cx="32" cy="40" rx="10" ry="5" fill="#ffffff" opacity="0.9"/>
+  <ellipse cx="40" cy="38" rx="8" ry="6" fill="#ffffff" opacity="0.9"/>
+  <ellipse cx="46" cy="42" rx="7" ry="4" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Wooden Mullions (Window Grids) -->
+  <!-- Vertical Center Beam -->
+  <rect x="38" y="14" width="4" height="72" fill="#5c3010" stroke="#2b1404" stroke-width="0.8"/>
+  <!-- Horizontal Middle Beam -->
+  <rect x="16" y="52" width="48" height="4" fill="#5c3010" stroke="#2b1404" stroke-width="0.8"/>
+
+  <!-- Window Curtains (Warm Cozy Olive / Rust Drapes) -->
+  <!-- Left Curtain -->
+  <path d="M8,18 Q20,24 18,50 Q12,68 10,86 L8,86 Z" fill="#8b343a" stroke="#450d12" stroke-width="1.5"/>
+  <rect x="12" y="52" width="6" height="3" fill="#eab308" rx="1"/> <!-- Tieback -->
+
+  <!-- Right Curtain -->
+  <path d="M72,18 Q60,24 62,50 Q68,68 70,86 L72,86 Z" fill="#8b343a" stroke="#450d12" stroke-width="1.5"/>
+  <rect x="62" y="52" width="6" height="3" fill="#eab308" rx="1"/> <!-- Tieback -->
+
+  <!-- Curtain Valance across top -->
+  <path d="M6,14 Q20,26 40,16 Q60,26 74,14 L74,10 L6,10 Z" fill="#a8434a" stroke="#450d12" stroke-width="1.5"/>
+
+  <!-- Sturdy Wooden Sill at Bottom -->
+  <rect x="2" y="86" width="76" height="8" fill="#a66832" stroke="#381c08" stroke-width="2" rx="2"/>
+  <line x1="4" y1="88" x2="76" y2="88" stroke="#dfa56c" stroke-width="1.2"/>
+
+  <!-- Sunbeam highlight overlay -->
+  <polygon points="16,36 64,36 78,86 2,86" fill="url(#sunbeam)" opacity="0.25"/>
+</svg>

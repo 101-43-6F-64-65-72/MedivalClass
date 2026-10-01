@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96">
+  <defs>
+    <!-- Subtle wood grain filters and linear gradients for planks -->
+    <linearGradient id="p1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#dfbe95"/>
+      <stop offset="50%" stop-color="#e3c39c"/>
+      <stop offset="100%" stop-color="#dbb88e"/>
+    </linearGradient>
+    <linearGradient id="p2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#d6b387"/>
+      <stop offset="50%" stop-color="#dab88d"/>
+      <stop offset="100%" stop-color="#d2ad80"/>
+    </linearGradient>
+    <linearGradient id="p3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ddba90"/>
+      <stop offset="50%" stop-color="#e1c098"/>
+      <stop offset="100%" stop-color="#d7b388"/>
+    </linearGradient>
+    <linearGradient id="p4" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#d4b084"/>
+      <stop offset="50%" stop-color="#d9b68b"/>
+      <stop offset="100%" stop-color="#cfab7e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="160" height="96" fill="#c49e72"/>
+
+  <!-- Row 1 (y: 0 to 24) -->
+  <rect x="0.5" y="0.5" width="79" height="23" fill="url(#p1)" rx="0.5"/>
+  <line x1="10" y1="12" x2="68" y2="12" stroke="#d0aa7c" stroke-width="0.8" stroke-dasharray="8 16 20 8" opacity="0.4"/>
+
+  <rect x="80.5" y="0.5" width="79" height="23" fill="url(#p2)" rx="0.5"/>
+  <line x1="90" y1="12" x2="148" y2="12" stroke="#caa274" stroke-width="0.8" stroke-dasharray="12 12 18 10" opacity="0.4"/>
+
+  <!-- Row 2 (y: 24 to 48) - Staggered by 40px -->
+  <rect x="-39.5" y="24.5" width="79" height="23" fill="url(#p3)" rx="0.5"/>
+  <rect x="40.5" y="24.5" width="79" height="23" fill="url(#p3)" rx="0.5"/>
+  <line x1="50" y1="36" x2="108" y2="36" stroke="#cfa77a" stroke-width="0.8" stroke-dasharray="14 10 16 12" opacity="0.4"/>
+
+  <rect x="120.5" y="24.5" width="79" height="23" fill="url(#p1)" rx="0.5"/>
+  <line x1="130" y1="36" x2="158" y2="36" stroke="#caa274" stroke-width="0.8" stroke-dasharray="8 8" opacity="0.4"/>
+
+  <!-- Row 3 (y: 48 to 72) -->
+  <rect x="0.5" y="48.5" width="79" height="23" fill="url(#p4)" rx="0.5"/>
+  <line x1="8" y1="60" x2="66" y2="60" stroke="#c89f71" stroke-width="0.8" stroke-dasharray="10 14 12 10" opacity="0.4"/>
+
+  <rect x="80.5" y="48.5" width="79" height="23" fill="url(#p1)" rx="0.5"/>
+  <line x1="88" y1="60" x2="148" y2="60" stroke="#d0aa7c" stroke-width="0.8" stroke-dasharray="16 12 14 8" opacity="0.4"/>
+
+  <!-- Row 4 (y: 72 to 96) - Staggered by 40px -->
+  <rect x="-39.5" y="72.5" width="79" height="23" fill="url(#p2)" rx="0.5"/>
+  <rect x="40.5" y="72.5" width="79" height="23" fill="url(#p2)" rx="0.5"/>
+  <line x1="48" y1="84" x2="108" y2="84" stroke="#caa274" stroke-width="0.8" stroke-dasharray="12 16 10 14" opacity="0.4"/>
+
+  <rect x="120.5" y="72.5" width="79" height="23" fill="url(#p4)" rx="0.5"/>
+  <line x1="128" y1="84" x2="156" y2="84" stroke="#c89f71" stroke-width="0.8" stroke-dasharray="6 12" opacity="0.4"/>
+
+  <!-- Subtle Seam Overlay -->
+  <line x1="0" y1="24" x2="160" y2="24" stroke="#ba9266" stroke-width="1"/>
+  <line x1="0" y1="48" x2="160" y2="48" stroke="#ba9266" stroke-width="1"/>
+  <line x1="0" y1="72" x2="160" y2="72" stroke="#ba9266" stroke-width="1"/>
+  <line x1="80" y1="0" x2="80" y2="24" stroke="#ba9266" stroke-width="1"/>
+  <line x1="40" y1="24" x2="40" y2="48" stroke="#ba9266" stroke-width="1"/>
+  <line x1="120" y1="24" x2="120" y2="48" stroke="#ba9266" stroke-width="1"/>
+  <line x1="80" y1="48" x2="80" y2="72" stroke="#ba9266" stroke-width="1"/>
+  <line x1="40" y1="72" x2="40" y2="96" stroke="#ba9266" stroke-width="1"/>
+  <line x1="120" y1="72" x2="120" y2="96" stroke="#ba9266" stroke-width="1"/>
+</svg>

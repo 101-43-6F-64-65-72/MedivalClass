@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="96" viewBox="0 0 160 96">
+  <defs>
+    <linearGradient id="sw1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#d49e60"/>
+      <stop offset="50%" stop-color="#dba86c"/>
+      <stop offset="100%" stop-color="#ce9554"/>
+    </linearGradient>
+    <linearGradient id="sw2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#c99151"/>
+      <stop offset="50%" stop-color="#d19c5d"/>
+      <stop offset="100%" stop-color="#c38a49"/>
+    </linearGradient>
+    <linearGradient id="sw3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#dea96a"/>
+      <stop offset="50%" stop-color="#e4b174"/>
+      <stop offset="100%" stop-color="#d8a262"/>
+    </linearGradient>
+    <linearGradient id="sw4" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#c78e4d"/>
+      <stop offset="50%" stop-color="#d09959"/>
+      <stop offset="100%" stop-color="#c18645"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Base Dark Under-seam -->
+  <rect width="160" height="96" fill="#7a4c22"/>
+
+  <!-- Row 1 (y: 0 to 24) -->
+  <rect x="1" y="1" width="78" height="22" fill="url(#sw1)" rx="0.5"/>
+  <line x1="8" y1="8" x2="48" y2="8" stroke="#ba8244" stroke-width="1" stroke-dasharray="6 14 12" opacity="0.6"/>
+  <circle cx="62" cy="14" r="1.5" fill="#ba8244" opacity="0.5"/>
+
+  <rect x="81" y="1" width="78" height="22" fill="url(#sw2)" rx="0.5"/>
+  <line x1="90" y1="16" x2="140" y2="16" stroke="#b07639" stroke-width="1" stroke-dasharray="10 16 8" opacity="0.6"/>
+
+  <!-- Row 2 (y: 24 to 48) - Staggered by 40px -->
+  <rect x="-39" y="25" width="78" height="22" fill="url(#sw3)" rx="0.5"/>
+  <rect x="41" y="25" width="78" height="22" fill="url(#sw3)" rx="0.5"/>
+  <line x1="50" y1="32" x2="98" y2="32" stroke="#c08c4e" stroke-width="1" stroke-dasharray="14 12 10" opacity="0.6"/>
+  <circle cx="106" cy="38" r="1.5" fill="#c08c4e" opacity="0.5"/>
+
+  <rect x="121" y="25" width="78" height="22" fill="url(#sw1)" rx="0.5"/>
+  <line x1="130" y1="40" x2="155" y2="40" stroke="#ba8244" stroke-width="1" stroke-dasharray="8 8" opacity="0.6"/>
+
+  <!-- Row 3 (y: 48 to 72) -->
+  <rect x="1" y="49" width="78" height="22" fill="url(#sw4)" rx="0.5"/>
+  <line x1="12" y1="56" x2="60" y2="56" stroke="#ad7336" stroke-width="1" stroke-dasharray="8 12 16" opacity="0.6"/>
+
+  <rect x="81" y="49" width="78" height="22" fill="url(#sw1)" rx="0.5"/>
+  <line x1="92" y1="64" x2="146" y2="64" stroke="#ba8244" stroke-width="1" stroke-dasharray="16 10 12" opacity="0.6"/>
+  <circle cx="86" cy="56" r="1.5" fill="#ba8244" opacity="0.5"/>
+
+  <!-- Row 4 (y: 72 to 96) - Staggered by 40px -->
+  <rect x="-39" y="73" width="78" height="22" fill="url(#sw2)" rx="0.5"/>
+  <rect x="41" y="73" width="78" height="22" fill="url(#sw2)" rx="0.5"/>
+  <line x1="52" y1="80" x2="102" y2="80" stroke="#b07639" stroke-width="1" stroke-dasharray="12 14 10" opacity="0.6"/>
+
+  <rect x="121" y="73" width="78" height="22" fill="url(#sw3)" rx="0.5"/>
+  <line x1="128" y1="88" x2="154" y2="88" stroke="#c08c4e" stroke-width="1" stroke-dasharray="8 10" opacity="0.6"/>
+
+  <!-- Crisp Pixel-Seams (Stardew warm dark wood lines) -->
+  <line x1="0" y1="24" x2="160" y2="24" stroke="#7a4c22" stroke-width="1"/>
+  <line x1="0" y1="48" x2="160" y2="48" stroke="#7a4c22" stroke-width="1"/>
+  <line x1="0" y1="72" x2="160" y2="72" stroke="#7a4c22" stroke-width="1"/>
+  <line x1="80" y1="0" x2="80" y2="24" stroke="#7a4c22" stroke-width="1"/>
+  <line x1="40" y1="24" x2="40" y2="48" stroke="#7a4c22" stroke-width="1"/>
+  <line x1="120" y1="24" x2="120" y2="48" stroke="#7a4c22" stroke-width="1"/>
+  <line x1="80" y1="48" x2="80" y2="72" stroke="#7a4c22" stroke-width="1"/>
+  <line x1="40" y1="72" x2="40" y2="96" stroke="#7a4c22" stroke-width="1"/>
+  <line x1="120" y1="72" x2="120" y2="96" stroke="#7a4c22" stroke-width="1"/>
+</svg>

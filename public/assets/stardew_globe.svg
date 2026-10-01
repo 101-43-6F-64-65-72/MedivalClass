@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="58" viewBox="0 0 48 58">
+  <defs>
+    <filter id="gShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="1.5"/>
+    </filter>
+  </defs>
+
+  <!-- Shadow -->
+  <ellipse cx="24" cy="54" rx="16" ry="3" fill="#000000" opacity="0.3" filter="url(#gShadow)"/>
+
+  <!-- Wooden Round Base & Spindle -->
+  <ellipse cx="24" cy="52" rx="14" ry="4" fill="#693b18" stroke="#381c08" stroke-width="1.5"/>
+  <rect x="22" y="38" width="4" height="14" fill="#8c5324" stroke="#381c08" stroke-width="1"/>
+
+  <!-- Brass Semi-Meridian Ring -->
+  <path d="M10,24 A15,15 0 0,0 24,40 A15,15 0 0,0 38,24" fill="none" stroke="#d4af37" stroke-width="2.5"/>
+  <circle cx="24" cy="40" r="2" fill="#d4af37"/>
+
+  <!-- Rotating Globe Sphere -->
+  <circle cx="24" cy="22" r="14" fill="#0284c7" stroke="#381c08" stroke-width="1.5"/>
+
+  <!-- Continents (Green / Tan Pixel Landmasses) -->
+  <path d="M16,14 Q20,12 22,17 Q25,19 22,25 Q18,24 16,18 Z" fill="#22c55e"/>
+  <path d="M26,12 Q32,14 34,20 Q30,22 28,17 Z" fill="#16a34a"/>
+  <path d="M20,28 Q24,26 27,31 Q23,34 19,31 Z" fill="#eab308"/>
+
+  <!-- Latitude / Longitude Line subtle -->
+  <ellipse cx="24" cy="22" rx="14" ry="5" fill="none" stroke="#ffffff" stroke-width="0.7" opacity="0.4"/>
+  <line x1="24" y1="8" x2="24" y2="36" stroke="#ffffff" stroke-width="0.7" opacity="0.4"/>
+
+  <!-- Top Pivot Finial -->
+  <circle cx="24" cy="7" r="2" fill="#d4af37"/>
+</svg>

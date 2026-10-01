@@ -35,9 +35,9 @@ export function checkCollision(x, y, width = 32, height = 48) {
   return false;
 }
 
-// Generate a safe spawn position in the wide central aisle
+// Generate a safe spawn position in the classroom entrance aisle
 export function getSafeSpawnPosition() {
-  const baseArea = { minX: 860, maxX: 940, minY: 520, maxY: 620 };
+  const baseArea = { minX: 870, maxX: 930, minY: 980, maxY: 1040 };
   const maxAttempts = 20;
 
   for (let i = 0; i < maxAttempts; i++) {
@@ -49,7 +49,7 @@ export function getSafeSpawnPosition() {
     }
   }
 
-  // Fallback safe center coordinate in the main aisle
-  return { x: 900, y: 550 };
+  // Fallback safe entrance coordinate in the main classroom aisle
+  return { x: 900, y: 1010 };
 }
 

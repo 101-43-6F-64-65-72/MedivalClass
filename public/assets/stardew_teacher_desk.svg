@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="95" viewBox="0 0 200 95">
+  <defs>
+    <filter id="shadowT" x="-10%" y="-10%" width="120%" height="130%">
+      <feGaussianBlur stdDeviation="2.5"/>
+    </filter>
+    <linearGradient id="tDeskTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c98a50"/>
+      <stop offset="50%" stop-color="#b8783d"/>
+      <stop offset="100%" stop-color="#9a5e2a"/>
+    </linearGradient>
+    <linearGradient id="tDeskFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a461e"/>
+      <stop offset="100%" stop-color="#552c0f"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Ground Shadow -->
+  <ellipse cx="100" cy="90" rx="95" ry="5.5" fill="#000000" opacity="0.3" filter="url(#shadowT)"/>
+
+  <!-- ==========================================
+       TEACHER PLUSH ARMCHAIR (Behind desk: centered)
+       ========================================== -->
+  <g transform="translate(78, 2)">
+    <!-- High Backrest with Brass Studs (Stardew Regal Armchair) -->
+    <rect x="0" y="0" width="44" height="34" fill="#6b1d24" stroke="#380d11" stroke-width="2.5" rx="5"/>
+    <!-- Velvet Tufted Center Cushion -->
+    <rect x="5" y="5" width="34" height="24" fill="#8f2b34" rx="3"/>
+    <!-- Golden Studs -->
+    <circle cx="10" cy="11" r="1.5" fill="#e8c366"/>
+    <circle cx="22" cy="11" r="1.5" fill="#e8c366"/>
+    <circle cx="34" cy="11" r="1.5" fill="#e8c366"/>
+    <circle cx="16" cy="21" r="1.5" fill="#e8c366"/>
+    <circle cx="28" cy="21" r="1.5" fill="#e8c366"/>
+    <!-- Wooden Armrest Tips -->
+    <rect x="-4" y="22" width="7" height="12" fill="#9e6634" stroke="#4a270f" stroke-width="1.5" rx="2"/>
+    <rect x="41" y="22" width="7" height="12" fill="#9e6634" stroke="#4a270f" stroke-width="1.5" rx="2"/>
+  </g>
+
+  <!-- ==========================================
+       DESK LEGS & BASE
+       ========================================== -->
+  <rect x="10" y="50" width="14" height="38" fill="#582d0e" stroke="#2c1404" stroke-width="2" rx="1.5"/>
+  <rect x="176" y="50" width="14" height="38" fill="#582d0e" stroke="#2c1404" stroke-width="2" rx="1.5"/>
+  <!-- Decorative Base Molding -->
+  <rect x="6" y="84" width="22" height="4" fill="#3a1c06" rx="1"/>
+  <rect x="172" y="84" width="22" height="4" fill="#3a1c06" rx="1"/>
+
+  <!-- ==========================================
+       DESK FRONT APRON & PEDESTAL DRAWERS
+       ========================================== -->
+  <rect x="8" y="46" width="184" height="36" fill="url(#tDeskFront)" stroke="#2c1404" stroke-width="2.5" rx="3"/>
+  <!-- Kneehole Arch in center -->
+  <rect x="68" y="54" width="64" height="28" fill="#2c1404" rx="3"/>
+
+  <!-- Left Drawer Pedestal (3 Drawers) -->
+  <rect x="14" y="50" width="48" height="9" fill="#713c17" stroke="#2c1404" stroke-width="1.5" rx="1"/>
+  <circle cx="38" cy="54.5" r="2" fill="#e8c366" stroke="#4a3006" stroke-width="1"/>
+  <rect x="14" y="61" width="48" height="9" fill="#713c17" stroke="#2c1404" stroke-width="1.5" rx="1"/>
+  <circle cx="38" cy="65.5" r="2" fill="#e8c366" stroke="#4a3006" stroke-width="1"/>
+  <rect x="14" y="72" width="48" height="9" fill="#713c17" stroke="#2c1404" stroke-width="1.5" rx="1"/>
+  <circle cx="38" cy="76.5" r="2" fill="#e8c366" stroke="#4a3006" stroke-width="1"/>
+
+  <!-- Right Drawer Pedestal (3 Drawers) -->
+  <rect x="138" y="50" width="48" height="9" fill="#713c17" stroke="#2c1404" stroke-width="1.5" rx="1"/>
+  <circle cx="162" cy="54.5" r="2" fill="#e8c366" stroke="#4a3006" stroke-width="1"/>
+  <rect x="138" y="61" width="48" height="9" fill="#713c17" stroke="#2c1404" stroke-width="1.5" rx="1"/>
+  <circle cx="162" cy="65.5" r="2" fill="#e8c366" stroke="#4a3006" stroke-width="1"/>
+  <rect x="138" y="72" width="48" height="9" fill="#713c17" stroke="#2c1404" stroke-width="1.5" rx="1"/>
+  <circle cx="162" cy="76.5" r="2" fill="#e8c366" stroke="#4a3006" stroke-width="1"/>
+
+  <!-- ==========================================
+       DESK TOP SURFACE (Rich Polished Wood)
+       ========================================== -->
+  <rect x="2" y="24" width="196" height="26" fill="url(#tDeskTop)" stroke="#2c1404" stroke-width="2.5" rx="4"/>
+  <line x1="5" y1="26" x2="195" y2="26" stroke="#f0bd88" stroke-width="1.5"/>
+
+  <!-- ==========================================
+       TEACHER ACCESSORIES ON DESK
+       ========================================== -->
+  <!-- Classic Green Banker's Desk Lamp (Left side) -->
+  <g transform="translate(18, 14)">
+    <!-- Brass Base & Gooseneck -->
+    <ellipse cx="12" cy="16" rx="5" ry="2" fill="#d4af37" stroke="#5a3d09" stroke-width="1"/>
+    <path d="M12,15 C12,9 18,7 18,4" fill="none" stroke="#d4af37" stroke-width="2"/>
+    <!-- Emerald Green Glass Shade -->
+    <rect x="10" y="2" width="16" height="7" fill="#1b5e20" stroke="#003300" stroke-width="1.5" rx="3"/>
+    <rect x="12" y="3" width="12" height="2" fill="#4caf50" rx="1"/>
+    <circle cx="26" cy="6" r="1.5" fill="#d4af37"/>
+  </g>
+
+  <!-- Open Teacher Lesson Ledger / Book (Center) -->
+  <g transform="translate(74, 27)">
+    <rect x="0" y="0" width="30" height="18" fill="#fdfaf2" stroke="#2c1404" stroke-width="1.5" rx="1"/>
+    <line x1="15" y1="0" x2="15" y2="18" stroke="#a07850" stroke-width="1.2"/>
+    <!-- Text Lines -->
+    <line x1="4" y1="4" x2="12" y2="4" stroke="#786655" stroke-width="1"/>
+    <line x1="4" y1="8" x2="12" y2="8" stroke="#786655" stroke-width="1"/>
+    <line x1="4" y1="12" x2="10" y2="12" stroke="#786655" stroke-width="1"/>
+    <line x1="18" y1="4" x2="26" y2="4" stroke="#786655" stroke-width="1"/>
+    <line x1="18" y1="8" x2="26" y2="8" stroke="#786655" stroke-width="1"/>
+    <line x1="18" y1="12" x2="24" y2="12" stroke="#786655" stroke-width="1"/>
+    <!-- Gold Ribbon Bookmark -->
+    <path d="M15,18 L15,22 L17,20.5 L19,22 L19,18 Z" fill="#d4af37"/>
+  </g>
+
+  <!-- Teacher Laptop (Compact sleek silver laptop, partially folded) -->
+  <g transform="translate(112, 27)">
+    <rect x="0" y="0" width="26" height="17" fill="#475569" stroke="#1e293b" stroke-width="1.5" rx="2"/>
+    <rect x="3" y="3" width="20" height="11" fill="#0284c7" rx="1"/>
+    <rect x="5" y="5" width="8" height="3" fill="#ffffff" opacity="0.8" rx="0.5"/>
+  </g>
+
+  <!-- Classic Red Teacher Apple 🍎 (Right Corner) -->
+  <g transform="translate(165, 30)">
+    <circle cx="6" cy="6" r="5" fill="#dc2626" stroke="#7f1d1d" stroke-width="1.2"/>
+    <circle cx="4.5" cy="4.5" r="1.5" fill="#ef4444"/>
+    <!-- Green Leaf & Stem -->
+    <path d="M6,1 C6,-1 7,-2 8,-2" fill="none" stroke="#451a03" stroke-width="1.2"/>
+    <path d="M7,-1 C9,-2 10,-1 9,0 Z" fill="#22c55e"/>
+  </g>
+</svg>

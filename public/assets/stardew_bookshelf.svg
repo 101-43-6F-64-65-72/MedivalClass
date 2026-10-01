@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="130" viewBox="0 0 120 130">
+  <defs>
+    <filter id="bShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+  </defs>
+
+  <!-- Ground Shadow -->
+  <ellipse cx="60" cy="126" rx="56" ry="4" fill="#000000" opacity="0.3" filter="url(#bShadow)"/>
+
+  <!-- Main Oak Case Outline & Outer Frame -->
+  <rect x="4" y="8" width="112" height="118" fill="#5c3416" stroke="#2b1404" stroke-width="3" rx="3"/>
+  <!-- Interior Backing (Darker wood shadow) -->
+  <rect x="10" y="16" width="100" height="104" fill="#3a1e09"/>
+
+  <!-- Top Crown Molding -->
+  <rect x="2" y="4" width="116" height="8" fill="#a66d3b" stroke="#2b1404" stroke-width="2" rx="2"/>
+  <line x1="4" y1="6" x2="116" y2="6" stroke="#e0a870" stroke-width="1.5"/>
+
+  <!-- Shelf 1 (y: 42) -->
+  <rect x="8" y="42" width="104" height="6" fill="#8c5324" stroke="#2b1404" stroke-width="1.5"/>
+  <!-- Shelf 2 (y: 72) -->
+  <rect x="8" y="72" width="104" height="6" fill="#8c5324" stroke="#2b1404" stroke-width="1.5"/>
+  <!-- Shelf 3 (y: 102) -->
+  <rect x="8" y="102" width="104" height="6" fill="#8c5324" stroke="#2b1404" stroke-width="1.5"/>
+  <!-- Base Plinth -->
+  <rect x="4" y="120" width="112" height="6" fill="#4a260d" stroke="#2b1404" stroke-width="2"/>
+
+  <!-- ==========================================
+       TOP DECORATIONS (Top of Bookshelf)
+       ========================================== -->
+  <!-- Purple Amethyst Geode / Mineral (Stardew Style) -->
+  <polygon points="56,4 62,-2 68,4 66,8 58,8" fill="#9333ea" stroke="#581c87" stroke-width="1.2"/>
+  <polygon points="62,-2 65,3 62,6 59,3" fill="#c084fc"/>
+
+  <!-- ==========================================
+       ROW 1 BOOKS (y: 18 to 42, Height: 24)
+       ========================================== -->
+  <!-- Red Book -->
+  <rect x="14" y="20" width="8" height="22" fill="#dc2626" stroke="#450a0a" stroke-width="1" rx="1"/>
+  <line x1="16" y1="24" x2="20" y2="24" stroke="#fca5a5" stroke-width="1"/>
+  <!-- Blue Book -->
+  <rect x="23" y="18" width="9" height="24" fill="#2563eb" stroke="#172554" stroke-width="1" rx="1"/>
+  <line x1="25" y1="22" x2="30" y2="22" stroke="#bfdbfe" stroke-width="1"/>
+  <!-- Gold Tome -->
+  <rect x="33" y="22" width="10" height="20" fill="#d97706" stroke="#451a03" stroke-width="1" rx="1"/>
+  <circle cx="38" cy="30" r="1.5" fill="#fde68a"/>
+  <!-- Leaning Green Book -->
+  <g transform="translate(48, 20) rotate(15)">
+    <rect x="0" y="0" width="8" height="22" fill="#16a34a" stroke="#052e16" stroke-width="1" rx="1"/>
+  </g>
+  <!-- Rolled Parchment Scroll -->
+  <rect x="68" y="32" width="18" height="10" fill="#fef3c7" stroke="#78350f" stroke-width="1" rx="3"/>
+  <line x1="72" y1="37" x2="82" y2="37" stroke="#b45309" stroke-width="1"/>
+  <!-- Brown Book Pair -->
+  <rect x="90" y="21" width="8" height="21" fill="#78350f" stroke="#270e03" stroke-width="1" rx="1"/>
+  <rect x="99" y="19" width="9" height="23" fill="#b91c1c" stroke="#450a0a" stroke-width="1" rx="1"/>
+
+  <!-- ==========================================
+       ROW 2 BOOKS (y: 48 to 72, Height: 24)
+       ========================================== -->
+  <!-- Emerald Encyclopedia Set (3 matching volumes) -->
+  <rect x="14" y="50" width="8" height="22" fill="#059669" stroke="#022c22" stroke-width="1" rx="1"/>
+  <rect x="23" y="50" width="8" height="22" fill="#059669" stroke="#022c22" stroke-width="1" rx="1"/>
+  <rect x="32" y="50" width="8" height="22" fill="#059669" stroke="#022c22" stroke-width="1" rx="1"/>
+  <line x1="14" y1="54" x2="40" y2="54" stroke="#a7f3d0" stroke-width="1"/>
+  <!-- Purple Book -->
+  <rect x="44" y="53" width="9" height="19" fill="#7c3aed" stroke="#2e1065" stroke-width="1" rx="1"/>
+  <!-- Orange Book -->
+  <rect x="54" y="49" width="8" height="23" fill="#ea580c" stroke="#431407" stroke-width="1" rx="1"/>
+  <!-- Stacked Horizontal Books -->
+  <rect x="68" y="65" width="22" height="7" fill="#475569" stroke="#0f172a" stroke-width="1" rx="1"/>
+  <rect x="71" y="59" width="18" height="6" fill="#ca8a04" stroke="#422006" stroke-width="1" rx="1"/>
+  <rect x="74" y="54" width="14" height="5" fill="#be185d" stroke="#500724" stroke-width="1" rx="1"/>
+  <!-- Blue Book End -->
+  <rect x="96" y="50" width="10" height="22" fill="#0284c7" stroke="#082f49" stroke-width="1" rx="1"/>
+
+  <!-- ==========================================
+       ROW 3 BOOKS & JARS (y: 78 to 102, Height: 24)
+       ========================================== -->
+  <!-- Potion / Specimen Ink Bottle (Stardew Style) -->
+  <rect x="16" y="86" width="10" height="16" fill="#38bdf8" stroke="#0369a1" stroke-width="1" rx="2"/>
+  <rect x="18" y="82" width="6" height="4" fill="#a16207" stroke="#451a03" stroke-width="1" rx="1"/>
+  <!-- Crimson Grimoire -->
+  <rect x="30" y="80" width="11" height="22" fill="#991b1b" stroke="#450a0a" stroke-width="1" rx="1"/>
+  <circle cx="35.5" cy="91" r="2" fill="#facc15"/>
+  <!-- Row of study guides -->
+  <rect x="43" y="82" width="8" height="20" fill="#2563eb" stroke="#172554" stroke-width="1" rx="1"/>
+  <rect x="52" y="79" width="8" height="23" fill="#15803d" stroke="#052e16" stroke-width="1" rx="1"/>
+  <rect x="61" y="84" width="9" height="18" fill="#d97706" stroke="#451a03" stroke-width="1" rx="1"/>
+  <!-- Two Large Reference Manuals -->
+  <rect x="74" y="79" width="12" height="23" fill="#334155" stroke="#0f172a" stroke-width="1" rx="1"/>
+  <line x1="77" y1="83" x2="83" y2="83" stroke="#f1f5f9" stroke-width="1"/>
+  <rect x="88" y="81" width="12" height="21" fill="#7f1d1d" stroke="#450a0a" stroke-width="1" rx="1"/>
+  <line x1="91" y1="85" x2="97" y2="85" stroke="#fde047" stroke-width="1"/>
+</svg>

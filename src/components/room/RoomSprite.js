@@ -1,170 +1,166 @@
+'use client';
+
 import React from 'react';
 
-// Coordinates calibrated for pixel_assets.png (1024 x 363 px)
+/**
+ * RoomSprite Component
+ * Stardew Valley Cozy Classroom Furniture & Environmental Sprites
+ * Uses handcrafted, high-fidelity SVGs with authentic Stardew Valley color palettes,
+ * soft drop shadows, warm honey oak, and zero visual glitches.
+ */
 const SPRITE_DEFS = {
-  // Main Furniture
-  desk: {
-    sheetX: 248,
-    sheetY: 160,
-    sheetW: 115,
-    sheetH: 65,
-    defaultW: 160,
-    defaultH: 90,
+  // Student Two-Seater Desk (includes chairs, notebooks, pencils, mug)
+  'desk': {
+    image: '/assets/stardew_student_desk.svg',
+    isSvg: true,
+    defaultW: 150,
+    defaultH: 85,
   },
-  counter: {
-    sheetX: 372,
-    sheetY: 170,
-    sheetW: 130,
-    sheetH: 75,
-    defaultW: 180,
-    defaultH: 105,
+  'student-desk': {
+    image: '/assets/stardew_student_desk.svg',
+    isSvg: true,
+    defaultW: 150,
+    defaultH: 85,
   },
-  bookshelf: {
-    sheetX: 184,
-    sheetY: 265,
-    sheetW: 62,
-    sheetH: 90,
-    defaultW: 86,
-    defaultH: 125,
+
+  // Teacher Executive Desk (includes teacher armchair, banker's lamp, ledger, apple)
+  'teacher-desk': {
+    image: '/assets/stardew_teacher_desk.svg',
+    isSvg: true,
+    defaultW: 200,
+    defaultH: 95,
+  },
+
+  // Stardew Oak Bookshelves & Library
+  'bookshelf': {
+    image: '/assets/stardew_bookshelf.svg',
+    isSvg: true,
+    defaultW: 120,
+    defaultH: 130,
   },
   'bookshelf-alt': {
-    sheetX: 267,
-    sheetY: 270,
-    sheetW: 62,
-    sheetH: 85,
-    defaultW: 86,
+    image: '/assets/stardew_bookshelf.svg',
+    isSvg: true,
+    defaultW: 120,
+    defaultH: 130,
+  },
+  'bookshelf-narrow': {
+    image: '/assets/stardew_bookshelf.svg',
+    isSvg: true,
+    defaultW: 80,
+    defaultH: 130,
+  },
+  'cabinet': {
+    image: '/assets/stardew_bookshelf.svg',
+    isSvg: true,
+    defaultW: 100,
     defaultH: 120,
   },
-  globe: {
-    sheetX: 100,
-    sheetY: 170,
-    sheetW: 65,
-    sheetH: 75,
-    defaultW: 85,
-    defaultH: 100,
-  },
-  clock: {
-    sheetX: 54,
-    sheetY: 16,
-    sheetW: 40,
-    sheetH: 92,
-    defaultW: 50,
-    defaultH: 115,
-  },
-  chest: {
-    sheetX: 40,
-    sheetY: 106,
-    sheetW: 38,
-    sheetH: 33,
-    defaultW: 52,
-    defaultH: 45,
-  },
-  'armchair-blue': {
-    sheetX: 463,
-    sheetY: 72,
-    sheetW: 35,
-    sheetH: 48,
-    defaultW: 48,
-    defaultH: 66,
-  },
-  'armchair-gold': {
-    sheetX: 463,
-    sheetY: 28,
-    sheetW: 35,
-    sheetH: 45,
-    defaultW: 48,
-    defaultH: 62,
+
+  // Stardew Potted Houseplants (Monstera / Fern in terracotta pots)
+  'plant': {
+    image: '/assets/stardew_plant.svg',
+    isSvg: true,
+    defaultW: 56,
+    defaultH: 64,
   },
 
-  // Carpets & Rugs
-  'carpet-large': {
-    sheetX: 314,
-    sheetY: 17,
-    sheetW: 115,
-    sheetH: 60,
-    defaultW: 240,
-    defaultH: 125,
+  // Pendulum Wall Clock
+  'clock': {
+    image: '/assets/stardew_clock.svg',
+    isSvg: true,
+    defaultW: 36,
+    defaultH: 74,
   },
-  'carpet-medium': {
-    sheetX: 320,
-    sheetY: 90,
-    sheetW: 88,
-    sheetH: 50,
-    defaultW: 180,
-    defaultH: 102,
+
+  // Arched Wooden Windows with Sunlight
+  'window': {
+    image: '/assets/stardew_window.svg',
+    isSvg: true,
+    defaultW: 80,
+    defaultH: 96,
   },
-  'carpet-runner': {
-    sheetX: 512,
-    sheetY: 17,
-    sheetW: 48,
-    sheetH: 115,
+
+  // Classroom Globe on Spindle
+  'globe': {
+    image: '/assets/stardew_globe.svg',
+    isSvg: true,
+    defaultW: 48,
+    defaultH: 58,
+  },
+
+  // Cork Noticeboard with Student Art & Announcements
+  'noticeboard': {
+    image: '/assets/stardew_noticeboard.svg',
+    isSvg: true,
+    defaultW: 64,
+    defaultH: 64,
+  },
+
+  // Green Slate Chalkboard
+  'chalkboard': {
+    image: '/assets/stardew_chalkboard.svg',
+    isSvg: true,
     defaultW: 96,
-    defaultH: 230,
+    defaultH: 68,
   },
 
-  // Decor & Plants
-  plant: {
-    sheetX: 19,
-    sheetY: 100,
-    sheetW: 30,
-    sheetH: 50,
-    defaultW: 42,
-    defaultH: 70,
-  },
-  bonsai: {
-    sheetX: 18,
-    sheetY: 18,
-    sheetW: 30,
-    sheetH: 38,
-    defaultW: 42,
-    defaultH: 52,
-  },
-  'books-stack': {
-    sheetX: 195,
-    sheetY: 16,
-    sheetW: 34,
-    sheetH: 45,
-    defaultW: 42,
-    defaultH: 55,
-  },
-  lamp: {
-    sheetX: 430,
-    sheetY: 90,
-    sheetW: 18,
-    sheetH: 35,
-    defaultW: 26,
-    defaultH: 50,
+  // Stardew Woven Persian/Rustic Carpet Runner
+  'rug': {
+    image: '/assets/stardew_rug.svg',
+    isSvg: true,
+    defaultW: 760,
+    defaultH: 340,
   },
 
-  // Wall elements
-  'wall-blue': {
-    sheetX: 712,
-    sheetY: 0,
-    sheetW: 295,
-    sheetH: 115,
-    defaultW: 590,
-    defaultH: 230,
-  },
-  'wall-stairs': {
-    sheetX: 642,
-    sheetY: 0,
-    sheetW: 70,
-    sheetH: 115,
-    defaultW: 140,
-    defaultH: 230,
+  // Main Entrance Double Door
+  'door': {
+    image: '/assets/stardew_door.svg',
+    isSvg: true,
+    defaultW: 96,
+    defaultH: 96,
   },
 };
 
 export default function RoomSprite({ type, x, y, width, height, zIndex, className = '' }) {
   const def = SPRITE_DEFS[type];
+  // If undefined (such as legacy 'chair' which is now integrated into 'desk'), return null
   if (!def) return null;
 
   const w = width || def.defaultW;
   const h = height || def.defaultH;
+  const calculatedZIndex = zIndex !== undefined ? zIndex : Math.floor(y + h);
+
+  if (def.isSvg || def.image.endsWith('.svg')) {
+    return (
+      <div
+        className={`absolute pointer-events-none select-none ${className}`}
+        style={{
+          left: x,
+          top: y,
+          width: w,
+          height: h,
+          zIndex: calculatedZIndex,
+        }}
+      >
+        <img
+          src={def.image}
+          alt={type}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            imageRendering: 'pixelated',
+          }}
+          draggable={false}
+        />
+      </div>
+    );
+  }
+
+  // Fallback for raster tilesheet crops
   const scaleX = w / def.sheetW;
   const scaleY = h / def.sheetH;
-
-  const calculatedZIndex = zIndex !== undefined ? zIndex : Math.floor(y + h);
 
   return (
     <div
@@ -182,12 +178,12 @@ export default function RoomSprite({ type, x, y, width, height, zIndex, classNam
         style={{
           width: def.sheetW,
           height: def.sheetH,
-          backgroundImage: 'url(/pixel_assets.png)',
+          backgroundImage: `url('${def.image}')`,
           backgroundPosition: `-${def.sheetX}px -${def.sheetY}px`,
           backgroundRepeat: 'no-repeat',
           transform: `scale(${scaleX}, ${scaleY})`,
           transformOrigin: 'top left',
-          imageRendering: 'pixelated', // crisp pixel art rendering
+          imageRendering: 'pixelated',
           filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.18))',
         }}
       />

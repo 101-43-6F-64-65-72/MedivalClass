@@ -1,57 +1,145 @@
-import React from 'react';
+'use client';
 
-export default function Player({ x, y, direction, isMoving, username, color, isLocal }) {
-  const width = 32;
-  const height = 48;
-  const zIndex = Math.floor(y + height);
+import React, { useState, useEffect } from 'react';
 
-  // Bobbing animation if moving
-  const bobbing = isMoving ? 'animate-bounce-short' : '';
+/**
+ * Player Component
+ * Renders 72x72 RPG Maker MZ sprite sheet ($Char_XXX.png: 216x288px)
+ * Properly scaled to 48x48px with accurate walk cycle and direction
+ */
+export default function Player(props) {
+  const player = props.player || {
+    userId: props.id || props.userId,
+    x: props.x || 0,
+    y: props.y || 0,
+    direction: props.direction || 'up',
+    isMoving: !!props.isMoving,
+    username: props.username || 'Siswa',
+    fullName: props.fullName || '',
+    attendanceNo: props.attendanceNo || '',
+    characterIndex: props.characterIndex || 1,
+    color: props.color,
+    isAdmin: !!props.isAdmin,
+    role: props.role || null,
+  };
+
+  const isLocalPlayer = typeof props.isLocalPlayer !== 'undefined' 
+    ? props.isLocalPlayer 
+    : (typeof props.isLocal !== 'undefined' ? props.isLocal : false);
+
+  // Walk animation frame cycle: 0 -> 1 -> 2 -> 1
+  const [walkStep, setWalkStep] = useState(1);
+
+  useEffect(() => {
+    if (!player.isMoving) {
+      setWalkStep(1); // Idle pose (center frame)
+      return;
+    }
+    const interval = setInterval(() => {
+      setWalkStep((prev) => (prev + 1) % 4);
+    }, 140);
+    return () => clearInterval(interval);
+  }, [player.isMoving]);
+
+  // Screen/world position
+  let posX = player.x;
+  let posY = player.y;
+
+  if (typeof props.cameraOffsetX === 'number' && typeof props.screenCenterX === 'number') {
+    posX = props.screenCenterX + (player.x - props.cameraOffsetX);
+    posY = (props.screenCenterY || 0) + (player.y - (props.cameraOffsetY || 0));
+
+    const isInViewport = posX > -100 && posX < 1400 && posY > -100 && posY < 900;
+    if (!isInViewport && !isLocalPlayer) {
+      return null;
+    }
+  }
+
+  // SPRITE URL - map character index (1-6)
+  const charIdx = typeof player.characterIndex === 'number' 
+    ? ((player.characterIndex - 1) % 6) + 1
+    : ((typeof player.color === 'number' ? player.color % 6 : 0) + 1);
+  const charNum = String(Math.max(1, Math.min(6, charIdx))).padStart(3, '0');
+  const spriteUrl = `/assets/RPG Maker MZ (48x48)/characters/$Char_${charNum}.png`;
+
+  // RPG Maker MZ Sprite Sheet: 216 x 288 px (3 cols x 4 rows of 72x72px)
+  // Scaled to 48x48px on screen: backgroundSize is 144px x 192px (48/72 = 2/3 scale)
+  const directionRowIndex = {
+    down: 0,
+    left: 1,
+    right: 2,
+    up: 3,
+  };
+  const row = directionRowIndex[player.direction] !== undefined ? directionRowIndex[player.direction] : 0;
+  const colSequence = [0, 1, 2, 1];
+  const col = player.isMoving ? colSequence[walkStep] : 1; // 1 is center standing frame
+
+  const bgX = -col * 48;
+  const bgY = -row * 48;
 
   return (
-    <div 
-      className={`absolute top-0 left-0 flex flex-col items-center justify-end ${
-        isLocal ? '' : 'transition-transform duration-75 ease-linear'
-      }`}
-      style={{ 
-        transform: `translate3d(${x}px, ${y}px, 0)`,
-        width: width, 
-        height: height, 
-        zIndex,
-        willChange: 'transform'
+    <div
+      key={player.userId || player.id || `player-${player.username}`}
+      className="absolute select-none pointer-events-none"
+      style={{
+        left: `${posX}px`,
+        top: `${posY}px`,
+        transform: 'translate(-50%, -100%)', // Anchor at player's feet
+        zIndex: Math.floor(player.y) || 10,
+        willChange: isLocalPlayer ? 'none' : 'transform',
+        transition: isLocalPlayer ? 'none' : 'all 0.05s linear',
       }}
     >
-      {/* Name tag */}
-      <div className="absolute -top-6 whitespace-nowrap bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full border border-white/20">
-        {username} {isLocal && '(You)'}
+      {/* SPRITE CONTAINER - 48x48 */}
+      <div
+        className="relative mx-auto"
+        style={{
+          width: '48px',
+          height: '48px',
+          imageRendering: 'pixelated',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: '48px',
+            height: '48px',
+            backgroundImage: `url('${spriteUrl}')`,
+            backgroundPosition: `${bgX}px ${bgY}px`,
+            backgroundSize: '144px 192px',
+            backgroundRepeat: 'no-repeat',
+            imageRendering: 'pixelated',
+          }}
+        />
       </div>
 
-      {/* Character body (placeholder using simple shapes) */}
-      <div className={`relative flex flex-col items-center ${bobbing}`} style={{ animationDuration: '300ms' }}>
-        {/* Head */}
+      {/* Shadow at feet */}
+      <div 
+        className="w-8 h-2.5 bg-black/45 rounded-full blur-[1px] mx-auto -mt-2" 
+        style={{ pointerEvents: 'none' }}
+      />
+
+      {/* NAME TAG */}
+      <div
+        className="whitespace-nowrap mt-1 text-center pointer-events-none flex justify-center"
+      >
         <div 
-          className="w-6 h-6 rounded-full shadow-sm z-10"
-          style={{ backgroundColor: '#fcd34d' /* Skin tone */ }}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold shadow-lg"
+          style={{
+            backgroundColor: '#0f172a',
+            color: '#ffffff',
+            border: player.isAdmin ? '2px solid #fbbf24' : '1px solid rgba(255, 255, 255, 0.25)',
+          }}
         >
-          {/* Eyes based on direction */}
-          <div className="relative w-full h-full">
-            {(direction === 'down' || direction === 'left' || direction === 'right') && (
-              <>
-                <div className="absolute w-1 h-1 bg-black rounded-full top-2" style={{ left: direction === 'left' ? '4px' : '6px' }} />
-                <div className="absolute w-1 h-1 bg-black rounded-full top-2" style={{ right: direction === 'right' ? '4px' : '6px' }} />
-              </>
-            )}
-          </div>
+          {isLocalPlayer && <span className="text-emerald-400">👤</span>}
+          {player.attendanceNo && (
+            <span className="text-amber-400 font-mono">#{player.attendanceNo}</span>
+          )}
+          <span>{player.username}</span>
+          {player.isAdmin && (
+            <span title="Instruktur / Guru" className="text-amber-400">👑</span>
+          )}
         </div>
-        
-        {/* Body */}
-        <div 
-          className="w-7 h-8 rounded-t-md rounded-b-sm -mt-1 shadow-md"
-          style={{ backgroundColor: color || '#3b82f6' }}
-        />
-        
-        {/* Shadow */}
-        <div className="absolute -bottom-1 w-6 h-2 bg-black/30 rounded-full blur-[1px] -z-10" />
       </div>
     </div>
   );

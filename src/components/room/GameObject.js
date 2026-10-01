@@ -1,131 +1,139 @@
+'use client';
+
 import React from 'react';
 
+/**
+ * GameObject Component
+ * Stardew Valley Architectural Elements:
+ * - Authentic schoolhouse wainscoted walls (warm cream wallpaper + honey oak beadboard)
+ * - Heavy oak crown molding and baseboards
+ * - Cozy wooden side walls with rich ambient depth
+ */
 export default function GameObject({ object }) {
   if (!object.visible) return null;
 
-  // We use object.y as the z-index so objects lower on the screen (higher y) appear in front
   const zIndex = Math.floor(object.y + object.height);
 
-  let style = {
+  const baseStyle = {
     position: 'absolute',
     left: object.x,
     top: object.y,
     width: object.width,
     height: object.height,
-    zIndex: object.collision ? zIndex : 0, // Background/zones stay at bottom
+    zIndex: object.collision ? zIndex : (object.zIndex || 0),
+    userSelect: 'none',
   };
-
-  let content = null;
 
   switch (object.type) {
     case 'wall':
       if (object.id === 'wall-top') {
-        style.backgroundColor = '#e8dfcf'; // Wall surface matching asset sheet
-        style.borderBottom = '8px solid #9c7853'; // Wooden baseboard from asset sheet
-        style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)';
-      } else {
-        style.backgroundColor = '#475569';
-        style.border = '2px solid #334155';
-      }
-      break;
-    case 'stage-carpet':
-      style.backgroundColor = 'rgba(30, 41, 59, 0.45)';
-      style.border = '2px solid #64748b';
-      style.borderRadius = '12px';
-      style.boxShadow = 'inset 0 2px 8px rgba(0,0,0,0.3)';
-      break;
-    case 'screen':
-      style.backgroundColor = '#f8fafc';
-      style.border = '6px solid #1e293b';
-      style.borderRadius = '8px';
-      style.display = 'flex';
-      style.alignItems = 'center';
-      style.justifyContent = 'center';
-      style.color = '#0f172a';
-      style.fontWeight = 'bold';
-      style.boxShadow = '0 16px 24px rgba(0,0,0,0.25)';
-      content = 'Presentation Screen';
-      break;
-    case 'podium':
-      style.backgroundColor = '#b08968';
-      style.border = '3px solid #7f5539';
-      style.borderRadius = '6px';
-      style.boxShadow = '0 8px 0 #582f0e, 0 12px 10px rgba(0,0,0,0.3)';
-      style.display = 'flex';
-      style.alignItems = 'center';
-      style.justifyContent = 'center';
-      style.color = '#fff';
-      style.fontSize = '12px';
-      content = '🎤';
-      break;
-    case 'table':
-      style.backgroundColor = '#ddb892'; // Warm oak wood top matching asset sheet
-      style.border = '3px solid #b08968';
-      style.borderRadius = '10px';
-      // 3D semi-isometric depth bevel & soft shadow
-      style.boxShadow = '0 12px 0 #7f5539, 0 18px 15px rgba(0,0,0,0.25)';
-      style.display = 'flex';
-      style.alignItems = 'center';
-      style.justifyContent = 'space-around';
-      content = (
-        <div className="flex gap-4 opacity-75 pointer-events-none text-xs">
-          <span>💻</span>
-          <span>📓</span>
-        </div>
-      );
-      break;
-    case 'coffee-table':
-      style.backgroundColor = '#cda77a';
-      style.border = '3px solid #9c7853';
-      style.borderRadius = '12px';
-      style.boxShadow = '0 8px 0 #785332, 0 14px 10px rgba(0,0,0,0.2)';
-      style.display = 'flex';
-      style.alignItems = 'center';
-      style.justifyContent = 'center';
-      content = <span className="opacity-80 text-sm">☕</span>;
-      break;
-    case 'game-zone':
-      style.backgroundColor = 'rgba(59, 130, 246, 0.12)';
-      style.border = '2px dashed #60a5fa';
-      style.borderRadius = '16px';
-      style.display = 'flex';
-      style.alignItems = 'flex-start';
-      style.padding = '12px';
-      style.color = '#2563eb';
-      style.fontWeight = 'bold';
-      style.fontSize = '13px';
-      content = '🕹️ Gaming & Arcade Lounge';
-      break;
-    case 'reading-zone':
-      style.backgroundColor = 'rgba(245, 158, 11, 0.12)';
-      style.border = '2px dashed #f59e0b';
-      style.borderRadius = '16px';
-      style.display = 'flex';
-      style.alignItems = 'flex-start';
-      style.padding = '12px';
-      style.color = '#d97706';
-      style.fontWeight = 'bold';
-      style.fontSize = '13px';
-      content = '📚 Cozy Reading Corner';
-      break;
-    case 'arcade':
-      style.backgroundColor = '#ef4444';
-      style.border = '2px solid #991b1b';
-      style.borderRadius = '6px 6px 0 0';
-      style.boxShadow = '0 16px 0 #7f1d1d, 0 20px 15px rgba(0,0,0,0.3)';
-      style.display = 'flex';
-      style.alignItems = 'center';
-      style.justifyContent = 'center';
-      style.color = 'white';
-      content = '🕹️';
-      break;
-    default:
-      style.backgroundColor = 'gray';
-  }
+        return (
+          <div
+            style={{
+              ...baseStyle,
+              backgroundColor: '#f6eee2', // Warm Stardew cream wallpaper
+              backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 24px, rgba(160, 115, 75, 0.08) 24px, rgba(160, 115, 75, 0.08) 25px)',
+              overflow: 'hidden',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.28)',
+            }}
+          >
+            {/* Top Ceiling Dark Oak Crown Molding */}
+            <div
+              style={{
+                width: '100%',
+                height: 12,
+                backgroundColor: '#4a250a',
+                borderBottom: '2px solid #6b3915',
+                boxShadow: 'inset 0 -2px 0 #2c1404',
+              }}
+            />
 
-  return (
-    <div style={style}>
-      {content}
-    </div>
-  );
+            {/* Middle Wooden Chair-Rail Trim */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 66,
+                left: 0,
+                width: '100%',
+                height: 8,
+                backgroundColor: '#8c5324',
+                borderTop: '1.5px solid #d49a5b',
+                borderBottom: '2px solid #4a250a',
+              }}
+            />
+
+            {/* Lower Wooden Beadboard Wainscoting */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 74,
+                left: 0,
+                bottom: 16,
+                width: '100%',
+                backgroundColor: '#7a4419',
+                backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 15px, #582f10 15px, #582f10 17px, #945928 17px, #945928 18px)',
+              }}
+            />
+
+            {/* Heavy Baseboard Trim (Bottom) */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                width: '100%',
+                height: 16,
+                backgroundColor: '#452108',
+                borderTop: '2px solid #8c5324',
+                boxShadow: 'inset 0 2px 0 #2c1404, 0 6px 12px rgba(0, 0, 0, 0.35)',
+              }}
+            />
+          </div>
+        );
+      }
+
+      if (object.id === 'wall-bottom') {
+        return (
+          <div
+            style={{
+              ...baseStyle,
+              backgroundColor: '#452108',
+              borderTop: '3px solid #78421b',
+              boxShadow: 'inset 0 4px 10px rgba(0, 0, 0, 0.45)',
+            }}
+          />
+        );
+      }
+
+      if (object.id === 'wall-left' || object.id === 'wall-right') {
+        return (
+          <div
+            style={{
+              ...baseStyle,
+              backgroundColor: '#5c3416',
+              borderLeft: object.id === 'wall-right' ? '3px solid #3a1e08' : 'none',
+              borderRight: object.id === 'wall-left' ? '3px solid #3a1e08' : 'none',
+              boxShadow: object.id === 'wall-left' 
+                ? 'inset -4px 0 8px rgba(0,0,0,0.35)' 
+                : 'inset 4px 0 8px rgba(0,0,0,0.35)',
+            }}
+          />
+        );
+      }
+
+      return (
+        <div
+          style={{
+            ...baseStyle,
+            backgroundColor: '#452108',
+          }}
+        />
+      );
+
+    case 'carpet-stage':
+      return null;
+
+    default:
+      return null;
+  }
 }
