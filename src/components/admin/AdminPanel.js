@@ -26,9 +26,17 @@ import {
   Share2,
   Copy,
   Check,
-  Tv
+  Tv,
+  Lock,
+  Unlock,
+  Megaphone,
+  Send,
+  BookOpen,
+  Image as ImageIcon,
+  Presentation as PresentationIcon
 } from 'lucide-react';
 import { usePresentation } from '@/hooks/usePresentation';
+import { getGameSubmissions } from '@/lib/gameSubmissionsService';
 
 export default function AdminPanel({
   isOpen,
@@ -41,7 +49,7 @@ export default function AdminPanel({
   onSetSpotlight,
   presentation: externalPresentation,
 }) {
-  const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'classes' | 'slide'
+  const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'slide' | 'broadcast' | 'classes'
   const [searchQuery, setSearchQuery] = useState('');
   const adminScreenVideoRef = useRef(null);
 
@@ -69,12 +77,123 @@ export default function AdminPanel({
     screenShareError,
     startScreenShare,
     stopScreenShare,
+    // Forced Fullscreen
+    isForcedFullscreen,
+    toggleForceFullscreen,
+    // Designated Student Presenter
+    designatedPresenter,
+    assignPresenter,
+    revokePresenter,
+    // Active Game Submission
+    activeGameSubmission,
+    setGameSubmission,
+    // Broadcast Announcements
+    activeAnnouncement,
+    sendBroadcastAnnouncement,
+    clearAnnouncement,
   } = presentation;
 
   const [inputUrl, setInputUrl] = useState('');
   const [inputLiveCode, setInputLiveCode] = useState('');
   const [copiedPanelCode, setCopiedPanelCode] = useState(false);
   const [savedStatus, setSavedStatus] = useState('');
+
+  // Bookshelf submissions cache for validation
+  const [bookshelfSubmissions, setBookshelfSubmissions] = useState([]);
+  const [presenterNotice, setPresenterNotice] = useState(null);
+
+  // Broadcast announcement composer state
+  const [broadcastText, setBroadcastText] = useState('');
+  const [broadcastAnimType, setBroadcastAnimType] = useState('banner'); // 'banner' | 'popup'
+  const [broadcastImageUrl, setBroadcastImageUrl] = useState('');
+  const [broadcastDuration, setBroadcastDuration] = useState(10);
+  const [broadcastStatus, setBroadcastStatus] = useState('');
+
+  // Fetch bookshelf submissions whenever modal is open
+  useEffect(() => {
+    if (isOpen) {
+      getGameSubmissions().then((subs) => {
+        if (Array.isArray(subs)) {
+          setBookshelfSubmissions(subs);
+        }
+      });
+    }
+  }, [isOpen]);
+
+  // Helper to match student with submitted game in bookshelf
+  const findSubmissionForStudent = (student) => {
+    if (!student || !bookshelfSubmissions || bookshelfSubmissions.length === 0) return null;
+    const attNo = String(student.attendanceNo || student.no || '').trim();
+    const name = (student.fullName || student.name || student.username || '').trim().toLowerCase();
+    const room = (student.roomCode || student.onlineData?.roomCode || '').trim().toUpperCase();
+
+    return bookshelfSubmissions.find((sub) => {
+      const subAtt = String(sub.attendance_no || '').trim();
+      const subName = (sub.student_name || '').trim().toLowerCase();
+      const subRoom = (sub.room_code || '').trim().toUpperCase();
+
+      const matchAtt = attNo && subAtt && attNo === subAtt;
+      const matchName = name && subName && name === subName;
+      const matchRoom = room && room !== 'LOBBY1' && subRoom && room === subRoom;
+
+      return matchAtt || matchName || matchRoom;
+    });
+  };
+
+  // Handler to designate student presenter after bookshelf check
+  const handleAssignStudentPresenter = (student) => {
+    const sub = findSubmissionForStudent(student);
+    const sName = student.fullName || student.name || student.username || 'Siswa';
+    const sRoom = student.roomCode || student.onlineData?.roomCode || 'LOBBY1';
+
+    if (!sub) {
+      setPresenterNotice({
+        type: 'error',
+        message: `Siswa "${sName}" (Kelompok ${sRoom}) belum menyetorkan link game di rak buku! Siswa diwajibkan menyetorkan link di rak buku terlebih dahulu sebelum ditunjuk menjadi presenter.`
+      });
+      return;
+    }
+
+    assignPresenter({
+      id: student.onlineData?.id || student.id,
+      username: student.name || student.username,
+      fullName: student.fullName || student.name || student.username,
+      attendanceNo: student.no || student.attendanceNo,
+      roomCode: sRoom,
+      submission: sub,
+    });
+
+    setPresenterNotice({
+      type: 'success',
+      message: `Berhasil menunjuk ${sName} sebagai presenter! Karya "${sub.platform || 'Game'} - ${sub.game_url}" siap ditampilkan di papan tulis.`
+    });
+    setTimeout(() => setPresenterNotice(null), 5000);
+  };
+
+  const handleRevokeStudentPresenter = () => {
+    revokePresenter();
+    setPresenterNotice({
+      type: 'info',
+      message: 'Hak presenter siswa telah dicabut. Kontrol papan tulis kembali ke Pengajar.'
+    });
+    setTimeout(() => setPresenterNotice(null), 4000);
+  };
+
+  // Handler to send broadcast announcement
+  const handleSendBroadcast = (e) => {
+    e?.preventDefault();
+    if (!broadcastText.trim()) return;
+
+    sendBroadcastAnnouncement({
+      text: broadcastText.trim(),
+      type: broadcastAnimType,
+      imageUrl: broadcastImageUrl.trim() || null,
+      duration: Number(broadcastDuration) > 0 ? Number(broadcastDuration) : null,
+    });
+
+    setBroadcastStatus('Pengumuman siaran berhasil dikirimkan ke layar seluruh siswa!');
+    setTimeout(() => setBroadcastStatus(''), 4000);
+  };
 
   // Attach screen stream to admin video element preview
   useEffect(() => {
@@ -225,11 +344,39 @@ export default function AdminPanel({
           </div>
         )}
 
+        {/* Presenter Action Notice Banner (Validation or Success) */}
+        {presenterNotice && (
+          <div className={`border-b px-4 py-2 flex items-center justify-between text-xs animate-in fade-in duration-200 ${
+            presenterNotice.type === 'error'
+              ? 'bg-red-950/95 border-red-600/80 text-red-200'
+              : presenterNotice.type === 'success'
+              ? 'bg-emerald-950/95 border-emerald-600/80 text-emerald-200'
+              : 'bg-amber-950/95 border-amber-600/80 text-amber-200'
+          }`}>
+            <div className="flex items-center gap-2">
+              {presenterNotice.type === 'error' ? (
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              ) : presenterNotice.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              ) : (
+                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+              )}
+              <span className="font-semibold">{presenterNotice.message}</span>
+            </div>
+            <button
+              onClick={() => setPresenterNotice(null)}
+              className="pixel-btn-wood text-[10px] px-2 py-0.5 ml-2 font-bold shrink-0"
+            >
+              Tutup
+            </button>
+          </div>
+        )}
+
         {/* Tab Navigation */}
-        <div className="flex items-center gap-1.5 px-4 pt-2.5 bg-[#1f0d03] border-b border-[#5c3416]">
+        <div className="flex items-center gap-1.5 px-4 pt-2.5 bg-[#1f0d03] border-b border-[#5c3416] overflow-x-auto">
           <button
             onClick={() => setActiveTab('groups')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all whitespace-nowrap ${
               activeTab === 'groups'
                 ? 'pixel-btn-gold text-amber-950 font-black'
                 : 'text-amber-300/80 hover:text-amber-100 hover:bg-amber-950/40'
@@ -241,7 +388,7 @@ export default function AdminPanel({
 
           <button
             onClick={() => setActiveTab('students')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all whitespace-nowrap ${
               activeTab === 'students'
                 ? 'pixel-btn-gold text-amber-950 font-black'
                 : 'text-amber-300/80 hover:text-amber-100 hover:bg-amber-950/40'
@@ -252,8 +399,32 @@ export default function AdminPanel({
           </button>
 
           <button
+            onClick={() => setActiveTab('slide')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'slide'
+                ? 'pixel-btn-gold text-amber-950 font-black'
+                : 'text-amber-300/80 hover:text-amber-100 hover:bg-amber-950/40'
+            }`}
+          >
+            <MonitorPlay className="w-3.5 h-3.5" />
+            <span>Papan Tulis &amp; Slide</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('broadcast')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'broadcast'
+                ? 'pixel-btn-gold text-amber-950 font-black'
+                : 'text-amber-300/80 hover:text-amber-100 hover:bg-amber-950/40'
+            }`}
+          >
+            <Megaphone className="w-3.5 h-3.5 text-amber-400" />
+            <span>Broadcast Pengumuman</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('classes')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all whitespace-nowrap ${
               activeTab === 'classes'
                 ? 'pixel-btn-gold text-amber-950 font-black'
                 : 'text-amber-300/80 hover:text-amber-100 hover:bg-amber-950/40'
@@ -261,18 +432,6 @@ export default function AdminPanel({
           >
             <Sliders className="w-3.5 h-3.5" />
             <span>Pilih Kelas Aktif</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('slide')}
-            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all ${
-              activeTab === 'slide'
-                ? 'pixel-btn-gold text-amber-950 font-black'
-                : 'text-amber-300/80 hover:text-amber-100 hover:bg-amber-950/40'
-            }`}
-          >
-            <MonitorPlay className="w-3.5 h-3.5" />
-            <span>Slide Canva (Live)</span>
           </button>
         </div>
 
@@ -332,11 +491,20 @@ export default function AdminPanel({
                           <div className="space-y-1.5">
                             {group.members.map((member) => {
                               const isSpotlighted = spotlightPlayer && (spotlightPlayer.id === member.id);
+                              const sub = findSubmissionForStudent(member);
+                              const isCurrentPresenter = designatedPresenter && (
+                                designatedPresenter.id === member.id ||
+                                (member.attendanceNo && designatedPresenter.attendanceNo === String(member.attendanceNo)) ||
+                                (designatedPresenter.username && designatedPresenter.username === (member.username || member.fullName))
+                              );
+
                               return (
                                 <div
                                   key={member.id}
                                   className={`flex items-center justify-between p-1.5 rounded transition-all ${
-                                    isSpotlighted 
+                                    isCurrentPresenter
+                                      ? 'bg-amber-950/80 border border-amber-400 ring-1 ring-amber-400'
+                                      : isSpotlighted 
                                       ? 'bg-amber-900/60 border border-amber-400 ring-1 ring-amber-400' 
                                       : 'bg-black/40 hover:bg-black/60'
                                   }`}
@@ -361,16 +529,65 @@ export default function AdminPanel({
                                             Admin
                                           </span>
                                         )}
+                                        {isCurrentPresenter && (
+                                          <span className="text-[8px] bg-amber-400 text-amber-950 px-1 rounded font-black border border-amber-300 animate-pulse">
+                                            Presenter
+                                          </span>
+                                        )}
                                       </div>
-                                      {member.studentClass && (
-                                        <span className="text-[9px] text-amber-400/60 font-mono">
-                                          Kelas: {member.studentClass}
-                                        </span>
-                                      )}
+                                      <div className="flex items-center gap-2 text-[9px] font-mono">
+                                        {member.studentClass && (
+                                          <span className="text-amber-400/60">
+                                            Kelas: {member.studentClass}
+                                          </span>
+                                        )}
+                                        {sub ? (
+                                          <span className="text-emerald-400 font-bold flex items-center gap-0.5">
+                                            <BookOpen className="w-2.5 h-2.5 text-emerald-400" />
+                                            <span>Rak: {sub.platform || 'Siap'}</span>
+                                          </span>
+                                        ) : (
+                                          <span className="text-amber-700/80">
+                                            Rak: Belum Setor
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
 
                                   <div className="flex items-center gap-1 shrink-0 ml-2">
+                                    {/* Designate Presenter Button */}
+                                    {isCurrentPresenter ? (
+                                      <button
+                                        onClick={handleRevokeStudentPresenter}
+                                        className="pixel-btn-silver text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 text-red-300 hover:text-white"
+                                        title="Cabut Akses Presenter Siswa Ini"
+                                      >
+                                        <X className="w-3 h-3" />
+                                        <span>Lepas Pres.</span>
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => handleAssignStudentPresenter({
+                                          ...member,
+                                          roomCode: group.roomCode,
+                                        })}
+                                        className={`text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 ${
+                                          sub 
+                                            ? 'pixel-btn-gold text-amber-950 shadow-sm' 
+                                            : 'pixel-btn-wood text-amber-400/80 hover:text-amber-200'
+                                        }`}
+                                        title={sub 
+                                          ? `Tunjuk ${member.fullName || member.username} sebagai presenter (${sub.platform || 'Game'} siap)`
+                                          : 'Siswa belum menyetor karya di rak buku. Tetap klik untuk memeriksa.'
+                                        }
+                                      >
+                                        <PresentationIcon className="w-3 h-3 text-amber-500" />
+                                        <span>Presenter</span>
+                                      </button>
+                                    )}
+
+                                    {/* Spotlight Button */}
                                     <button
                                       onClick={() => {
                                         if (isSpotlighted) {
@@ -388,19 +605,19 @@ export default function AdminPanel({
                                       className={`text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 ${
                                         isSpotlighted 
                                           ? 'pixel-btn-wood text-amber-300' 
-                                          : 'pixel-btn-gold text-amber-950'
+                                          : 'pixel-btn-wood text-amber-200'
                                       }`}
                                       title={isSpotlighted ? 'Matikan Sorotan' : 'Sorot Siswa Ini'}
                                     >
                                       {isSpotlighted ? (
                                         <>
                                           <EyeOff className="w-3 h-3" />
-                                          <span>Unspotlight</span>
+                                          <span>Unspot</span>
                                         </>
                                       ) : (
                                         <>
                                           <Eye className="w-3 h-3" />
-                                          <span>Spotlight</span>
+                                          <span>Spot</span>
                                         </>
                                       )}
                                     </button>
@@ -465,17 +682,18 @@ export default function AdminPanel({
                   <thead>
                     <tr className="bg-[#241004] border-b border-[#5c3416] text-[10px] text-amber-300 uppercase tracking-wider">
                       <th className="py-2 px-3 text-center w-12">No</th>
-                      <th className="py-2 px-3 w-28">NIS</th>
+                      <th className="py-2 px-3 w-24">NIS</th>
                       <th className="py-2 px-3">Nama Siswa</th>
-                      <th className="py-2 px-3 w-28 text-center">Status</th>
-                      <th className="py-2 px-3 w-28 text-center">Kelompok</th>
-                      <th className="py-2 px-3 w-28 text-center">Aksi</th>
+                      <th className="py-2 px-3 w-24 text-center">Status</th>
+                      <th className="py-2 px-3 w-24 text-center">Kelompok</th>
+                      <th className="py-2 px-3 w-28 text-center">Rak Buku</th>
+                      <th className="py-2 px-3 w-36 text-center">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#3d1e08]">
                     {filteredStudents.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-6 text-center text-amber-400/60 text-xs">
+                        <td colSpan={7} className="py-6 text-center text-amber-400/60 text-xs">
                           Tidak ada siswa yang cocok dengan pencarian "{searchQuery}".
                         </td>
                       </tr>
@@ -486,11 +704,20 @@ export default function AdminPanel({
                           (spotlightPlayer.attendanceNo === String(student.no) || 
                            (student.onlineData && spotlightPlayer.id === student.onlineData.id));
 
+                        const sub = findSubmissionForStudent(student);
+                        const isCurrentPresenter = designatedPresenter && (
+                          (student.onlineData && designatedPresenter.id === student.onlineData.id) ||
+                          (designatedPresenter.attendanceNo && designatedPresenter.attendanceNo === String(student.no)) ||
+                          (designatedPresenter.username && designatedPresenter.username.toLowerCase() === student.name.toLowerCase())
+                        );
+
                         return (
                           <tr 
                             key={student.nis} 
                             className={`transition-colors ${
-                              isSpotlighted 
+                              isCurrentPresenter
+                                ? 'bg-amber-950/80 border-l-4 border-amber-400'
+                                : isSpotlighted 
                                 ? 'bg-amber-950/70 border-l-4 border-amber-400' 
                                 : student.isOnline 
                                 ? 'bg-emerald-950/20 hover:bg-amber-950/30' 
@@ -504,7 +731,14 @@ export default function AdminPanel({
                               {student.nis}
                             </td>
                             <td className="py-2 px-3 font-bold text-amber-100">
-                              {student.name}
+                              <div className="flex items-center gap-1.5">
+                                <span>{student.name}</span>
+                                {isCurrentPresenter && (
+                                  <span className="text-[8px] bg-amber-400 text-amber-950 px-1 rounded font-black border border-amber-300 animate-pulse">
+                                    Presenter
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="py-2 px-3 text-center">
                               {student.isOnline ? (
@@ -528,29 +762,69 @@ export default function AdminPanel({
                               )}
                             </td>
                             <td className="py-2 px-3 text-center">
-                              {student.isOnline ? (
-                                <button
-                                  onClick={() => {
-                                    if (isSpotlighted) {
-                                      onSetSpotlight(null);
-                                    } else {
-                                      onSetSpotlight({
-                                        id: student.onlineData?.id,
-                                        username: student.name,
-                                        fullName: student.name,
-                                        attendanceNo: String(student.no),
-                                        roomCode: student.onlineData?.roomCode || 'LOBBY1',
-                                      });
-                                    }
-                                  }}
-                                  className={`text-[9px] px-2 py-0.5 font-bold ${
-                                    isSpotlighted 
-                                      ? 'pixel-btn-wood text-amber-300' 
-                                      : 'pixel-btn-gold text-amber-950'
-                                  }`}
+                              {sub ? (
+                                <span 
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700/50"
+                                  title={`${sub.platform || 'Game'}: ${sub.game_url}`}
                                 >
-                                  {isSpotlighted ? 'Unspotlight' : 'Spotlight'}
-                                </button>
+                                  <BookOpen className="w-2.5 h-2.5 text-emerald-400" />
+                                  <span>{sub.platform || 'Ada'}</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-amber-700/70 font-mono">
+                                  Belum
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              {student.isOnline ? (
+                                <div className="flex items-center justify-center gap-1">
+                                  {/* Presenter Button */}
+                                  {isCurrentPresenter ? (
+                                    <button
+                                      onClick={handleRevokeStudentPresenter}
+                                      className="pixel-btn-silver text-[9px] px-2 py-0.5 font-bold text-red-300 hover:text-white"
+                                      title="Cabut Akses Presenter"
+                                    >
+                                      Lepas
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleAssignStudentPresenter(student)}
+                                      className={`text-[9px] px-2 py-0.5 font-bold ${
+                                        sub ? 'pixel-btn-gold text-amber-950' : 'pixel-btn-wood text-amber-400/80'
+                                      }`}
+                                      title={sub ? "Tunjuk Siswa Ini sebagai Presenter" : "Siswa belum setor di rak buku"}
+                                    >
+                                      Pres.
+                                    </button>
+                                  )}
+
+                                  {/* Spotlight Button */}
+                                  <button
+                                    onClick={() => {
+                                      if (isSpotlighted) {
+                                        onSetSpotlight(null);
+                                      } else {
+                                        onSetSpotlight({
+                                          id: student.onlineData?.id,
+                                          username: student.name,
+                                          fullName: student.name,
+                                          attendanceNo: String(student.no),
+                                          roomCode: student.onlineData?.roomCode || 'LOBBY1',
+                                        });
+                                      }
+                                    }}
+                                    className={`text-[9px] px-2 py-0.5 font-bold ${
+                                      isSpotlighted 
+                                        ? 'pixel-btn-wood text-amber-300' 
+                                        : 'pixel-btn-wood text-amber-200'
+                                    }`}
+                                    title={isSpotlighted ? 'Matikan Sorotan' : 'Sorot Siswa Ini'}
+                                  >
+                                    {isSpotlighted ? 'Unspot' : 'Spot'}
+                                  </button>
+                                </div>
                               ) : (
                                 <span className="text-[10px] text-amber-800/50">-</span>
                               )}
@@ -640,6 +914,106 @@ export default function AdminPanel({
                   <span>Siaran Supabase Aktif</span>
                 </div>
               </div>
+
+              {/* Force Fullscreen / Focus Mode Card */}
+              <div className="pixel-box-inset p-4 bg-[#1c0c04] border border-[#5c3416] space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    {isForcedFullscreen ? (
+                      <Lock className="w-4 h-4 text-red-400 animate-pulse" />
+                    ) : (
+                      <Unlock className="w-4 h-4 text-amber-400" />
+                    )}
+                    <span className="text-xs font-bold text-amber-200">
+                      Mode Paksa Layar Penuh Siswa (Focus &amp; Freeze Control):
+                    </span>
+                  </div>
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
+                    isForcedFullscreen 
+                      ? 'bg-red-950/80 text-red-300 border-red-700/80 animate-pulse' 
+                      : 'bg-emerald-950/60 text-emerald-300 border-emerald-700/50'
+                  }`}>
+                    {isForcedFullscreen ? 'Status: Layar Penuh Siswa Terkunci' : 'Status: Siswa Bebas Bergerak'}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                  Bila diaktifkan, seluruh layar siswa akan otomatis dipaksa membuka mode fokus papan tulis/presentasi dan seluruh kontrol pergerakan karakter (WASD/panah) siswa akan dihentikan sementara agar fokus menyimak materi.
+                </p>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleForceFullscreen(!isForcedFullscreen)}
+                    className={isForcedFullscreen 
+                      ? "pixel-btn-silver text-xs px-4 py-2 font-bold flex items-center gap-2 text-red-300 hover:text-white" 
+                      : "pixel-btn-gold text-xs px-4 py-2 font-black flex items-center gap-2 text-amber-950"
+                    }
+                  >
+                    {isForcedFullscreen ? (
+                      <>
+                        <Unlock className="w-4 h-4" />
+                        <span>Lepas Kunci Layar Penuh Siswa (Bebaskan Pergerakan)</span>
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4" />
+                        <span>Paksa Layar Penuh ke Seluruh Siswa</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Designated Student Presenter Card */}
+              {designatedPresenter && (
+                <div className="pixel-box-inset p-4 bg-[#230f04] border-2 border-amber-500/80 space-y-2 animate-in fade-in">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <PresentationIcon className="w-4 h-4 text-amber-400 animate-spin" />
+                      <span className="text-xs font-bold text-amber-100">
+                        Siswa Yang Sedang Diberi Akses Presentasi:
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRevokeStudentPresenter}
+                      className="pixel-btn-silver text-[10px] px-3 py-1 font-bold text-red-300 hover:text-white"
+                    >
+                      Cabut Akses Presenter
+                    </button>
+                  </div>
+
+                  <div className="bg-[#120702] p-2.5 rounded border border-[#4a2608] text-xs flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <div className="font-bold text-amber-200 text-sm">
+                        {designatedPresenter.fullName || designatedPresenter.username}
+                        {designatedPresenter.attendanceNo ? ` (Absen #${designatedPresenter.attendanceNo})` : ''}
+                      </div>
+                      <div className="text-[10px] text-amber-400 font-mono">
+                        Kelompok: <strong>{designatedPresenter.roomCode}</strong>
+                      </div>
+                    </div>
+
+                    {designatedPresenter.submission && (
+                      <div className="text-right">
+                        <div className="text-[11px] font-bold text-emerald-300 flex items-center gap-1 justify-end">
+                          <BookOpen className="w-3 h-3 text-emerald-400" />
+                          <span>Karya di Rak: {designatedPresenter.submission.platform || 'Game'}</span>
+                        </div>
+                        <a
+                          href={designatedPresenter.submission.game_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-amber-300/80 hover:underline font-mono truncate max-w-xs block"
+                        >
+                          {designatedPresenter.submission.game_url}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Screen Sharing Card (WebRTC Realtime) */}
               <div className="pixel-box-inset p-4 bg-[#1c0c04] border border-[#5c3416] space-y-3">
@@ -906,6 +1280,244 @@ export default function AdminPanel({
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              TAB 5: BROADCAST PENGUMUMAN REALTIME KE LAYAR SISWA
+             ======================================================== */}
+          {activeTab === 'broadcast' && (
+            <div className="space-y-4 max-w-2xl mx-auto">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-amber-200 flex items-center gap-2">
+                    <Megaphone className="w-4 h-4 text-amber-400" />
+                    <span>Broadcast Pengumuman ke Layar Siswa</span>
+                  </h3>
+                  <p className="text-[11px] text-amber-400/70">
+                    Siarkan pengumuman real-time ke seluruh layar murid dengan pilihan animasi dan gambar.
+                  </p>
+                </div>
+                {broadcastStatus && (
+                  <span className="text-xs text-emerald-400 font-bold animate-in fade-in">
+                    {broadcastStatus}
+                  </span>
+                )}
+              </div>
+
+              {/* Active Broadcast Announcement Banner / Controller */}
+              {activeAnnouncement && (
+                <div className="pixel-box-inset p-3.5 bg-[#251004] border-2 border-amber-500/80 space-y-2 animate-in fade-in">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                      <span className="text-xs font-bold text-amber-200">
+                        Pengumuman Sedang Tayang di Layar Siswa:
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearAnnouncement}
+                      className="pixel-btn-silver text-[10px] px-2.5 py-1 font-bold text-red-300 hover:text-white"
+                    >
+                      Tarik / Hapus Pengumuman
+                    </button>
+                  </div>
+
+                  <div className="bg-[#120702] p-2.5 rounded border border-[#4a2608] flex items-center gap-3">
+                    {activeAnnouncement.imageUrl && (
+                      <img 
+                        src={activeAnnouncement.imageUrl} 
+                        alt="Icon" 
+                        className="w-8 h-8 object-contain shrink-0 image-pixelated" 
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-amber-100 break-words">
+                        {activeAnnouncement.text}
+                      </p>
+                      <div className="text-[10px] text-amber-400/70 font-mono mt-0.5">
+                        Animasi: {activeAnnouncement.type === 'banner' ? 'Melayang Atas (Kanan ke Kiri)' : 'Pop-up Bounce (Tengah)'} 
+                        {activeAnnouncement.duration ? ` | Durasi: ${activeAnnouncement.duration}s` : ' | Tetap Tampil'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Broadcast Composer Form */}
+              <form onSubmit={handleSendBroadcast} className="pixel-box-inset p-4 bg-[#1c0c04] border border-[#5c3416] space-y-3.5">
+                {/* 1. Message Input */}
+                <div>
+                  <label className="text-xs font-bold text-amber-200 block mb-1">
+                    Teks Pesan Pengumuman:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={broadcastText}
+                    onChange={(e) => setBroadcastText(e.target.value)}
+                    placeholder="Tuliskan instruksi, pengingat waktu tugas, atau pengumuman kelas di sini..."
+                    className="w-full bg-[#120702] border border-[#5c3416] rounded p-2.5 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 resize-none"
+                    required
+                  />
+                </div>
+
+                {/* 2. Animation Options (Banner Melayang vs Pop-up Bounce) */}
+                <div>
+                  <label className="text-xs font-bold text-amber-200 block mb-1.5">
+                    Pilihan Efek Animasi di Layar Siswa:
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBroadcastAnimType('banner')}
+                      className={`pixel-box-inset p-2.5 text-left flex items-start gap-2.5 transition-all ${
+                        broadcastAnimType === 'banner'
+                          ? 'border-amber-400 bg-amber-950/70 ring-1 ring-amber-400'
+                          : 'hover:border-amber-600/50'
+                      }`}
+                    >
+                      <Radio className={`w-4 h-4 mt-0.5 shrink-0 ${broadcastAnimType === 'banner' ? 'text-amber-400' : 'text-amber-700'}`} />
+                      <div>
+                        <div className="text-xs font-bold text-amber-100">
+                          Melayang di Atas Layar
+                        </div>
+                        <div className="text-[10px] text-amber-400/70 leading-tight mt-0.5">
+                          Teks berjalan perlahan dari kanan ke kiri di bagian paling atas layar seperti running text.
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBroadcastAnimType('popup')}
+                      className={`pixel-box-inset p-2.5 text-left flex items-start gap-2.5 transition-all ${
+                        broadcastAnimType === 'popup'
+                          ? 'border-amber-400 bg-amber-950/70 ring-1 ring-amber-400'
+                          : 'hover:border-amber-600/50'
+                      }`}
+                    >
+                      <Radio className={`w-4 h-4 mt-0.5 shrink-0 ${broadcastAnimType === 'popup' ? 'text-amber-400' : 'text-amber-700'}`} />
+                      <div>
+                        <div className="text-xs font-bold text-amber-100">
+                          Pop-up Bounce di Tengah
+                        </div>
+                        <div className="text-[10px] text-amber-400/70 leading-tight mt-0.5">
+                          Muncul membal (bounce) di bagian tengah layar dengan bingkai kayu dan tombol tutup.
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Image Options (Presets + Custom URL) */}
+                <div>
+                  <label className="text-xs font-bold text-amber-200 flex items-center justify-between mb-1.5">
+                    <span className="flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Ikon / Gambar Pengumuman (Opsional):</span>
+                    </span>
+                    {broadcastImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setBroadcastImageUrl('')}
+                        className="text-[10px] text-amber-400/70 hover:text-amber-200 underline font-normal"
+                      >
+                        Hapus Gambar
+                      </button>
+                    )}
+                  </label>
+
+                  {/* Preset Quick Buttons */}
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mb-2">
+                    {[
+                      { name: 'Piala', url: '/assets/fantasy_pixelart_ui/icons/gold_cup.png' },
+                      { name: 'Bintang', url: '/assets/fantasy_pixelart_ui/icons/gold_star.png' },
+                      { name: 'Bendera', url: '/assets/fantasy_pixelart_ui/icons/gold_flag.png' },
+                      { name: 'Kastil', url: '/assets/fantasy_pixelart_ui/icons/gold_castle.png' },
+                      { name: 'Jam', url: '/assets/fantasy_pixelart_ui/icons/gold_clock.png' },
+                      { name: 'Tanpa Ikon', url: '' },
+                    ].map((preset) => {
+                      const isSelected = broadcastImageUrl === preset.url;
+                      return (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => setBroadcastImageUrl(preset.url)}
+                          className={`pixel-box-inset p-1.5 text-center flex flex-col items-center gap-1 transition-all ${
+                            isSelected ? 'border-amber-400 bg-amber-950/80 ring-1 ring-amber-400' : 'hover:border-amber-600/50'
+                          }`}
+                        >
+                          {preset.url ? (
+                            <img 
+                              src={preset.url} 
+                              alt={preset.name} 
+                              className="w-5 h-5 object-contain image-pixelated" 
+                            />
+                          ) : (
+                            <div className="w-5 h-5 flex items-center justify-center text-[10px] text-amber-600 font-bold">
+                              -
+                            </div>
+                          )}
+                          <span className="text-[9px] font-bold text-amber-200 truncate w-full">
+                            {preset.name}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Custom URL Input */}
+                  <input
+                    type="url"
+                    value={broadcastImageUrl}
+                    onChange={(e) => setBroadcastImageUrl(e.target.value)}
+                    placeholder="Atau tempelkan URL gambar kustom (https://...)"
+                    className="w-full bg-[#120702] border border-[#5c3416] rounded px-3 py-1.5 text-xs font-mono text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                {/* 4. Duration Selector */}
+                <div>
+                  <label className="text-xs font-bold text-amber-200 block mb-1">
+                    Durasi Tayang di Layar Siswa:
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {[
+                      { label: '5 Detik', value: 5 },
+                      { label: '10 Detik', value: 10 },
+                      { label: '15 Detik', value: 15 },
+                      { label: '30 Detik', value: 30 },
+                      { label: 'Tetap Tayang', value: 0 },
+                    ].map((dur) => {
+                      const isSelected = broadcastDuration === dur.value;
+                      return (
+                        <button
+                          key={dur.label}
+                          type="button"
+                          onClick={() => setBroadcastDuration(dur.value)}
+                          className={`text-xs px-2.5 py-1 font-bold rounded transition-all ${
+                            isSelected ? 'pixel-btn-gold text-amber-950' : 'pixel-btn-wood text-amber-300'
+                          }`}
+                        >
+                          {dur.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <div className="pt-2 border-t border-[#4a2608] flex items-center justify-end">
+                  <button
+                    type="submit"
+                    className="pixel-btn-gold px-5 py-2 text-xs font-black text-amber-950 flex items-center gap-2 hover:scale-105 transition-transform"
+                  >
+                    <Send className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Siarkan Pengumuman Sekarang</span>
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 

@@ -91,6 +91,21 @@ export function usePresentation(options = {}) {
   const viewerPcRef = useRef(null);
   const localStreamRef = useRef(null);
 
+  // Forced Fullscreen State (Admin forces classroom whiteboard on student screens)
+  const [isForcedFullscreen, setIsForcedFullscreen] = useState(false);
+  const isForcedFullscreenRef = useRef(false);
+
+  // Student Presentation Delegation: Chosen by Admin
+  const [designatedPresenter, setDesignatedPresenter] = useState(null);
+  const designatedPresenterRef = useRef(null);
+
+  // Active Presentation Game Link (Pinned banner on whiteboard & screenshare)
+  const [activeGameSubmission, setActiveGameSubmission] = useState(null);
+  const activeGameSubmissionRef = useRef(null);
+
+  // Admin Broadcast Announcements (Marquee Banner / Pop-up Bounce)
+  const [activeAnnouncement, setActiveAnnouncement] = useState(null);
+
   useEffect(() => {
     currentSlideRef.current = currentSlide;
   }, [currentSlide]);
@@ -106,6 +121,18 @@ export function usePresentation(options = {}) {
   useEffect(() => {
     isScreenSharingRef.current = isScreenSharing;
   }, [isScreenSharing]);
+
+  useEffect(() => {
+    isForcedFullscreenRef.current = isForcedFullscreen;
+  }, [isForcedFullscreen]);
+
+  useEffect(() => {
+    designatedPresenterRef.current = designatedPresenter;
+  }, [designatedPresenter]);
+
+  useEffect(() => {
+    activeGameSubmissionRef.current = activeGameSubmission;
+  }, [activeGameSubmission]);
 
   // Clean up all WebRTC connections
   const cleanupWebRtc = useCallback(() => {
@@ -429,6 +456,35 @@ export function usePresentation(options = {}) {
         screenPresenterIdRef.current = null;
         setLastNotification('Sesi bagikan layar telah selesai');
       })
+      .on('broadcast', { event: 'force-fullscreen' }, ({ payload }) => {
+        if (!payload) return;
+        setIsForcedFullscreen(!!payload.forced);
+        isForcedFullscreenRef.current = !!payload.forced;
+        if (payload.forced) {
+          setLastNotification('Guru mengaktifkan Mode Layar Penuh Wajib untuk seluruh siswa');
+        } else {
+          setLastNotification('Guru telah mengakhiri Mode Layar Penuh Wajib');
+        }
+      })
+      .on('broadcast', { event: 'assign-presenter' }, ({ payload }) => {
+        if (!payload) return;
+        setDesignatedPresenter(payload);
+        designatedPresenterRef.current = payload;
+        setLastNotification(`Guru menunjuk ${payload.studentName} sebagai Presenter Kelas`);
+      })
+      .on('broadcast', { event: 'revoke-presenter' }, () => {
+        setDesignatedPresenter(null);
+        designatedPresenterRef.current = null;
+        setLastNotification('Akses presenter kelas telah diakhiri oleh Guru');
+      })
+      .on('broadcast', { event: 'set-active-game-submission' }, ({ payload }) => {
+        setActiveGameSubmission(payload?.submission || null);
+        activeGameSubmissionRef.current = payload?.submission || null;
+      })
+      .on('broadcast', { event: 'admin-broadcast-announcement' }, ({ payload }) => {
+        if (!payload) return;
+        setActiveAnnouncement(payload);
+      })
       .on('broadcast', { event: 'request-sync' }, () => {
         if (channelRef.current) {
           if (isScreenSharingRef.current) {
@@ -449,6 +505,9 @@ export function usePresentation(options = {}) {
                 url: presentationUrlRef.current,
                 code: canvaLiveCodeRef.current,
                 presenterName,
+                isForcedFullscreen: isForcedFullscreenRef.current,
+                designatedPresenter: designatedPresenterRef.current,
+                activeGameSubmission: activeGameSubmissionRef.current,
               },
             });
           }
@@ -460,6 +519,15 @@ export function usePresentation(options = {}) {
         if (payload.url) setPresentationUrl(payload.url);
         if (payload.code) setCanvaLiveCode(payload.code);
         if (payload.presenterName) setSyncedBy(payload.presenterName);
+        if (typeof payload.isForcedFullscreen !== 'undefined') {
+          setIsForcedFullscreen(!!payload.isForcedFullscreen);
+        }
+        if (typeof payload.designatedPresenter !== 'undefined') {
+          setDesignatedPresenter(payload.designatedPresenter);
+        }
+        if (typeof payload.activeGameSubmission !== 'undefined') {
+          setActiveGameSubmission(payload.activeGameSubmission);
+        }
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -550,6 +618,83 @@ export function usePresentation(options = {}) {
     }
   }, [presenterName]);
 
+  // Admin function: Toggle forced fullscreen for all students
+  const toggleForceFullscreen = useCallback((forced) => {
+    setIsForcedFullscreen(forced);
+    isForcedFullscreenRef.current = forced;
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'force-fullscreen',
+        payload: { forced, presenterName },
+      });
+    }
+  }, [presenterName]);
+
+  // Admin function: Assign student presenter access
+  const assignPresenter = useCallback((data) => {
+    setDesignatedPresenter(data);
+    designatedPresenterRef.current = data;
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'assign-presenter',
+        payload: data,
+      });
+    }
+  }, []);
+
+  // Admin function: Revoke student presenter access
+  const revokePresenter = useCallback(() => {
+    setDesignatedPresenter(null);
+    designatedPresenterRef.current = null;
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'revoke-presenter',
+        payload: {},
+      });
+    }
+  }, []);
+
+  // Function to set active game submission banner (on whiteboard & screenshare)
+  const setGameSubmission = useCallback((submission) => {
+    setActiveGameSubmission(submission);
+    activeGameSubmissionRef.current = submission;
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'set-active-game-submission',
+        payload: { submission },
+      });
+    }
+  }, []);
+
+  // Admin function: Send live announcement broadcast to all students
+  const sendBroadcastAnnouncement = useCallback(({ text, type = 'banner', imageUrl = '', duration = 12000 }) => {
+    const announcement = {
+      id: `ann-${Date.now()}`,
+      text: (text || '').trim(),
+      type: type || 'banner',
+      imageUrl: (imageUrl || '').trim(),
+      duration: duration || 12000,
+      senderName: presenterName || 'Guru',
+      timestamp: Date.now(),
+    };
+    setActiveAnnouncement(announcement);
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'admin-broadcast-announcement',
+        payload: announcement,
+      });
+    }
+  }, [presenterName]);
+
+  const clearAnnouncement = useCallback(() => {
+    setActiveAnnouncement(null);
+  }, []);
+
   const clearNotification = useCallback(() => {
     setLastNotification(null);
   }, []);
@@ -574,5 +719,19 @@ export function usePresentation(options = {}) {
     screenShareError,
     startScreenShare,
     stopScreenShare,
+    // Forced Fullscreen
+    isForcedFullscreen,
+    toggleForceFullscreen,
+    // Designated Student Presenter
+    designatedPresenter,
+    assignPresenter,
+    revokePresenter,
+    // Active Presentation Game Submission
+    activeGameSubmission,
+    setGameSubmission,
+    // Live Broadcast Announcements
+    activeAnnouncement,
+    sendBroadcastAnnouncement,
+    clearAnnouncement,
   };
 }

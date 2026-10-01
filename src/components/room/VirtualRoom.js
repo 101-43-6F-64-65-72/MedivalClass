@@ -18,6 +18,8 @@ import NpcTracker, { CLASSROOM_NPCS } from './NpcTracker';
 import AdminPanel from '@/components/admin/AdminPanel';
 import BookshelfModal from './BookshelfModal';
 import GameSubmissionModal from './GameSubmissionModal';
+import AnnouncementOverlay from './AnnouncementOverlay';
+import StudentPresenterModal from './StudentPresenterModal';
 import { usePresentation } from '@/hooks/usePresentation';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
@@ -66,8 +68,18 @@ export default function VirtualRoom({
     isAdmin,
     presenterName: fullName || username || (isAdmin ? 'Guru Pengajar' : 'Siswa'),
   });
+
+  // Check if current student is designated by admin as presenter
+  const isDesignatedPresenter = Boolean(
+    presentation.designatedPresenter &&
+    (
+      (myId && presentation.designatedPresenter.id === myId) ||
+      (attendanceNo && String(presentation.designatedPresenter.attendanceNo) === String(attendanceNo)) ||
+      (username && presentation.designatedPresenter.username?.toLowerCase() === username.toLowerCase())
+    )
+  );
   
-  // Disable player movement while modals are active
+  // Disable player movement while modals are active or teacher forces fullscreen focus
   const isModalBlocking = 
     isPresentationActive || 
     isQeebosOpen || 
@@ -76,7 +88,9 @@ export default function VirtualRoom({
     isDzakihOpen || 
     isSamOpen || 
     isBookshelfModalOpen || 
-    isSubmissionModalOpen;
+    isSubmissionModalOpen ||
+    isDesignatedPresenter ||
+    presentation.isForcedFullscreen; // Freeze movement when admin locks fullscreen focus
 
   const localPlayer = usePlayerControls(undefined, undefined, !isModalBlocking);
 
@@ -945,6 +959,34 @@ export default function VirtualRoom({
           </div>
         </div>
       )}
+
+      {/* Broadcast Announcement Overlay (Top Marquee Banner or Center Bounce Popup) */}
+      <AnnouncementOverlay
+        announcement={presentation.activeAnnouncement}
+        onDismiss={presentation.clearAnnouncement}
+      />
+
+      {/* Designated Student Presenter Interactive Modal */}
+      <StudentPresenterModal
+        isOpen={isDesignatedPresenter}
+        designatedData={presentation.designatedPresenter}
+        onClose={presentation.revokePresenter}
+        onConfirmShowGame={(submission) => {
+          if (submission?.game_url) {
+            presentation.changePresentationUrl(submission.game_url);
+            presentation.setGameSubmission(submission);
+            setIsPresentationFocused(true);
+          }
+        }}
+        onStartShareScreen={(submission) => {
+          if (submission) {
+            presentation.setGameSubmission(submission);
+          }
+          presentation.startScreenShare();
+          setIsPresentationFocused(true);
+        }}
+        onRevokePresenter={presentation.revokePresenter}
+      />
 
     </div>
   );

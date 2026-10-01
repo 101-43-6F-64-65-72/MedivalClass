@@ -209,7 +209,14 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       })
       .on('broadcast', { event: 'chatMessage' }, ({ payload }) => {
         if (!payload || payload.senderId === myIdRef.current) return;
-        setChatMessages((prev) => [...prev.slice(-49), payload]);
+        // Group isolation: team-only messages are only received by same group members or Admin
+        if (payload.isTeamOnly) {
+          const isSameGroup = payload.senderRoomCode && cleanRoomCode && 
+            payload.senderRoomCode.trim().toUpperCase() === cleanRoomCode.trim().toUpperCase();
+          if (!isSameGroup && !isAdmin) return;
+        }
+
+        setChatMessages((prev) => [...prev.slice(-99), payload]);
         setRemoteChatBubbles((prev) => ({
           ...prev,
           [payload.senderId]: {

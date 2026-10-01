@@ -245,12 +245,13 @@ function ImanuelNPC({
           </div>
         )}
 
-        {/* Imanuel Character Avatar (Using authentic OwnAssets/imanuel/imanuel.png) */}
+        {/* Imanuel Character Avatar (Using authentic OwnAssets/imanuel/imanuel.png, flipped horizontally to face right) */}
         <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
           <img
             src="/assets/OwnAssets/imanuel/imanuel.png"
             alt="Imanuel"
             className="w-12 h-12 image-pixelated object-contain transition-transform group-hover:scale-105 active:scale-95"
+            style={{ transform: 'scaleX(-1)' }}
           />
           {/* Shadow directly at feet */}
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />

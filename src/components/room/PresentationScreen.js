@@ -19,6 +19,8 @@ import {
   Layers, 
   Sparkles,
   Edit2,
+  Lock,
+  Unlock,
   X
 } from 'lucide-react';
 
@@ -102,7 +104,21 @@ function PresentationScreen({
     screenShareError,
     startScreenShare,
     stopScreenShare,
+    // Forced Fullscreen
+    isForcedFullscreen,
+    toggleForceFullscreen,
+    // Designated Student Presenter & Pinned Game Submission
+    designatedPresenter,
+    activeGameSubmission,
+    setGameSubmission,
   } = presentation;
+
+  // Auto-focus whiteboard screen if teacher activates forced fullscreen
+  useEffect(() => {
+    if (isForcedFullscreen) {
+      setIsFocused(true);
+    }
+  }, [isForcedFullscreen, setIsFocused]);
 
   // Attach screen stream to active video element only (avoids dual GPU decoding)
   useEffect(() => {
@@ -207,6 +223,10 @@ function PresentationScreen({
           setIsSettingsOpen(false);
           e.preventDefault();
         } else if (isFocused) {
+          if (isForcedFullscreen && !isAdmin) {
+            e.preventDefault();
+            return;
+          }
           setIsFocused(false);
           e.preventDefault();
         }
@@ -223,7 +243,7 @@ function PresentationScreen({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFocused, isSettingsOpen, isAdmin, nextSlide, prevSlide, setIsFocused]);
+  }, [isFocused, isSettingsOpen, isAdmin, isForcedFullscreen, nextSlide, prevSlide, setIsFocused]);
 
   const handleCopyCode = useCallback(() => {
     if (!canvaLiveCode) return;
@@ -299,6 +319,19 @@ function PresentationScreen({
             {/* Admin Whiteboard Settings & Quick Slide Controls */}
             {isAdmin && (
               <div className="flex items-center gap-1">
+                {/* Admin Force Fullscreen Toggle */}
+                <button
+                  onClick={() => toggleForceFullscreen(!isForcedFullscreen)}
+                  className={isForcedFullscreen 
+                    ? "pixel-btn-silver text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 text-red-400 border border-red-500 animate-pulse" 
+                    : "pixel-btn-wood text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 text-amber-200"
+                  }
+                  title={isForcedFullscreen ? "Lepas Kunci Layar Penuh Siswa" : "Kunci Layar Penuh untuk Seluruh Siswa"}
+                >
+                  {isForcedFullscreen ? <Lock className="w-3 h-3 text-red-400" /> : <Unlock className="w-3 h-3 text-amber-300" />}
+                  <span>{isForcedFullscreen ? 'Kunci: ON' : 'Paksa Layar'}</span>
+                </button>
+
                 <button
                   onClick={isScreenSharing ? stopScreenShare : startScreenShare}
                   className={isScreenSharing 
@@ -589,21 +622,92 @@ function PresentationScreen({
                   <span>Layar Penuh</span>
                 </button>
 
-                {/* Close Button */}
-                <button
-                  onClick={() => setIsFocused(false)}
-                  title="Tutup Mode Fokus (Esc)"
-                  className="pixel-btn-gold text-xs px-3 py-1 font-bold flex items-center gap-1 ml-1"
-                >
-                  <img 
-                    src="/assets/fantasy_pixelart_ui/icons/gold_cross.png" 
-                    alt="Close" 
-                    className="w-3.5 h-3.5 image-rendering-pixelated" 
-                  />
-                  <span>Tutup (Esc)</span>
-                </button>
+                {/* Admin Force Fullscreen Toggle */}
+                {isAdmin && (
+                  <button
+                    onClick={() => toggleForceFullscreen(!isForcedFullscreen)}
+                    className={isForcedFullscreen 
+                      ? "pixel-btn-silver text-xs px-2.5 py-1 flex items-center gap-1.5 font-bold text-red-400 border border-red-500 animate-pulse" 
+                      : "pixel-btn-wood text-xs px-2.5 py-1 flex items-center gap-1.5 font-bold text-amber-200"
+                    }
+                    title={isForcedFullscreen ? "Lepas Kunci Layar Penuh Siswa" : "Kunci Layar Penuh untuk Seluruh Siswa"}
+                  >
+                    {isForcedFullscreen ? <Lock className="w-3.5 h-3.5 text-red-400" /> : <Unlock className="w-3.5 h-3.5 text-amber-300" />}
+                    <span>{isForcedFullscreen ? 'Kunci Layar: ON' : 'Paksa Layar Siswa'}</span>
+                  </button>
+                )}
+
+                {/* Close Button / Forced Lock Status */}
+                {isForcedFullscreen && !isAdmin ? (
+                  <div className="flex items-center gap-1.5 bg-red-950/80 border border-red-700/80 px-2.5 py-1 rounded text-red-300 text-xs font-bold pointer-events-none select-none">
+                    <Lock className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+                    <span>Layar Penuh Dikunci oleh Pengajar</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setIsFocused(false)}
+                    title="Tutup Mode Fokus (Esc)"
+                    className="pixel-btn-gold text-xs px-3 py-1 font-bold flex items-center gap-1 ml-1"
+                  >
+                    <img 
+                      src="/assets/fantasy_pixelart_ui/icons/gold_cross.png" 
+                      alt="Close" 
+                      className="w-3.5 h-3.5 image-rendering-pixelated" 
+                    />
+                    <span>Tutup (Esc)</span>
+                  </button>
+                )}
               </div>
             </div>
+
+            {/* Pinned Game Submission Banner (Always visible during Presentation and Screen Share) */}
+            {activeGameSubmission && (
+              <div className="w-full bg-[#241004] border-b-2 border-amber-600/70 px-4 py-2 flex items-center justify-between flex-wrap gap-2 text-xs select-text shadow-md">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="pixel-btn-gold text-[9px] px-2 py-0.5 font-mono font-bold uppercase tracking-wider text-amber-950 shrink-0">
+                    {activeGameSubmission.platform || 'Game'}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-amber-100 truncate text-sm">
+                        {activeGameSubmission.title || activeGameSubmission.game_url || 'Karya Game Siswa'}
+                      </span>
+                      {activeGameSubmission.student_name && (
+                        <span className="text-[10px] text-amber-300/80 font-mono">
+                          Presenter: <strong>{activeGameSubmission.student_name}</strong>
+                          {activeGameSubmission.attendance_no ? ` (#${activeGameSubmission.attendance_no})` : ''}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-amber-400/80 font-mono truncate max-w-lg">
+                      {activeGameSubmission.game_url}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={activeGameSubmission.game_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pixel-btn-gold text-xs px-3 py-1 font-bold flex items-center gap-1.5 text-amber-950 shadow hover:scale-105 transition-transform"
+                    title="Buka Game Ini di Tab Baru"
+                  >
+                    <span>Buka Link Game</span>
+                    <ExternalLink className="w-3 h-3 text-amber-950" />
+                  </a>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setGameSubmission(null)}
+                      className="pixel-btn-wood text-[10px] px-2 py-1 text-amber-400 hover:text-white"
+                      title="Lepas Sematan Link Game Ini"
+                    >
+                      Lepas Link
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Realtime Notification Banner */}
             {lastNotification && (
