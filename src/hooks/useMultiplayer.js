@@ -6,6 +6,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   const { 
     fullName = '', 
     attendanceNo = '', 
+    studentClass = 'XI PPLG-B',
     roomCode = 'LOBBY1', 
     roomName: initialRoomName = '', 
     characterIndex = 1, 
@@ -20,6 +21,15 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   const [playerCount, setPlayerCount] = useState(1);
   const [roomName, setRoomName] = useState(initialRoomName || 'Kelas Virtual');
   const [gameStarted, setGameStarted] = useState(true);
+
+  // Spotlight & Active Class States
+  const [spotlightPlayer, setSpotlightPlayer] = useState(null);
+  const [activeClass, setActiveClass] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('virtual_active_class') || studentClass || 'XI PPLG-B';
+    }
+    return studentClass || 'XI PPLG-B';
+  });
 
   // Emoticon States
   const [localEmote, setLocalEmote] = useState(null);
@@ -97,6 +107,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
                   username: data.username || existing.username,
                   fullName: data.fullName || existing.fullName,
                   attendanceNo: data.attendanceNo || existing.attendanceNo,
+                  studentClass: data.studentClass || existing.studentClass || 'XI PPLG-B',
                   characterIndex: data.characterIndex || existing.characterIndex || 1,
                   isAdmin: !!data.isAdmin,
                   color: data.color || existing.color,
@@ -109,6 +120,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
                   username: data.username || 'Student',
                   fullName: data.fullName || '',
                   attendanceNo: data.attendanceNo || '',
+                  studentClass: data.studentClass || 'XI PPLG-B',
                   characterIndex: data.characterIndex || 1,
                   isAdmin: !!data.isAdmin,
                   color: data.color || '#3b82f6',
@@ -170,6 +182,17 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           setRoomName(payload.roomName);
         }
       })
+      .on('broadcast', { event: 'spotlightChange' }, ({ payload }) => {
+        setSpotlightPlayer(payload ? payload.spotlight : null);
+      })
+      .on('broadcast', { event: 'activeClassChange' }, ({ payload }) => {
+        if (payload && payload.activeClass) {
+          setActiveClass(payload.activeClass);
+          try {
+            localStorage.setItem('virtual_active_class', payload.activeClass);
+          } catch (e) {}
+        }
+      })
       .on('broadcast', { event: 'emote' }, ({ payload }) => {
         if (!payload || payload.playerId === myIdRef.current) return;
         setRemoteEmotes((prev) => ({
@@ -208,6 +231,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
             username: payload.username || (existing ? existing.username : 'Student'),
             fullName: payload.fullName || (existing ? existing.fullName : ''),
             attendanceNo: payload.attendanceNo || (existing ? existing.attendanceNo : ''),
+            studentClass: payload.studentClass || (existing ? existing.studentClass : 'XI PPLG-B'),
             characterIndex: payload.characterIndex || (existing ? existing.characterIndex : 1),
             isAdmin: typeof payload.isAdmin !== 'undefined' ? !!payload.isAdmin : (existing ? !!existing.isAdmin : false),
             color: payload.color || (existing ? existing.color : '#3b82f6'),
@@ -231,6 +255,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
             username,
             fullName,
             attendanceNo,
+            studentClass: studentClass || activeClass,
             characterIndex,
             isAdmin,
             gameStarted,
@@ -477,6 +502,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           username,
           fullName,
           attendanceNo,
+          studentClass: studentClass || activeClass,
           characterIndex,
           isAdmin,
           color,
@@ -486,7 +512,34 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       });
       lastBroadcastRef.current = localPlayerState.isMoving ? now : -1;
     }
-  }, [localPlayerState.x, localPlayerState.y, localPlayerState.direction, localPlayerState.isMoving, isAdmin, cleanRoomCode]);
+  }, [localPlayerState.x, localPlayerState.y, localPlayerState.direction, localPlayerState.isMoving, isAdmin, cleanRoomCode, studentClass, activeClass]);
+
+  // Spotlight functions
+  const setSpotlight = (targetPlayerOrNull) => {
+    setSpotlightPlayer(targetPlayerOrNull);
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'spotlightChange',
+        payload: { spotlight: targetPlayerOrNull },
+      });
+    }
+  };
+
+  // Change active class function
+  const changeActiveClass = (newClass) => {
+    setActiveClass(newClass);
+    try {
+      localStorage.setItem('virtual_active_class', newClass);
+    } catch (e) {}
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'activeClassChange',
+        payload: { activeClass: newClass },
+      });
+    }
+  };
 
   const playerList = Array.from(players.values());
   const hasAdminOnline = isAdmin || playerList.some((p) => p.isAdmin);
@@ -507,6 +560,11 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     gameStarted,
     hasAdminOnline,
     startGame,
+    // Admin & Spotlight
+    spotlightPlayer,
+    setSpotlight,
+    activeClass,
+    changeActiveClass,
     // Emote system
     localEmote,
     remoteEmotes,

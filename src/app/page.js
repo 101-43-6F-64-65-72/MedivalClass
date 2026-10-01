@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import VirtualRoom from '@/components/room/VirtualRoom';
+import { AVAILABLE_CLASSES, DEFAULT_ACTIVE_CLASS, getStudentsByClass } from '@/lib/studentsData';
+import { supabase } from '@/lib/supabaseClient';
 
 const CHARACTERS = [
   { id: 1, name: 'Siswa Magenta', type: 'rpgmaker', sprite: '/assets/RPG Maker MZ (48x48)/characters/$Char_001.png' },
@@ -10,25 +12,32 @@ const CHARACTERS = [
   { id: 4, name: 'Siswa Hitam', type: 'rpgmaker', sprite: '/assets/RPG Maker MZ (48x48)/characters/$Char_004.png' },
   { id: 5, name: 'Siswa Hijau', type: 'rpgmaker', sprite: '/assets/RPG Maker MZ (48x48)/characters/$Char_005.png' },
   { id: 6, name: 'Siswa Merah', type: 'rpgmaker', sprite: '/assets/RPG Maker MZ (48x48)/characters/$Char_006.png' },
-  { 
-    id: 7, 
-    name: 'Prajurit Knight', 
-    type: 'tinyrpg', 
-    idle: '/assets/Tiny RPG Character Asset Pack 01 v2.0 -Free Soldier&Orc/Tiny RPG Character Asset Pack 01 v2.0 -Free Soldier&Orc/Characters(100x100 split)/Soldier/Soldier with shadows/Soldier_Idle.png',
-    frames: 6
-  },
-  { 
-    id: 8, 
-    name: 'Prajurit Orc', 
-    type: 'tinyrpg', 
-    idle: '/assets/Tiny RPG Character Asset Pack 01 v2.0 -Free Soldier&Orc/Tiny RPG Character Asset Pack 01 v2.0 -Free Soldier&Orc/Characters(100x100 split)/Orc/Orc with shadows/Orc_Idle.png',
-    frames: 6
-  },
 ];
 
 export default function Home() {
   // Step 1: 'REGISTER', Step 2: 'LOBBY', Step 3: 'GAME'
   const [step, setStep] = useState('REGISTER');
+
+  // Active Class State (e.g., 'XI PPLG-B')
+  const [activeClass, setActiveClass] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('virtual_active_class') || DEFAULT_ACTIVE_CLASS;
+    }
+    return DEFAULT_ACTIVE_CLASS;
+  });
+
+  const classStudents = getStudentsByClass(activeClass);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleStorage = () => {
+        const saved = localStorage.getItem('virtual_active_class');
+        if (saved) setActiveClass(saved);
+      };
+      window.addEventListener('storage', handleStorage);
+      return () => window.removeEventListener('storage', handleStorage);
+    }
+  }, []);
 
   // Form Absensi state
   const [fullName, setFullName] = useState('');
@@ -52,7 +61,53 @@ export default function Home() {
   const [inputCode, setInputCode] = useState('');
   const [joinError, setJoinError] = useState('');
 
-  const isAdmin = String(attendanceNo).trim() === '99499';
+  // Active Group Names in Universe (Prevents duplicate room names)
+  const [activeGroupNames, setActiveGroupNames] = useState(new Set());
+  const [createRoomError, setCreateRoomError] = useState('');
+
+  // Listen to active rooms in shared universe to prevent duplicate room names
+  useEffect(() => {
+    if (step !== 'LOBBY' || !process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+
+    const channel = supabase.channel('classroom:shared_universe', {
+      config: { broadcast: { ack: false, self: false } },
+    });
+
+    const updateNames = () => {
+      const state = channel.presenceState();
+      const names = new Set();
+      Object.values(state).forEach((presences) => {
+        if (Array.isArray(presences)) {
+          presences.forEach((p) => {
+            if (p.roomName && p.roomName.trim()) {
+              names.add(p.roomName.trim().toLowerCase());
+            }
+          });
+        }
+      });
+      setActiveGroupNames(names);
+    };
+
+    channel
+      .on('presence', { event: 'sync' }, updateNames)
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [step]);
+
+  // Propose next available unique default room name
+  useEffect(() => {
+    if (step === 'LOBBY') {
+      let idx = 1;
+      while (activeGroupNames.has(`kelompok ${idx}`)) {
+        idx++;
+      }
+      setCreatedRoomName(`Kelompok ${idx}`);
+    }
+  }, [step, activeGroupNames]);
 
   const isFormValid = 
     fullName.trim() !== '' && 
@@ -70,6 +125,16 @@ export default function Home() {
   };
 
   const handleCreateRoom = () => {
+    const clean = createdRoomName.trim();
+    if (!clean) {
+      setCreateRoomError('Nama kelompok tidak boleh kosong!');
+      return;
+    }
+    if (activeGroupNames.has(clean.toLowerCase())) {
+      setCreateRoomError(`Nama kelompok "${clean}" sudah digunakan! Silakan gunakan nama kelompok lain.`);
+      return;
+    }
+    setCreateRoomError('');
     const newCode = generateRoomCode();
     setRoomCode(newCode);
     setStep('GAME');
@@ -100,16 +165,6 @@ export default function Home() {
     return (
       <main className="w-full h-full min-h-screen flex items-center justify-center bg-[#0d0703] text-amber-100 p-4 relative">
         <div className="max-w-md w-full pixel-panel-wood p-6 sm:p-7 relative select-none">
-          {isAdmin && (
-            <div className="mb-4 bg-amber-900/60 border border-amber-500 text-amber-200 px-3 py-1 text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg animate-pulse">
-              <img
-                src="/assets/fantasy_pixelart_ui/icons/gold_star.png"
-                alt="Admin"
-                className="w-4 h-4 image-pixelated"
-              />
-              <span>MODE INSTRUKTUR / GURU</span>
-            </div>
-          )}
           <div className="text-center mb-5">
             <div className="flex items-center justify-center gap-2 mb-1.5">
               <img
@@ -125,6 +180,12 @@ export default function Home() {
               />
             </div>
             <p className="text-[11px] text-amber-200/80">Langkah 1 dari 2: Form Absensi Siswa</p>
+            {/* Active Class Pill */}
+            <div className="mt-2 inline-flex items-center gap-1.5 pixel-box-inset px-2.5 py-1 text-xs text-amber-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Kelas Aktif:</span>
+              <strong className="text-white font-mono">{activeClass}</strong>
+            </div>
           </div>
           
           <form 
@@ -134,6 +195,41 @@ export default function Home() {
             }} 
             className="space-y-3.5"
           >
+            {/* Quick Pick from Active Class Roster */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                  Pilih Siswa ({activeClass})
+                </label>
+                <span className="text-[10px] text-amber-400 font-mono">
+                  {classStudents.length} Terdaftar
+                </span>
+              </div>
+              <select
+                value={attendanceNo && fullName ? `${attendanceNo}|||${fullName}` : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  const [no, sName] = val.split('|||');
+                  setAttendanceNo(no);
+                  setFullName(sName);
+                  const firstWord = sName.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+                  setUsername(firstWord || 'siswa');
+                }}
+                className="w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 bg-[#1f0d03] focus:outline-none focus:border-amber-400"
+              >
+                <option value="">-- Pilih dari Daftar Siswa {activeClass} --</option>
+                {classStudents.map((s) => (
+                  <option key={s.nis} value={`${s.no}|||${s.name}`}>
+                    #{s.no} - {s.name} ({s.nis})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[9px] text-amber-400/60 mt-1">
+                Atau Anda juga dapat mengisi kolom nama di bawah secara manual.
+              </p>
+            </div>
+
             <div>
               <label className="block text-[11px] font-bold text-amber-300 mb-1 uppercase tracking-wider">
                 Nama Lengkap <span className="text-red-400">*</span>
@@ -310,6 +406,7 @@ export default function Home() {
                 className="w-4 h-4 image-pixelated"
               />
             </button>
+
           </form>
         </div>
       </main>
@@ -357,10 +454,16 @@ export default function Home() {
                 <input
                   type="text"
                   value={createdRoomName}
-                  onChange={(e) => setCreatedRoomName(e.target.value)}
+                  onChange={(e) => {
+                    setCreatedRoomName(e.target.value);
+                    setCreateRoomError('');
+                  }}
                   placeholder="Contoh: Kelompok Alpha / Tim 1"
                   className="w-full pixel-box-inset px-3 py-1.5 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                 />
+                {createRoomError && (
+                  <p className="text-[11px] text-red-400 font-bold mt-1 leading-snug">{createRoomError}</p>
+                )}
               </div>
 
               <button
@@ -458,12 +561,13 @@ export default function Home() {
       <VirtualRoom 
         fullName={fullName}
         attendanceNo={attendanceNo}
+        studentClass={activeClass}
         username={username}
         roomCode={roomCode}
         initialRoomName={createdRoomName || 'Kelompok 1'}
         characterIndex={characterIndex}
         color={color} 
-        isAdmin={isAdmin}
+        isAdmin={false}
         onLeave={handleLeaveGame}
       />
     </main>

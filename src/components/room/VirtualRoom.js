@@ -15,14 +15,16 @@ import CircularEmoteMenu from './CircularEmoteMenu';
 import ChatBox from './ChatBox';
 import PetCompanion, { CAT_BREEDS } from './PetCompanion';
 import NpcTracker, { CLASSROOM_NPCS } from './NpcTracker';
+import AdminPanel from '@/components/admin/AdminPanel';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
-import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
+import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function VirtualRoom({ 
   username, 
   fullName, 
   attendanceNo, 
+  studentClass = 'XI PPLG-B',
   roomCode, 
   initialRoomName, 
   characterIndex = 1, 
@@ -47,6 +49,7 @@ export default function VirtualRoom({
   const [showPetModal, setShowPetModal] = useState(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [activeTrackedNpcId, setActiveTrackedNpcId] = useState(null);
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const zoom = 1.15; // Optimal POV zoom for 3/4 classroom perspective
   
   // Initialize local player with dynamic safe spawn in entrance aisle, disabled when presentation or dialogue modal is open
@@ -55,6 +58,7 @@ export default function VirtualRoom({
   // Initialize multiplayer with room metadata & shared universe cross-group presence
   const { 
     players: remotePlayers, 
+    myId,
     connected, 
     isRoomFull, 
     playerCount, 
@@ -64,6 +68,11 @@ export default function VirtualRoom({
     gameStarted,
     hasAdminOnline,
     startGame,
+    // Admin & Spotlight
+    spotlightPlayer,
+    setSpotlight,
+    activeClass,
+    changeActiveClass,
     localEmote,
     remoteEmotes,
     sendEmote,
@@ -77,7 +86,7 @@ export default function VirtualRoom({
     localPlayer, 
     username, 
     color, 
-    { fullName, attendanceNo, roomCode, roomName: initialRoomName, characterIndex, isAdmin }
+    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, characterIndex, isAdmin }
   );
 
   const handleCopyCode = () => {
@@ -96,9 +105,24 @@ export default function VirtualRoom({
 
   const handleSaveRoomName = (e) => {
     e.preventDefault();
-    if (editingNameInput.trim()) {
-      updateRoomName(editingNameInput.trim());
+    const cleanName = editingNameInput.trim();
+    if (!cleanName) {
+      setIsEditingName(false);
+      return;
     }
+
+    // Prevent duplicate group name with other existing groups
+    const isDuplicate = remotePlayers.some((p) => {
+      const isOtherGroup = p.roomCode && p.roomCode.trim().toUpperCase() !== roomCode.trim().toUpperCase();
+      return isOtherGroup && p.roomName && p.roomName.trim().toLowerCase() === cleanName.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      alert(`Nama kelompok "${cleanName}" sudah digunakan oleh kelompok lain! Silakan gunakan nama kelompok yang berbeda.`);
+      return;
+    }
+
+    updateRoomName(cleanName);
     setIsEditingName(false);
   };
 
@@ -186,57 +210,77 @@ export default function VirtualRoom({
         })}
         
         {/* Render Remote Students / Players and their Pets */}
-        {remotePlayers.map((p) => (
-          <React.Fragment key={p.id}>
-            <Player 
-              x={p.x} 
-              y={p.y} 
-              direction={p.direction}
-              isMoving={p.isMoving}
-              username={p.username}
-              fullName={p.fullName}
-              attendanceNo={p.attendanceNo}
-              characterIndex={p.characterIndex || 1}
-              isAdmin={p.isAdmin}
-              color={p.color}
-              roomCode={p.roomCode}
-              localRoomCode={roomCode}
-              emote={remoteEmotes[p.id]}
-              chatBubble={remoteChatBubbles[p.id]}
-              isLocal={false}
-            />
-            {remotePets[p.id] && (
-              <PetCompanion
-                ownerX={p.x}
-                ownerY={p.y}
-                ownerDirection={p.direction}
-                ownerIsMoving={p.isMoving}
-                ownerName={p.username}
-                breedId={remotePets[p.id]}
+        {remotePlayers.map((p) => {
+          const isPlayerSpotlighted = Boolean(
+            spotlightPlayer && (
+              spotlightPlayer.id === p.id ||
+              (p.attendanceNo && String(spotlightPlayer.attendanceNo) === String(p.attendanceNo))
+            )
+          );
+          return (
+            <React.Fragment key={p.id}>
+              <Player 
+                x={p.x} 
+                y={p.y} 
+                direction={p.direction}
+                isMoving={p.isMoving}
+                username={p.username}
+                fullName={p.fullName}
+                attendanceNo={p.attendanceNo}
+                characterIndex={p.characterIndex || 1}
+                isAdmin={p.isAdmin}
+                color={p.color}
+                roomCode={p.roomCode}
+                localRoomCode={roomCode}
+                emote={remoteEmotes[p.id]}
+                chatBubble={remoteChatBubbles[p.id]}
+                isSpotlighted={isPlayerSpotlighted}
                 isLocal={false}
               />
-            )}
-          </React.Fragment>
-        ))}
+              {remotePets[p.id] && (
+                <PetCompanion
+                  ownerX={p.x}
+                  ownerY={p.y}
+                  ownerDirection={p.direction}
+                  ownerIsMoving={p.isMoving}
+                  ownerName={p.username}
+                  breedId={remotePets[p.id]}
+                  isLocal={false}
+                />
+              )}
+            </React.Fragment>
+          );
+        })}
 
         {/* Render Local Student / Player */}
-        <Player 
-          x={localPlayer.x} 
-          y={localPlayer.y} 
-          direction={localPlayer.direction}
-          isMoving={localPlayer.isMoving}
-          username={username}
-          fullName={fullName}
-          attendanceNo={attendanceNo}
-          characterIndex={characterIndex}
-          isAdmin={isAdmin}
-          color={color}
-          roomCode={roomCode}
-          localRoomCode={roomCode}
-          emote={localEmote}
-          chatBubble={localChatBubble}
-          isLocal={true}
-        />
+        {(() => {
+          const isLocalSpotlighted = Boolean(
+            spotlightPlayer && (
+              spotlightPlayer.id === myId ||
+              (attendanceNo && String(spotlightPlayer.attendanceNo) === String(attendanceNo))
+            )
+          );
+          return (
+            <Player 
+              x={localPlayer.x} 
+              y={localPlayer.y} 
+              direction={localPlayer.direction}
+              isMoving={localPlayer.isMoving}
+              username={username}
+              fullName={fullName}
+              attendanceNo={attendanceNo}
+              characterIndex={characterIndex}
+              isAdmin={isAdmin}
+              color={color}
+              roomCode={roomCode}
+              localRoomCode={roomCode}
+              emote={localEmote}
+              chatBubble={localChatBubble}
+              isSpotlighted={isLocalSpotlighted}
+              isLocal={true}
+            />
+          );
+        })()}
 
         {/* Render Local Pet Companion if adopted */}
         {localPetBreed && (
@@ -315,6 +359,28 @@ export default function VirtualRoom({
         />
       )}
       
+      {/* Top Spotlight Announcement Banner */}
+      {spotlightPlayer && !isPresentationActive && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40 pixel-panel-wood px-4 py-1.5 flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200">
+          <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
+          <span className="text-xs font-bold text-amber-200">
+            SOROTAN KELAS: <span className="text-white underline">{spotlightPlayer.username || spotlightPlayer.fullName}</span> {spotlightPlayer.attendanceNo ? `(#${spotlightPlayer.attendanceNo})` : ''}
+          </span>
+          <span className="text-[10px] font-mono pixel-btn-gold text-amber-950 px-1.5 py-0.2 font-bold pointer-events-none">
+            {spotlightPlayer.roomCode}
+          </span>
+          {isAdmin && (
+            <button
+              onClick={() => setSpotlight(null)}
+              className="pixel-btn-wood text-[9px] px-1.5 py-0.5 text-amber-300 ml-1 hover:text-white"
+              title="Matikan Sorotan"
+            >
+              Hapus
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Classroom HUD Overlay (Hidden during Fullscreen Presentation) */}
       {!isPresentationActive && (
         isHudCollapsed ? (
@@ -330,6 +396,16 @@ export default function VirtualRoom({
             <span className="font-mono text-[10px] text-amber-950 font-bold pixel-btn-gold px-1.5 py-0.2 pointer-events-none">
               {roomCode}
             </span>
+            {isAdmin && (
+              <button
+                onClick={() => setIsAdminPanelOpen(true)}
+                title="Buka Panel Admin / Pengajar"
+                className="pixel-btn-gold text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 shadow animate-pulse"
+              >
+                <ShieldCheck className="w-3 h-3" />
+                <span>Admin</span>
+              </button>
+            )}
             <button
               onClick={() => setIsPresentationFocused(true)}
               title="Buka Layar Presentasi Canva"
@@ -471,6 +547,16 @@ export default function VirtualRoom({
             {/* Controls hint, Presentation button, Pet button & Leave button */}
             <div className="pt-1 border-t border-[#5c3416] flex items-center justify-between text-[10px] text-amber-300/70">
               <div className="flex items-center gap-1.5">
+                {isAdmin && (
+                  <button
+                    onClick={() => setIsAdminPanelOpen(true)}
+                    title="Buka Panel Admin / Pengajar"
+                    className="pixel-btn-gold text-[10px] px-2 py-0.5 text-amber-950 flex items-center gap-1 font-bold shadow-sm animate-pulse"
+                  >
+                    <ShieldCheck className="w-3 h-3" />
+                    <span>Admin</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setIsPresentationFocused(true)}
                   title="Buka Layar Presentasi Canva"
@@ -622,6 +708,28 @@ export default function VirtualRoom({
         camY={camY}
         zoom={zoom}
         viewport={viewport}
+      />
+
+      {/* Admin / Pengajar Panel */}
+      <AdminPanel
+        isOpen={isAdminPanelOpen}
+        onClose={() => setIsAdminPanelOpen(false)}
+        activeClass={activeClass}
+        onSelectClass={changeActiveClass}
+        players={remotePlayers}
+        localPlayerInfo={{
+          id: myId,
+          username,
+          fullName,
+          attendanceNo,
+          studentClass: activeClass,
+          roomCode,
+          roomName,
+          characterIndex,
+          isAdmin,
+        }}
+        spotlightPlayer={spotlightPlayer}
+        onSetSpotlight={setSpotlight}
       />
 
     </div>

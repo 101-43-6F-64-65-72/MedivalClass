@@ -35,6 +35,7 @@ export default function Player(props) {
   const isSameRoom = Boolean(
     roomCode && localRoomCode && roomCode.trim().toUpperCase() === localRoomCode.trim().toUpperCase()
   );
+  const isSpotlighted = Boolean(props.isSpotlighted);
 
   // Walk animation frame cycle: 0 -> 1 -> 2 -> 1
   const [walkStep, setWalkStep] = useState(1);
@@ -300,6 +301,29 @@ export default function Player(props) {
             }}
           />
         )}
+
+        {/* Visual Spotlight Beam and Glowing Aura when player is spotlighted */}
+        {isSpotlighted && (
+          <>
+            {/* Conical light beam from ceiling */}
+            <div 
+              className="absolute -top-32 left-1/2 -translate-x-1/2 w-32 h-36 pointer-events-none z-10"
+              style={{
+                background: 'linear-gradient(180deg, rgba(250, 204, 21, 0) 0%, rgba(250, 204, 21, 0.25) 50%, rgba(250, 204, 21, 0.5) 100%)',
+                clipPath: 'polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%)',
+              }}
+            />
+            {/* Pulsing golden halo at feet */}
+            <div 
+              className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-14 h-6 rounded-full pointer-events-none animate-pulse"
+              style={{
+                background: 'radial-gradient(ellipse at center, rgba(250, 204, 21, 0.8) 0%, rgba(250, 204, 21, 0.1) 75%)',
+                border: '1.5px solid rgba(250, 204, 21, 0.9)',
+                boxShadow: '0 0 16px rgba(250, 204, 21, 0.85)',
+              }}
+            />
+          </>
+        )}
       </div>
 
       {/* Shadow at feet */}
@@ -315,14 +339,27 @@ export default function Player(props) {
         <div 
           className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium backdrop-blur-md shadow-md transition-all"
           style={{
-            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            backgroundColor: isSpotlighted ? 'rgba(69, 26, 3, 0.92)' : 'rgba(15, 23, 42, 0.85)',
             color: '#f8fafc',
-            border: isSameRoom 
+            border: isSpotlighted
+              ? '1.5px solid #fbbf24'
+              : isSameRoom 
               ? '1px solid rgba(16, 185, 129, 0.65)' 
               : '1px solid rgba(255, 255, 255, 0.15)',
-            boxShadow: isSameRoom ? '0 2px 8px rgba(16, 185, 129, 0.18)' : '0 2px 6px rgba(0, 0, 0, 0.35)',
+            boxShadow: isSpotlighted
+              ? '0 0 14px rgba(251, 191, 36, 0.6)'
+              : isSameRoom 
+              ? '0 2px 8px rgba(16, 185, 129, 0.18)' 
+              : '0 2px 6px rgba(0, 0, 0, 0.35)',
           }}
         >
+          {/* Spotlight Star Badge */}
+          {isSpotlighted && (
+            <span className="text-[8px] bg-amber-400 text-amber-950 font-black px-1.5 py-0.2 rounded font-mono uppercase tracking-wider animate-pulse">
+              SPOTLIGHT
+            </span>
+          )}
+
           {/* Subtle team star or role icon */}
           {player.isAdmin ? (
             <img 
@@ -356,7 +393,9 @@ export default function Player(props) {
           {roomCode && (
             <span 
               className={`font-mono text-[8px] px-1 py-0.2 rounded font-semibold ${
-                isSameRoom 
+                isSpotlighted
+                  ? 'bg-amber-500/30 text-amber-200 border border-amber-400/50'
+                  : isSameRoom 
                   ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/40' 
                   : 'bg-white/10 text-slate-300 border border-white/15'
               }`}
