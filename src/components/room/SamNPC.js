@@ -16,15 +16,15 @@ import {
 const SUBMISSION_URL = 'https://forms.gle/pengumpulan-tugas-game';
 
 const DIALOGUE_TEXTS = {
-  intro: 'Yo. Santai aja, gak usah tegang. Sudah selesai merancang konsep game bareng timmu? Kalau sudah siap, kumpulkan tugasnya lewat aku ya.',
-  submit: 'Bagus. Link pengumpulan tugas sudah siap. Pastikan link repository GitHub dan link deploy Vercel timmu sudah rapi sebelum submit ya.',
-  tips: 'Tips dari gue: AI itu rekan kerjamu, bukan pengganti logika berpikirmu. Pahami flow game loop-nya, baru minta AI bantu kodenya. Tetap tenang, eksekusi rapi.',
-  later: 'Take your time. Jangan sampai keteteran di menit-menit akhir. See ya.',
+  intro: 'Waktu berdetik perlahan di samping pendulum ini... Setiap detik adalah baris kode yang bernapas, setiap karya adalah puisi yang terwujud dalam piksel. Apakah mahakarya timmu telah siap dilabuhkan ke dermaga pengumpulan?',
+  submit: 'Bawalah buah pikiranmu ke mari. Tautkan simpul GitHub dan bentangkan layar Vercel-mu. Biarkan dunia menyaksikan simfoni logika yang telah kalian rajut bersama dengan penuh keindahan.',
+  tips: 'Dengarlah bisikan jam dinding ini: teknologi hanyalah kuas, namun jiwamu adalah sang pelukis sejati. Jangan biarkan kecerdasan buatan menelan imajinasimu; jadikan ia senandung yang memperindah harmoni kodemu.',
+  later: 'Berlayarlah kembali ke samudra cipta. Pendulum ini akan setia mengiringi langkahmu, hingga saat karyamu mekar sempurna di bawah cakrawala.',
 };
 
 export default function SamNPC({
-  x = 180,
-  y = 515,
+  x = 135,
+  y = 520,
   localPlayer,
   onOpenChange,
   submissionUrl = SUBMISSION_URL,
@@ -177,27 +177,31 @@ export default function SamNPC({
       {/* ========================================================
           1. MAP ENTITY: SAM NPC (West Wall near Pendulum Clock)
          ======================================================== */}
+      {/* ========================================================
+          1. MAP ENTITY: SAM NPC (Next to West Clock)
+         ======================================================== */}
       <div
-        onClick={handleInteract}
-        className="absolute cursor-pointer pointer-events-auto select-none group"
+        className="absolute cursor-default pointer-events-auto select-none group"
         style={{
           left: `${x}px`,
           top: `${y}px`,
           transform: 'translate(-50%, -100%)',
-          zIndex: Math.floor(y) || 515,
+          zIndex: Math.floor(y) || 520,
           width: '56px',
           height: '68px',
         }}
-        title="Klik atau tekan E untuk bicara dengan Sam"
+        title="Dekati dan tekan E untuk bicara dengan Sam"
       >
-        {/* Floating NPC Indicator Arrow */}
-        <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center animate-bounce">
-          <img 
-            src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
-            alt="NPC Pointer" 
-            className="w-4 h-4 image-rendering-pixelated drop-shadow" 
-          />
-        </div>
+        {/* Floating NPC Indicator Arrow (Only when not tracked) */}
+        {!isTracked && (
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center animate-bounce">
+            <img 
+              src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
+              alt="NPC Pointer" 
+              className="w-4 h-4 image-rendering-pixelated drop-shadow" 
+            />
+          </div>
+        )}
 
         {/* Proximity Interaction Hint [E] */}
         {isNear && !dialogStage && (
@@ -206,7 +210,7 @@ export default function SamNPC({
               <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2 pointer-events-none">
                 E
               </span>
-              <span className="text-[11px] font-bold text-amber-200">Bicara dgn Sam</span>
+              <span className="text-[11px] font-bold text-amber-200">Tekan E untuk Bicara</span>
             </div>
           </div>
         )}
@@ -218,14 +222,14 @@ export default function SamNPC({
           </div>
         </div>
 
-        {/* Active Waypoint Beacon Marker (100% centered on NPC) */}
+        {/* Active Waypoint Beacon Marker (100% centered and fitted on NPC) */}
         {isTracked && (
-          <div className="absolute -top-11 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
-            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-xl border border-amber-900 flex items-center gap-1 whitespace-nowrap">
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
+            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-2xl border-2 border-amber-900 flex items-center gap-1 whitespace-nowrap">
               <Navigation className="w-2.5 h-2.5 text-amber-900 fill-amber-900" />
               <span>TARGET</span>
             </div>
-            <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-amber-400 drop-shadow" />
+            <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-amber-400 drop-shadow-md" />
           </div>
         )}
 
@@ -246,7 +250,10 @@ export default function SamNPC({
 
         {/* Golden Target Pulse Ring at Feet */}
         {isTracked && (
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-3 border-2 border-amber-400 rounded-full animate-pulse pointer-events-none shadow-[0_0_12px_rgba(251,191,36,0.9)] z-10" />
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 pointer-events-none z-10 flex items-center justify-center">
+            <div className="w-12 h-3.5 border-2 border-amber-400 rounded-full animate-ping opacity-75" />
+            <div className="absolute w-10 h-3 border-2 border-amber-300 rounded-full shadow-[0_0_12px_rgba(251,191,36,0.9)] animate-pulse" />
+          </div>
         )}
       </div>
 
@@ -351,7 +358,7 @@ export default function SamNPC({
                             className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
                           >
                             <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Boleh minta link pengumpulan tugasnya?</span>
+                            <span>Aku ingin melabuhkan tugas timku (Form Pengumpulan)</span>
                           </button>
 
                           <button
@@ -363,7 +370,7 @@ export default function SamNPC({
                             className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
                           >
                             <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Ada tips sebelum kami submit tugas?</span>
+                            <span>Dengarkan petuah puitis Sam</span>
                           </button>
 
                           <button
@@ -375,7 +382,7 @@ export default function SamNPC({
                             className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#6d2716] flex items-center gap-2 group transition-all shadow-sm"
                           >
                             <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Belum selesai, nanti balik lagi</span>
+                            <span>Aku masih merajut bait kodenya, nanti kembali</span>
                           </button>
                         </>
                       )}
@@ -505,7 +512,7 @@ export default function SamNPC({
                         Sam
                       </div>
                       <div className="text-[10px] text-[#733814] font-semibold">
-                        Pengumpulan Tugas
+                        Penyair Waktu & Kurator Tugas
                       </div>
                     </div>
                   </div>

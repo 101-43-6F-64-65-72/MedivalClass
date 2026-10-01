@@ -192,8 +192,7 @@ export default function DzakihNPC({
           1. MAP ENTITY: DZAKIH NPC (At student desk row 2)
          ======================================================== */}
       <div
-        onClick={handleInteract}
-        className="absolute cursor-pointer pointer-events-auto select-none group"
+        className="absolute cursor-default pointer-events-auto select-none group"
         style={{
           left: `${x}px`,
           top: `${y}px`,
@@ -202,16 +201,18 @@ export default function DzakihNPC({
           width: '56px',
           height: '68px',
         }}
-        title="Klik atau tekan E untuk setting pet dengan Dzakih"
+        title="Dekati dan tekan E untuk setting pet dengan Dzakih"
       >
-        {/* Floating NPC Indicator Arrow */}
-        <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center animate-bounce">
-          <img 
-            src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
-            alt="NPC Pointer" 
-            className="w-4 h-4 image-rendering-pixelated drop-shadow" 
-          />
-        </div>
+        {/* Floating NPC Indicator Arrow (Only when not tracked) */}
+        {!isTracked && (
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center animate-bounce">
+            <img 
+              src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
+              alt="NPC Pointer" 
+              className="w-4 h-4 image-rendering-pixelated drop-shadow" 
+            />
+          </div>
+        )}
 
         {/* Proximity Interaction Hint [E] */}
         {isNear && !dialogStage && (
@@ -220,7 +221,7 @@ export default function DzakihNPC({
               <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2 pointer-events-none">
                 E
               </span>
-              <span className="text-[11px] font-bold text-amber-200">Bicara dgn Dzakih</span>
+              <span className="text-[11px] font-bold text-amber-200">Tekan E untuk Bicara</span>
             </div>
           </div>
         )}
@@ -232,14 +233,14 @@ export default function DzakihNPC({
           </div>
         </div>
 
-        {/* Active Waypoint Beacon Marker (100% centered on NPC) */}
+        {/* Active Waypoint Beacon Marker (100% centered and fitted on NPC) */}
         {isTracked && (
-          <div className="absolute -top-11 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
-            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-xl border border-amber-900 flex items-center gap-1 whitespace-nowrap">
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
+            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-2xl border-2 border-amber-900 flex items-center gap-1 whitespace-nowrap">
               <Navigation className="w-2.5 h-2.5 text-amber-900 fill-amber-900" />
               <span>TARGET</span>
             </div>
-            <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-amber-400 drop-shadow" />
+            <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-amber-400 drop-shadow-md" />
           </div>
         )}
 
@@ -260,7 +261,10 @@ export default function DzakihNPC({
 
         {/* Golden Target Pulse Ring at Feet */}
         {isTracked && (
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-3 border-2 border-amber-400 rounded-full animate-pulse pointer-events-none shadow-[0_0_12px_rgba(251,191,36,0.9)] z-10" />
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 pointer-events-none z-10 flex items-center justify-center">
+            <div className="w-12 h-3.5 border-2 border-amber-400 rounded-full animate-ping opacity-75" />
+            <div className="absolute w-10 h-3 border-2 border-amber-300 rounded-full shadow-[0_0_12px_rgba(251,191,36,0.9)] animate-pulse" />
+          </div>
         )}
       </div>
 

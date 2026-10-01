@@ -193,11 +193,7 @@ export default function ImanuelNPC({
              Row 2 Col 1 in RPG Maker MZ sheet faces RIGHT
          ======================================================== */}
       <div
-        onClick={(e) => {
-          e.stopPropagation();
-          handleOpenIntro();
-        }}
-        className="absolute cursor-pointer pointer-events-auto select-none group"
+        className="absolute cursor-default pointer-events-auto select-none group"
         style={{
           left: `${x}px`,
           top: `${y}px`,
@@ -206,16 +202,18 @@ export default function ImanuelNPC({
           width: '56px',
           height: '68px',
         }}
-        title="Klik atau tekan E untuk bicara dengan Imanuel"
+        title="Dekati dan tekan E untuk bicara dengan Imanuel"
       >
-        {/* Floating NPC Indicator Arrow */}
-        <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center animate-bounce">
-          <img 
-            src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
-            alt="NPC Pointer" 
-            className="w-4 h-4 image-rendering-pixelated drop-shadow"
-          />
-        </div>
+        {/* Floating NPC Indicator Arrow (Only when not tracked) */}
+        {!isTracked && (
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 pointer-events-none flex flex-col items-center animate-bounce">
+            <img 
+              src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
+              alt="NPC Pointer" 
+              className="w-4 h-4 image-rendering-pixelated drop-shadow"
+            />
+          </div>
+        )}
 
         {/* Proximity Interaction Hint [E] */}
         {isNear && !dialogStage && (
@@ -224,20 +222,31 @@ export default function ImanuelNPC({
               <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2 pointer-events-none">
                 E
               </span>
-              <span className="text-[11px] font-bold text-amber-200">Bicara dgn Imanuel</span>
+              <span className="text-[11px] font-bold text-amber-200">Tekan E untuk Bicara</span>
             </div>
           </div>
         )}
 
         {/* NPC Nametag */}
-        <div className="absolute -top-1 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none">
+        <div className="absolute top-1 left-1/2 -translate-x-1/2 whitespace-nowrap pointer-events-none z-20">
           <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#140802]/90 border border-amber-600/70 text-amber-300 shadow-md">
             <span>Imanuel</span>
           </div>
         </div>
 
+        {/* Active Waypoint Beacon Marker (100% centered and fitted on NPC) */}
+        {isTracked && (
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
+            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-2xl border-2 border-amber-900 flex items-center gap-1 whitespace-nowrap">
+              <Navigation className="w-2.5 h-2.5 text-amber-900 fill-amber-900" />
+              <span>TARGET</span>
+            </div>
+            <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-amber-400 drop-shadow-md" />
+          </div>
+        )}
+
         {/* Imanuel Character Avatar (Facing RIGHT: Row 2 Col 1 = -48px -96px) */}
-        <div className="relative w-12 h-12 mx-auto mt-4 flex items-center justify-center">
+        <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
           <div
             className="w-12 h-12 image-pixelated transition-transform group-hover:scale-105 active:scale-95"
             style={{
@@ -247,25 +256,16 @@ export default function ImanuelNPC({
               backgroundRepeat: 'no-repeat',
             }}
           />
+          {/* Shadow directly at feet */}
+          <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />
         </div>
-
-        {/* Active Waypoint Beacon Marker (100% centered on NPC) */}
-        {isTracked && (
-          <div className="absolute -top-12 left-1/2 -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-bounce">
-            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-widest shadow-xl border border-amber-900 flex items-center gap-1 whitespace-nowrap">
-              <Navigation className="w-2.5 h-2.5 text-amber-900 fill-amber-900" />
-              <span>TARGET</span>
-            </div>
-            <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[5px] border-t-amber-400 drop-shadow" />
-          </div>
-        )}
-
-        {/* Shadow at feet */}
-        <div className="w-8 h-2.5 bg-black/50 rounded-full blur-[1px] mx-auto -mt-1 pointer-events-none" />
 
         {/* Golden Target Pulse Ring at Feet */}
         {isTracked && (
-          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-3 border-2 border-amber-400 rounded-full animate-pulse pointer-events-none shadow-[0_0_12px_rgba(251,191,36,0.9)] z-10" />
+          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 pointer-events-none z-10 flex items-center justify-center">
+            <div className="w-12 h-3.5 border-2 border-amber-400 rounded-full animate-ping opacity-75" />
+            <div className="absolute w-10 h-3 border-2 border-amber-300 rounded-full shadow-[0_0_12px_rgba(251,191,36,0.9)] animate-pulse" />
+          </div>
         )}
       </div>
 
