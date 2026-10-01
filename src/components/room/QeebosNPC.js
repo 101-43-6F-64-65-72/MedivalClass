@@ -649,7 +649,7 @@ Wait for my approval before proceeding to the next phase.`;
         {/* Qeebos Avatar Sprite (Using authentic OwnAssets/qeebos/qeebos.png) */}
         <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
           <img 
-            src="/assets/OwnAssets/qeebos/qeebos.png" 
+            src="/assets/OwnAssets/qeebos/normal.png" 
             alt="Qeebos" 
             className="w-12 h-12 object-contain image-pixelated transition-transform group-hover:scale-105 active:scale-95" 
           />
@@ -855,7 +855,7 @@ Wait for my approval before proceeding to the next phase.`;
                       }}
                     >
                       <img
-                        src="/assets/OwnAssets/qeebos/qeebos.png"
+                        src={dialogStage === 'sayang' ? '/assets/OwnAssets/qeebos/blush.png' : '/assets/OwnAssets/qeebos/normal.png'}
                         alt="Qeebos Portrait"
                         className="w-full h-full object-contain image-pixelated pointer-events-none select-none"
                       />

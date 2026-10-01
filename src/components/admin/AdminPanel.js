@@ -57,7 +57,7 @@ export default function AdminPanel({
   // Canva Realtime Presentation Sync Hook
   const fallbackPresentation = usePresentation({
     isAdmin: true,
-    presenterName: isAdmin ? `Admin ${localPlayerInfo?.fullName || localPlayerInfo?.username || ''}`.trim() : (localPlayerInfo?.fullName || localPlayerInfo?.username || 'Admin'),
+    presenterName: localPlayerInfo?.isAdmin ? `Admin ${localPlayerInfo?.fullName || localPlayerInfo?.username || ''}`.trim() : (localPlayerInfo?.fullName || localPlayerInfo?.username || 'Admin'),
     enabled: !externalPresentation,
   });
 
