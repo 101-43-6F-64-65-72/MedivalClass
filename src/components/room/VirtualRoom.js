@@ -74,7 +74,6 @@ export default function VirtualRoom({
   const isDesignatedPresenter = Boolean(
     presentation.designatedPresenter &&
     (
-      (myId && presentation.designatedPresenter.id === myId) ||
       (attendanceNo && String(presentation.designatedPresenter.attendanceNo) === String(attendanceNo)) ||
       (username && presentation.designatedPresenter.username?.toLowerCase() === username.toLowerCase())
     )

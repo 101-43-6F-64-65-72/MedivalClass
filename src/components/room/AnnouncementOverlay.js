@@ -60,15 +60,6 @@ export default function AnnouncementOverlay({ announcement, onDismiss }) {
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-300 font-mono">
                 Pengumuman Guru
               </span>
-              {announcement.imageUrl && (
-                <div className="w-6 h-6 rounded bg-amber-950 border border-amber-600/70 overflow-hidden flex items-center justify-center p-0.5 ml-1">
-                  <img
-                    src={announcement.imageUrl}
-                    alt="Lampiran"
-                    className="w-full h-full object-contain image-rendering-pixelated"
-                  />
-                </div>
-              )}
             </div>
 
             {/* Middle Scrolling Marquee Track (Smooth, slow crawl right-to-left) */}
@@ -157,17 +148,6 @@ export default function AnnouncementOverlay({ announcement, onDismiss }) {
 
             {/* Modal Body */}
             <div className="p-5 flex flex-col items-center text-center space-y-4 pixel-box-inset bg-[#140802]/60 m-2.5 rounded">
-              {/* Optional Attached Image */}
-              {announcement.imageUrl && (
-                <div className="w-36 h-36 rounded-lg bg-[#1f0d04] border-2 border-amber-600/80 p-2 shadow-inner flex items-center justify-center overflow-hidden">
-                  <img
-                    src={announcement.imageUrl}
-                    alt="Lampiran Pengumuman"
-                    className="w-full h-full object-contain image-rendering-pixelated drop-shadow-md"
-                  />
-                </div>
-              )}
-
               {/* Announcement Message Content */}
               <div className="text-sm sm:text-base font-semibold text-amber-100 leading-relaxed px-2">
                 "{announcement.text}"
@@ -213,6 +193,7 @@ export default function AnnouncementOverlay({ announcement, onDismiss }) {
           `}</style>
         </div>
       )}
-    </>
+    </>,
+    document.body
   );
 }

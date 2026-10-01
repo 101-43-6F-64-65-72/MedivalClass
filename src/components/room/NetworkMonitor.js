@@ -14,8 +14,8 @@ export default function NetworkMonitor() {
       if (!isActive || !navigator.onLine) return;
       const start = performance.now();
       try {
-        // Pinging the current origin or a reliable small endpoint to get accurate round-trip time
-        await fetch('/favicon.ico', { method: 'HEAD', cache: 'no-store' });
+        // Pinging the current page URL to get accurate round-trip time and avoid 404s
+        await fetch(window.location.href, { method: 'HEAD', cache: 'no-store' });
         const end = performance.now();
         const rtt = Math.round(end - start);
         if (isActive) setLatency(rtt);

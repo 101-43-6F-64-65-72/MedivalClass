@@ -187,7 +187,6 @@ export default function AdminPanel({
     sendBroadcastAnnouncement({
       text: broadcastText.trim(),
       type: broadcastAnimType,
-      imageUrl: broadcastImageUrl.trim() || null,
       duration: Number(broadcastDuration) > 0 ? Number(broadcastDuration) : null,
     });
 
@@ -1325,13 +1324,6 @@ export default function AdminPanel({
                   </div>
 
                   <div className="bg-[#120702] p-2.5 rounded border border-[#4a2608] flex items-center gap-3">
-                    {activeAnnouncement.imageUrl && (
-                      <img 
-                        src={activeAnnouncement.imageUrl} 
-                        alt="Icon" 
-                        className="w-8 h-8 object-contain shrink-0 image-pixelated" 
-                      />
-                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-amber-100 break-words">
                         {activeAnnouncement.text}
@@ -1410,74 +1402,7 @@ export default function AdminPanel({
                   </div>
                 </div>
 
-                {/* 3. Image Options (Presets + Custom URL) */}
-                <div>
-                  <label className="text-xs font-bold text-amber-200 flex items-center justify-between mb-1.5">
-                    <span className="flex items-center gap-1.5">
-                      <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Ikon / Gambar Pengumuman (Opsional):</span>
-                    </span>
-                    {broadcastImageUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setBroadcastImageUrl('')}
-                        className="text-[10px] text-amber-400/70 hover:text-amber-200 underline font-normal"
-                      >
-                        Hapus Gambar
-                      </button>
-                    )}
-                  </label>
-
-                  {/* Preset Quick Buttons */}
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 mb-2">
-                    {[
-                      { name: 'Piala', url: '/assets/fantasy_pixelart_ui/icons/gold_cup.png' },
-                      { name: 'Bintang', url: '/assets/fantasy_pixelart_ui/icons/gold_star.png' },
-                      { name: 'Bendera', url: '/assets/fantasy_pixelart_ui/icons/gold_flag.png' },
-                      { name: 'Kastil', url: '/assets/fantasy_pixelart_ui/icons/gold_castle.png' },
-                      { name: 'Jam', url: '/assets/fantasy_pixelart_ui/icons/gold_clock.png' },
-                      { name: 'Tanpa Ikon', url: '' },
-                    ].map((preset) => {
-                      const isSelected = broadcastImageUrl === preset.url;
-                      return (
-                        <button
-                          key={preset.name}
-                          type="button"
-                          onClick={() => setBroadcastImageUrl(preset.url)}
-                          className={`pixel-box-inset p-1.5 text-center flex flex-col items-center gap-1 transition-all ${
-                            isSelected ? 'border-amber-400 bg-amber-950/80 ring-1 ring-amber-400' : 'hover:border-amber-600/50'
-                          }`}
-                        >
-                          {preset.url ? (
-                            <img 
-                              src={preset.url} 
-                              alt={preset.name} 
-                              className="w-5 h-5 object-contain image-pixelated" 
-                            />
-                          ) : (
-                            <div className="w-5 h-5 flex items-center justify-center text-[10px] text-amber-600 font-bold">
-                              -
-                            </div>
-                          )}
-                          <span className="text-[9px] font-bold text-amber-200 truncate w-full">
-                            {preset.name}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Custom URL Input */}
-                  <input
-                    type="url"
-                    value={broadcastImageUrl}
-                    onChange={(e) => setBroadcastImageUrl(e.target.value)}
-                    placeholder="Atau tempelkan URL gambar kustom (https://...)"
-                    className="w-full bg-[#120702] border border-[#5c3416] rounded px-3 py-1.5 text-xs font-mono text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-
-                {/* 4. Duration Selector */}
+                {/* 3. Duration Selector */}
                 <div>
                   <label className="text-xs font-bold text-amber-200 block mb-1">
                     Durasi Tayang di Layar Siswa:
