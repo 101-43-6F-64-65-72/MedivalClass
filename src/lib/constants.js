@@ -54,21 +54,21 @@ export const MAP_OBJECTS = [
   { id: 'desk-r4', type: 'student-desk', x: 1450, y: 865, width: 150, height: 85, collision: true, visible: true },
 
   // ==========================================
-  // WEST SIDE (Left Wall): Library & Storage
+  // WEST SIDE (Left Wall): Library & Storage - XI PPLG-A
   // ==========================================
-  { id: 'shelf-w1', type: 'bookshelf', x: 45, y: 150, width: 120, height: 130, collision: true, visible: true },
-  { id: 'shelf-w2', type: 'bookshelf-alt', x: 45, y: 310, width: 120, height: 130, collision: true, visible: true },
+  { id: 'shelf-w1', type: 'bookshelf', x: 45, y: 150, width: 120, height: 130, collision: true, visible: true, shelfClass: 'XI PPLG-A', shelfName: 'Rak Buku XI PPLG-A' },
+  { id: 'shelf-w2', type: 'bookshelf-alt', x: 45, y: 310, width: 120, height: 130, collision: true, visible: true, shelfClass: 'XI PPLG-A', shelfName: 'Rak Buku XI PPLG-A' },
   { id: 'clock-w', type: 'clock', x: 80, y: 470, width: 36, height: 74, collision: false, visible: true },
-  { id: 'shelf-w3', type: 'bookshelf', x: 45, y: 560, width: 120, height: 130, collision: true, visible: true },
+  { id: 'shelf-w3', type: 'bookshelf', x: 45, y: 560, width: 120, height: 130, collision: true, visible: true, shelfClass: 'XI PPLG-A', shelfName: 'Rak Buku XI PPLG-A' },
   { id: 'plant-w', type: 'plant', x: 65, y: 980, width: 56, height: 64, collision: true, visible: true },
 
   // ==========================================
-  // EAST SIDE (Right Wall): Library & Notices
+  // EAST SIDE (Right Wall): Library & Notices - XI PPLG-B
   // ==========================================
-  { id: 'shelf-e1', type: 'bookshelf', x: 1635, y: 150, width: 120, height: 130, collision: true, visible: true },
-  { id: 'shelf-e2', type: 'bookshelf-alt', x: 1635, y: 310, width: 120, height: 130, collision: true, visible: true },
+  { id: 'shelf-e1', type: 'bookshelf', x: 1635, y: 150, width: 120, height: 130, collision: true, visible: true, shelfClass: 'XI PPLG-B', shelfName: 'Rak Buku XI PPLG-B' },
+  { id: 'shelf-e2', type: 'bookshelf-alt', x: 1635, y: 310, width: 120, height: 130, collision: true, visible: true, shelfClass: 'XI PPLG-B', shelfName: 'Rak Buku XI PPLG-B' },
   { id: 'noticeboard-e', type: 'noticeboard', x: 1660, y: 470, width: 64, height: 64, collision: false, visible: true },
-  { id: 'shelf-e3', type: 'bookshelf', x: 1635, y: 560, width: 120, height: 130, collision: true, visible: true },
+  { id: 'shelf-e3', type: 'bookshelf', x: 1635, y: 560, width: 120, height: 130, collision: true, visible: true, shelfClass: 'XI PPLG-B', shelfName: 'Rak Buku XI PPLG-B' },
   { id: 'plant-e', type: 'plant', x: 1660, y: 980, width: 56, height: 64, collision: true, visible: true },
 
   // ==========================================

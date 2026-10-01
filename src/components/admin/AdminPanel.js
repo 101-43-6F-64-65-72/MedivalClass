@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   AVAILABLE_CLASSES, 
   getStudentsByClass 
@@ -25,7 +25,8 @@ import {
   ExternalLink,
   Share2,
   Copy,
-  Check
+  Check,
+  Tv
 } from 'lucide-react';
 import { usePresentation } from '@/hooks/usePresentation';
 
@@ -38,11 +39,21 @@ export default function AdminPanel({
   localPlayerInfo = {},
   spotlightPlayer = null,
   onSetSpotlight,
+  presentation: externalPresentation,
 }) {
   const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'classes' | 'slide'
   const [searchQuery, setSearchQuery] = useState('');
+  const adminScreenVideoRef = useRef(null);
 
   // Canva Realtime Presentation Sync Hook
+  const fallbackPresentation = usePresentation({
+    isAdmin: true,
+    presenterName: localPlayerInfo?.fullName || localPlayerInfo?.username || 'Guru',
+    enabled: !externalPresentation,
+  });
+
+  const presentation = externalPresentation || fallbackPresentation;
+
   const {
     currentSlide,
     presentationUrl,
@@ -52,15 +63,25 @@ export default function AdminPanel({
     prevSlide,
     changePresentationUrl,
     changeCanvaLiveCode,
-  } = usePresentation({
-    isAdmin: true,
-    presenterName: localPlayerInfo?.fullName || localPlayerInfo?.username || 'Guru',
-  });
+    isScreenSharing,
+    screenStream,
+    screenPresenterName,
+    screenShareError,
+    startScreenShare,
+    stopScreenShare,
+  } = presentation;
 
   const [inputUrl, setInputUrl] = useState('');
   const [inputLiveCode, setInputLiveCode] = useState('');
   const [copiedPanelCode, setCopiedPanelCode] = useState(false);
   const [savedStatus, setSavedStatus] = useState('');
+
+  // Attach screen stream to admin video element preview
+  useEffect(() => {
+    if (adminScreenVideoRef.current) {
+      adminScreenVideoRef.current.srcObject = screenStream || null;
+    }
+  }, [screenStream]);
 
   // Sync inputs with presentation state
   React.useEffect(() => {
@@ -618,6 +639,88 @@ export default function AdminPanel({
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
                   <span>Siaran Supabase Aktif</span>
                 </div>
+              </div>
+
+              {/* Screen Sharing Card (WebRTC Realtime) */}
+              <div className="pixel-box-inset p-4 bg-[#1c0c04] border border-[#5c3416] space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <MonitorPlay className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-bold text-amber-300">
+                      Bagikan Layar ke Papan Tulis (WebRTC Realtime):
+                    </span>
+                  </div>
+                  {isScreenSharing ? (
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold flex items-center gap-1.5 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-700/60 animate-pulse">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                      <span>Layar Anda Sedang Ditampilkan di Papan Tulis</span>
+                    </span>
+                  ) : screenPresenterName ? (
+                    <span className="text-[10px] text-amber-400 font-mono flex items-center gap-1 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800">
+                      <span>Presenter Aktif: {screenPresenterName}</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-400/60 font-mono">
+                      Belum ada layar yang dibagikan
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-amber-200/80 leading-relaxed">
+                  Bagikan seluruh layar, jendela browser, atau tab ke papan tulis virtual di tengah kelas. Semua siswa dapat melihat materi presentasi atau coding secara langsung tanpa jeda.
+                </p>
+
+                {screenShareError && (
+                  <div className="p-2 bg-red-950/60 border border-red-700/60 rounded text-[11px] text-red-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                    <span>{screenShareError}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center flex-wrap gap-3 pt-1">
+                  {isScreenSharing ? (
+                    <button
+                      type="button"
+                      onClick={stopScreenShare}
+                      className="pixel-btn-silver text-xs px-4 py-2 font-bold flex items-center gap-2 text-red-300 hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                      <span>Hentikan Bagikan Layar</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={startScreenShare}
+                      className="pixel-btn-gold text-xs px-4 py-2 font-bold flex items-center gap-2 text-amber-950"
+                    >
+                      <MonitorPlay className="w-4 h-4" />
+                      <span>Mulai Bagikan Layar Anda</span>
+                    </button>
+                  )}
+
+                  <span className="text-[10px] text-amber-400/60">
+                    Didukung WebRTC P2P dengan penandaan sinyal Supabase Realtime
+                  </span>
+                </div>
+
+                {/* Live Preview if active */}
+                {screenStream && (
+                  <div className="mt-3 pt-3 border-t border-[#4a2608]">
+                    <div className="text-[10px] font-mono text-amber-300 mb-1.5 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                      <span>Pratinjau Layar yang Sedang Dibagikan:</span>
+                    </div>
+                    <div className="w-full h-44 bg-black rounded overflow-hidden border border-amber-800/60 flex items-center justify-center">
+                      <video
+                        ref={adminScreenVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Slide Controller Card */}

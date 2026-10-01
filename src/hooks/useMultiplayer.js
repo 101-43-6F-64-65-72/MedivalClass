@@ -11,6 +11,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     roomName: initialRoomName = '', 
     characterIndex = 1, 
     isAdmin = false,
+    isCreator = false,
     onRoomFull 
   } = options;
 
@@ -21,6 +22,9 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   const [playerCount, setPlayerCount] = useState(1);
   const [roomName, setRoomName] = useState(initialRoomName || 'Kelas Virtual');
   const [gameStarted, setGameStarted] = useState(true);
+
+  // Pending room join requests awaiting host / creator approval
+  const [pendingJoinRequests, setPendingJoinRequests] = useState([]);
 
   // Spotlight & Active Class States
   const [spotlightPlayer, setSpotlightPlayer] = useState(null);
@@ -222,6 +226,15 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           [payload.playerId]: payload.petBreed,
         }));
       })
+      .on('broadcast', { event: 'join-room-request' }, ({ payload }) => {
+        if (!payload || payload.roomCode !== cleanRoomCode) return;
+        // Only host/creator (or admin) receives the approval prompt
+        if (!isCreator && !isAdmin) return;
+        setPendingJoinRequests((prev) => {
+          if (prev.some((r) => r.requestId === payload.requestId)) return prev;
+          return [...prev, payload];
+        });
+      })
       .on('broadcast', { event: 'movement' }, ({ payload }) => {
         if (!payload || payload.id === myIdRef.current) return;
 
@@ -274,6 +287,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
             studentClass: studentClass || activeClass,
             characterIndex,
             isAdmin,
+            isCreator: !!isCreator,
             gameStarted,
             color,
             roomCode: cleanRoomCode,
@@ -592,6 +606,46 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     }
   };
 
+  // Handle room creator approving a join request
+  const handleApproveJoin = (requestId) => {
+    const req = pendingJoinRequests.find((r) => r.requestId === requestId);
+    if (!req) return;
+
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'join-room-response',
+        payload: {
+          requestId,
+          roomCode: cleanRoomCode,
+          roomName: roomName || initialRoomName || 'Kelompok Belajar',
+          status: 'ACCEPTED',
+          hostName: fullName || username || 'Ketua Kelompok',
+        },
+      });
+    }
+
+    setPendingJoinRequests((prev) => prev.filter((r) => r.requestId !== requestId));
+  };
+
+  // Handle room creator rejecting a join request
+  const handleRejectJoin = (requestId, reason = 'Permintaan bergabung ditolak oleh pembuat kelompok.') => {
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'join-room-response',
+        payload: {
+          requestId,
+          roomCode: cleanRoomCode,
+          status: 'REJECTED',
+          reason,
+        },
+      });
+    }
+
+    setPendingJoinRequests((prev) => prev.filter((r) => r.requestId !== requestId));
+  };
+
   const playerList = Array.from(players.values());
   const hasAdminOnline = isAdmin || playerList.some((p) => p.isAdmin);
   // Count how many players belong to my specific room/group
@@ -611,6 +665,11 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     gameStarted,
     hasAdminOnline,
     startGame,
+    // Room join approval system
+    pendingJoinRequests,
+    handleApproveJoin,
+    handleRejectJoin,
+    isCreator,
     // Admin & Spotlight
     spotlightPlayer,
     setSpotlight,

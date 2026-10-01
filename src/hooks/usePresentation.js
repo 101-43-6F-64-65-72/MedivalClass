@@ -42,8 +42,16 @@ export function formatWhiteboardUrl(inputUrl) {
   return url;
 }
 
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+  ],
+};
+
 export function usePresentation(options = {}) {
-  const { isAdmin = false, presenterName = 'Guru' } = options;
+  const { isAdmin = false, presenterName = 'Guru', enabled = true } = options;
 
   const [currentSlide, setCurrentSlide] = useState(1);
   const [totalSlides, setTotalSlides] = useState(15);
@@ -63,10 +71,25 @@ export function usePresentation(options = {}) {
   const [lastNotification, setLastNotification] = useState(null);
   const [syncedBy, setSyncedBy] = useState(null);
 
+  // WebRTC Screen Share State
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [screenStream, setScreenStream] = useState(null);
+  const [screenPresenterName, setScreenPresenterName] = useState(null);
+  const [screenShareError, setScreenShareError] = useState(null);
+
   const channelRef = useRef(null);
+  const myPeerIdRef = useRef(`peer-${Math.random().toString(36).substring(2, 9)}`);
   const currentSlideRef = useRef(currentSlide);
   const presentationUrlRef = useRef(presentationUrl);
   const canvaLiveCodeRef = useRef(canvaLiveCode);
+  const isScreenSharingRef = useRef(false);
+  const screenPresenterIdRef = useRef(null);
+
+  // WebRTC Peer Connections: Presenter stores map of viewerId -> RTCPeerConnection
+  const peerConnectionsRef = useRef(new Map());
+  // Viewer stores single RTCPeerConnection to presenter
+  const viewerPcRef = useRef(null);
+  const localStreamRef = useRef(null);
 
   useEffect(() => {
     currentSlideRef.current = currentSlide;
@@ -81,7 +104,104 @@ export function usePresentation(options = {}) {
   }, [canvaLiveCode]);
 
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+    isScreenSharingRef.current = isScreenSharing;
+  }, [isScreenSharing]);
+
+  // Clean up all WebRTC connections
+  const cleanupWebRtc = useCallback(() => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+    peerConnectionsRef.current.forEach((pc) => {
+      try { pc.close(); } catch (e) {}
+    });
+    peerConnectionsRef.current.clear();
+
+    if (viewerPcRef.current) {
+      try { viewerPcRef.current.close(); } catch (e) {}
+      viewerPcRef.current = null;
+    }
+  }, []);
+
+  // Stop screen sharing function
+  const stopScreenShare = useCallback(() => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+
+    peerConnectionsRef.current.forEach((pc) => {
+      try { pc.close(); } catch (e) {}
+    });
+    peerConnectionsRef.current.clear();
+
+    setIsScreenSharing(false);
+    isScreenSharingRef.current = false;
+    setScreenStream(null);
+    setScreenPresenterName(null);
+    screenPresenterIdRef.current = null;
+
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'screenshare-stopped',
+        payload: { presenterId: myPeerIdRef.current },
+      });
+    }
+
+    setLastNotification('Sesi bagikan layar telah dihentikan');
+  }, []);
+
+  // Start screen sharing function
+  const startScreenShare = useCallback(async () => {
+    try {
+      setScreenShareError(null);
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        throw new Error('Browser tidak mendukung fitur Bagikan Layar (getDisplayMedia).');
+      }
+
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always', frameRate: { max: 30 } },
+        audio: true,
+      });
+
+      localStreamRef.current = stream;
+      setScreenStream(stream);
+      setIsScreenSharing(true);
+      isScreenSharingRef.current = true;
+      setScreenPresenterName(presenterName || 'Guru');
+      screenPresenterIdRef.current = myPeerIdRef.current;
+
+      // Handle user stopping via browser native floating bar
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          stopScreenShare();
+        };
+      }
+
+      if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'screenshare-started',
+          payload: {
+            presenterId: myPeerIdRef.current,
+            presenterName: presenterName || 'Guru',
+          },
+        });
+      }
+
+      setLastNotification('Anda sedang membagikan layar ke papan tulis kelas');
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') {
+        setScreenShareError(err.message || 'Gagal memulai bagikan layar');
+      }
+    }
+  }, [presenterName, stopScreenShare]);
+
+  useEffect(() => {
+    if (!enabled || !process.env.NEXT_PUBLIC_SUPABASE_URL) return;
 
     // Use dedicated presentation broadcast channel
     const channel = supabase.channel('presentation:realtime_sync', {
@@ -103,7 +223,7 @@ export function usePresentation(options = {}) {
         try {
           localStorage.setItem('virtual_presentation_url', payload.url);
         } catch (e) {}
-        setLastNotification('Link presentasi Canva telah diperbarui oleh Pengajar');
+        setLastNotification('Tampilan papan tulis telah diperbarui oleh Pengajar');
       })
       .on('broadcast', { event: 'canva-live-update' }, ({ payload }) => {
         if (!payload) return;
@@ -115,19 +235,181 @@ export function usePresentation(options = {}) {
           setLastNotification(`Sesi Canva Live aktif dengan Kode: ${payload.code}`);
         }
       })
-      .on('broadcast', { event: 'request-sync' }, () => {
-        // If this client is Admin/Presenter, reply with current state
-        if (isAdmin && channelRef.current) {
+      .on('broadcast', { event: 'screenshare-started' }, async ({ payload }) => {
+        if (!payload || payload.presenterId === myPeerIdRef.current) return;
+        screenPresenterIdRef.current = payload.presenterId;
+        setScreenPresenterName(payload.presenterName || 'Pengajar');
+        setLastNotification(`${payload.presenterName || 'Pengajar'} sedang membagikan layar ke papan tulis`);
+
+        // Request WebRTC offer from presenter
+        if (channelRef.current) {
           channelRef.current.send({
             type: 'broadcast',
-            event: 'sync-state-response',
+            event: 'screenshare-request-offer',
             payload: {
-              slide: currentSlideRef.current,
-              url: presentationUrlRef.current,
-              code: canvaLiveCodeRef.current,
-              presenterName,
+              viewerId: myPeerIdRef.current,
+              presenterId: payload.presenterId,
             },
           });
+        }
+      })
+      .on('broadcast', { event: 'screenshare-request-offer' }, async ({ payload }) => {
+        // Only the active presenter handles offer requests
+        if (!payload || payload.presenterId !== myPeerIdRef.current || !localStreamRef.current) return;
+        const viewerId = payload.viewerId;
+
+        // Close any prior connection to this viewer
+        if (peerConnectionsRef.current.has(viewerId)) {
+          try { peerConnectionsRef.current.get(viewerId).close(); } catch (e) {}
+        }
+
+        const pc = new RTCPeerConnection(ICE_SERVERS);
+        peerConnectionsRef.current.set(viewerId, pc);
+
+        localStreamRef.current.getTracks().forEach((track) => {
+          pc.addTrack(track, localStreamRef.current);
+        });
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate && channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'screenshare-ice-candidate',
+              payload: {
+                to: viewerId,
+                from: myPeerIdRef.current,
+                candidate: event.candidate,
+              },
+            });
+          }
+        };
+
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+
+          if (channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'screenshare-offer',
+              payload: {
+                to: viewerId,
+                from: myPeerIdRef.current,
+                sdp: offer,
+              },
+            });
+          }
+        } catch (err) {
+          console.warn('WebRTC offer error:', err);
+        }
+      })
+      .on('broadcast', { event: 'screenshare-offer' }, async ({ payload }) => {
+        if (!payload || payload.to !== myPeerIdRef.current) return;
+
+        if (viewerPcRef.current) {
+          try { viewerPcRef.current.close(); } catch (e) {}
+        }
+
+        const pc = new RTCPeerConnection(ICE_SERVERS);
+        viewerPcRef.current = pc;
+
+        pc.ontrack = (event) => {
+          if (event.streams && event.streams[0]) {
+            setScreenStream(event.streams[0]);
+          }
+        };
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate && channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'screenshare-ice-candidate',
+              payload: {
+                to: payload.from,
+                from: myPeerIdRef.current,
+                candidate: event.candidate,
+              },
+            });
+          }
+        };
+
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          if (channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'screenshare-answer',
+              payload: {
+                to: payload.from,
+                from: myPeerIdRef.current,
+                sdp: answer,
+              },
+            });
+          }
+        } catch (err) {
+          console.warn('WebRTC answer error:', err);
+        }
+      })
+      .on('broadcast', { event: 'screenshare-answer' }, async ({ payload }) => {
+        if (!payload || payload.to !== myPeerIdRef.current) return;
+        const pc = peerConnectionsRef.current.get(payload.from);
+        if (pc) {
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+          } catch (err) {
+            console.warn('Set remote description error on presenter:', err);
+          }
+        }
+      })
+      .on('broadcast', { event: 'screenshare-ice-candidate' }, async ({ payload }) => {
+        if (!payload || payload.to !== myPeerIdRef.current || !payload.candidate) return;
+        try {
+          if (isScreenSharingRef.current) {
+            const pc = peerConnectionsRef.current.get(payload.from);
+            if (pc) await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          } else if (viewerPcRef.current) {
+            await viewerPcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          }
+        } catch (err) {
+          console.warn('Add ICE candidate error:', err);
+        }
+      })
+      .on('broadcast', { event: 'screenshare-stopped' }, () => {
+        if (viewerPcRef.current) {
+          try { viewerPcRef.current.close(); } catch (e) {}
+          viewerPcRef.current = null;
+        }
+        setScreenStream(null);
+        setScreenPresenterName(null);
+        screenPresenterIdRef.current = null;
+        setLastNotification('Sesi bagikan layar telah selesai');
+      })
+      .on('broadcast', { event: 'request-sync' }, () => {
+        if (channelRef.current) {
+          if (isScreenSharingRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'screenshare-started',
+              payload: {
+                presenterId: myPeerIdRef.current,
+                presenterName: presenterName || 'Guru',
+              },
+            });
+          } else if (isAdmin) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'sync-state-response',
+              payload: {
+                slide: currentSlideRef.current,
+                url: presentationUrlRef.current,
+                code: canvaLiveCodeRef.current,
+                presenterName,
+              },
+            });
+          }
         }
       })
       .on('broadcast', { event: 'sync-state-response' }, ({ payload }) => {
@@ -139,7 +421,6 @@ export function usePresentation(options = {}) {
       })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          // Request current state from any active presenter
           channel.send({
             type: 'broadcast',
             event: 'request-sync',
@@ -149,11 +430,12 @@ export function usePresentation(options = {}) {
       });
 
     return () => {
+      cleanupWebRtc();
       channel.unsubscribe();
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [isAdmin, presenterName]);
+  }, [isAdmin, presenterName, cleanupWebRtc]);
 
   // Admin function: Change slide number & broadcast
   const changeSlide = useCallback((newSlide) => {
@@ -243,5 +525,12 @@ export function usePresentation(options = {}) {
     prevSlide,
     changePresentationUrl,
     changeCanvaLiveCode,
+    // WebRTC Screen Share
+    isScreenSharing,
+    screenStream,
+    screenPresenterName,
+    screenShareError,
+    startScreenShare,
+    stopScreenShare,
   };
 }

@@ -45,14 +45,14 @@ export const CLASSROOM_NPCS = [
   {
     id: 'npc-sam',
     name: 'Sam',
-    role: 'Penyair & Tugas',
-    desc: 'Penyair waktu & form submit tugas game, GitHub & Vercel',
+    role: 'Arsip & Rak Buku Game',
+    desc: 'Penjaga arsip karya game & rak buku kelas XI',
     location: 'Tepat di Samping Jam Dinding Barat',
     x: 135,
     y: 520,
-    portrait: null, // Ready for custom portrait when available
-    spriteSheet: '/assets/RPG Maker MZ (48x48)/characters/$Char_002.png',
-    color: '#8b5cf6',
+    portrait: '/assets/OwnAssets/Sam/potraitsam.png',
+    spriteSheet: '/assets/OwnAssets/Sam/Sam.png',
+    color: '#f97316',
   },
   {
     id: 'npc-dzakih',

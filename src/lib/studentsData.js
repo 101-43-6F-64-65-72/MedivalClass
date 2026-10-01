@@ -232,11 +232,7 @@ export const STUDENTS_DATA = [
 
 export const AVAILABLE_CLASSES = [
   'XI PPLG-B',
-  'XI PPLG-A',
-  'X PPLG-A',
-  'X PPLG-B',
-  'XII PPLG-A',
-  'XII PPLG-B'
+  'XI PPLG-A'
 ];
 
 export const DEFAULT_ACTIVE_CLASS = 'XI PPLG-B';

@@ -16,10 +16,10 @@ import {
 const SUBMISSION_URL = 'https://forms.gle/pengumpulan-tugas-game';
 
 const DIALOGUE_TEXTS = {
-  intro: 'Waktu berdetik perlahan di samping pendulum ini... Setiap detik adalah baris kode yang bernapas, setiap karya adalah puisi yang terwujud dalam piksel. Apakah mahakarya timmu telah siap dilabuhkan ke dermaga pengumpulan?',
-  submit: 'Bawalah buah pikiranmu ke mari. Tautkan simpul GitHub dan bentangkan layar Vercel-mu. Biarkan dunia menyaksikan simfoni logika yang telah kalian rajut bersama dengan penuh keindahan.',
-  tips: 'Dengarlah bisikan jam dinding ini: teknologi hanyalah kuas, namun jiwamu adalah sang pelukis sejati. Jangan biarkan kecerdasan buatan menelan imajinasimu; jadikan ia senandung yang memperindah harmoni kodemu.',
-  later: 'Berlayarlah kembali ke samudra cipta. Pendulum ini akan setia mengiringi langkahmu, hingga saat karyamu mekar sempurna di bawah cakrawala.',
+  intro: 'Halo! Waktu terus berdetik di samping pendulum ini. Aku Sam, penjaga arsip karya game dan rak buku kelas XI. Kamu bisa menyetor link game kelompokmu ke rak buku kelas atau memeriksa karya teman-temanmu di sini.',
+  submit: 'Cukup berikan link hasil game timmu. Sistem otomatis mengenali platform dan kategorinya, lalu menatanya di rak buku kelas.',
+  tips: 'Ingat kawan: teknologi dan AI adalah alat bantu, namun logika dan kreativitasmu adalah nahkodanya. Pastikan game-mu dapat dimainkan dan diuji dengan baik.',
+  later: 'Baiklah, silakan kembali berkarya bersama kelompokmu. Pendulum ini akan setia menanti game hebat kalian!',
 };
 
 export default function SamNPC({
@@ -27,8 +27,9 @@ export default function SamNPC({
   y = 520,
   localPlayer,
   onOpenChange,
-  submissionUrl = SUBMISSION_URL,
   isTracked = false,
+  onOpenSubmission,
+  onOpenBookshelf,
 }) {
   const [mounted, setMounted] = useState(false);
   // Dialogue state: null | 'intro' | 'submit' | 'tips' | 'later'
@@ -233,16 +234,12 @@ export default function SamNPC({
           </div>
         )}
 
-        {/* Sam Character Avatar (Row 0 Col 1 = Facing Front towards camera) */}
+        {/* Sam Character Avatar (Using authentic OwnAssets/Sam/Sam.png) */}
         <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
-          <div
-            className="w-12 h-12 image-pixelated transition-transform group-hover:scale-105 active:scale-95"
-            style={{
-              backgroundImage: "url('/assets/RPG Maker MZ (48x48)/characters/$Char_002.png')",
-              backgroundPosition: '-48px 0px', // Row 0 Col 1 = Facing FRONT towards camera
-              backgroundSize: '144px 192px',
-              backgroundRepeat: 'no-repeat',
-            }}
+          <img
+            src="/assets/OwnAssets/Sam/Sam.png"
+            alt="Sam"
+            className="w-12 h-12 image-pixelated object-contain transition-transform group-hover:scale-105 active:scale-95"
           />
           {/* Shadow directly at feet */}
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />
@@ -353,12 +350,39 @@ export default function SamNPC({
                             onMouseEnter={() => playChoiceHover()}
                             onClick={() => {
                               playChoiceClick();
-                              setDialogStage('submit');
+                              handleCloseAll();
+                              if (onOpenSubmission) onOpenSubmission();
                             }}
                             className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
                           >
                             <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                            <span>Aku ingin melabuhkan tugas timku (Form Pengumpulan)</span>
+                            <span>Setor Link Hasil Karya Game Kelompok</span>
+                          </button>
+
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={() => {
+                              playChoiceClick();
+                              handleCloseAll();
+                              if (onOpenBookshelf) onOpenBookshelf('XI PPLG-B');
+                            }}
+                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
+                          >
+                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                            <span>Buka Rak Buku Game XI PPLG-B</span>
+                          </button>
+
+                          <button
+                            onMouseEnter={() => playChoiceHover()}
+                            onClick={() => {
+                              playChoiceClick();
+                              handleCloseAll();
+                              if (onOpenBookshelf) onOpenBookshelf('XI PPLG-A');
+                            }}
+                            className="w-full text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] active:bg-[#ebd09d] border-2 border-[#b87c42] hover:border-[#733814] rounded text-xs sm:text-sm font-bold text-[#3d1e08] flex items-center gap-2 group transition-all shadow-sm"
+                          >
+                            <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
+                            <span>Buka Rak Buku Game XI PPLG-A</span>
                           </button>
 
                           <button
@@ -388,57 +412,36 @@ export default function SamNPC({
                       )}
 
                       {dialogStage === 'submit' && (
-                        <>
-                          <a
-                            href={submissionUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onMouseEnter={() => playChoiceHover()}
-                            className="w-full text-center px-4 py-2 bg-[#3d7a28] hover:bg-[#4b9631] border-2 border-[#275319] rounded text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-[1.02] active:scale-98"
+                        <div className="space-y-2">
+                          <button
+                            onClick={() => {
+                              handleCloseAll();
+                              if (onOpenSubmission) onOpenSubmission();
+                            }}
+                            className="w-full text-center px-4 py-2 bg-[#3d7a28] hover:bg-[#4b9631] border-2 border-[#275319] rounded text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow-lg"
                           >
-                            <span>Buka Form Pengumpulan Tugas (Tab Baru)</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-
-                          <div className="flex gap-2">
-                            <button
-                              onMouseEnter={() => playChoiceHover()}
-                              onClick={() => {
-                                playChoiceClick();
-                                setDialogStage('tips');
-                              }}
-                              className="flex-1 text-left px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] border-2 border-[#b87c42] rounded text-xs font-bold text-[#3d1e08] flex items-center gap-1.5"
-                            >
-                              <span className="font-mono text-[#a0521e]">▶</span>
-                              <span>Minta tips submit</span>
-                            </button>
-
-                            <button
-                              onMouseEnter={() => playChoiceHover()}
-                              onClick={() => {
-                                playChoiceClick();
-                                setDialogStage('intro');
-                              }}
-                              className="px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] border-2 border-[#b87c42] rounded text-xs font-bold text-[#3d1e08]"
-                            >
-                              ◀ Kembali
-                            </button>
-                          </div>
-                        </>
+                            <span>Buka Form Setor Link Game</span>
+                          </button>
+                          <button
+                            onClick={() => setDialogStage('intro')}
+                            className="w-full px-3 py-1.5 bg-[#fde5bc] hover:bg-[#fff3db] border-2 border-[#b87c42] rounded text-xs font-bold text-[#3d1e08]"
+                          >
+                            ◀ Kembali
+                          </button>
+                        </div>
                       )}
 
                       {dialogStage === 'tips' && (
-                        <>
-                          <a
-                            href={submissionUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onMouseEnter={() => playChoiceHover()}
+                        <div className="space-y-2">
+                          <button
+                            onClick={() => {
+                              handleCloseAll();
+                              if (onOpenSubmission) onOpenSubmission();
+                            }}
                             className="w-full text-center px-4 py-2 bg-[#3d7a28] hover:bg-[#4b9631] border-2 border-[#275319] rounded text-xs sm:text-sm font-black text-white flex items-center justify-center gap-2 shadow"
                           >
-                            <span>Langsung Buka Form Pengumpulan</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
+                            <span>Setor Link Game Sekarang</span>
+                          </button>
 
                           <button
                             onMouseEnter={() => playChoiceHover()}
@@ -451,7 +454,7 @@ export default function SamNPC({
                             <span className="font-mono">◀</span>
                             <span>Kembali ke pilihan</span>
                           </button>
-                        </>
+                        </div>
                       )}
 
                       {dialogStage === 'later' && (
@@ -481,22 +484,17 @@ export default function SamNPC({
                   >
                     {/* Portrait Inner Frame */}
                     <div 
-                      className="w-28 h-28 sm:w-32 sm:h-32 rounded flex items-center justify-center overflow-hidden relative shadow-inner"
+                      className="w-28 h-28 sm:w-32 sm:h-32 rounded flex items-center justify-center overflow-hidden relative shadow-inner p-1"
                       style={{
                         backgroundColor: '#fadca2',
                         border: '4px solid #5a280b',
                         boxShadow: 'inset 0 0 8px rgba(0,0,0,0.3)',
                       }}
                     >
-                      <div
-                        className="w-24 h-24 image-pixelated pointer-events-none select-none"
-                        style={{
-                          backgroundImage: "url('/assets/RPG Maker MZ (48x48)/characters/$Char_002.png')",
-                          backgroundPosition: '-96px 0px', // Front portrait angle
-                          backgroundSize: '288px 384px',
-                          backgroundRepeat: 'no-repeat',
-                          transform: 'scale(1.35) translateY(6px)',
-                        }}
+                      <img
+                        src="/assets/OwnAssets/Sam/potraitsam.png"
+                        alt="Sam"
+                        className="w-full h-full object-contain image-pixelated pointer-events-none select-none"
                       />
                     </div>
 
@@ -512,7 +510,7 @@ export default function SamNPC({
                         Sam
                       </div>
                       <div className="text-[10px] text-[#733814] font-semibold">
-                        Penyair Waktu & Kurator Tugas
+                        Penjaga Arsip Karya Game
                       </div>
                     </div>
                   </div>

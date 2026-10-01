@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import VirtualRoom from '@/components/room/VirtualRoom';
 import { AVAILABLE_CLASSES, DEFAULT_ACTIVE_CLASS, getStudentsByClass } from '@/lib/studentsData';
 import { supabase } from '@/lib/supabaseClient';
@@ -18,7 +18,7 @@ export default function Home() {
   // Step 1: 'REGISTER', Step 2: 'LOBBY', Step 3: 'GAME'
   const [step, setStep] = useState('REGISTER');
 
-  // Active Class State (e.g., 'XI PPLG-B')
+  // Active Class State (strictly Class XI)
   const [activeClass, setActiveClass] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('virtual_active_class') || DEFAULT_ACTIVE_CLASS;
@@ -60,41 +60,74 @@ export default function Home() {
   const [createdRoomName, setCreatedRoomName] = useState('Kelompok 1');
   const [inputCode, setInputCode] = useState('');
   const [joinError, setJoinError] = useState('');
+  const [isCreator, setIsCreator] = useState(false);
+
+  // Room Join Confirmation States
+  const [joinStatus, setJoinStatus] = useState(null); // null | 'WAITING' | 'ACCEPTED' | 'REJECTED'
+  const [waitingHostName, setWaitingHostName] = useState('');
+  const [activePresenceMap, setActivePresenceMap] = useState(new Map());
+  const lobbyChannelRef = useRef(null);
+  const currentRequestIdRef = useRef(null);
 
   // Active Group Names in Universe (Prevents duplicate room names)
   const [activeGroupNames, setActiveGroupNames] = useState(new Set());
   const [createRoomError, setCreateRoomError] = useState('');
 
-  // Listen to active rooms in shared universe to prevent duplicate room names
+  // Listen to active rooms in shared universe to prevent duplicate room names & handle join responses
   useEffect(() => {
     if (step !== 'LOBBY' || !process.env.NEXT_PUBLIC_SUPABASE_URL) return;
 
     const channel = supabase.channel('classroom:shared_universe', {
       config: { broadcast: { ack: false, self: false } },
     });
+    lobbyChannelRef.current = channel;
 
     const updateNames = () => {
       const state = channel.presenceState();
       const names = new Set();
-      Object.values(state).forEach((presences) => {
-        if (Array.isArray(presences)) {
-          presences.forEach((p) => {
-            if (p.roomName && p.roomName.trim()) {
-              names.add(p.roomName.trim().toLowerCase());
-            }
-          });
+      const pMap = new Map();
+      Object.entries(state).forEach(([key, presences]) => {
+        if (Array.isArray(presences) && presences.length > 0) {
+          const p = presences[0];
+          pMap.set(key, p);
+          if (p.roomName && p.roomName.trim()) {
+            names.add(p.roomName.trim().toLowerCase());
+          }
         }
       });
       setActiveGroupNames(names);
+      setActivePresenceMap(pMap);
     };
 
     channel
       .on('presence', { event: 'sync' }, updateNames)
+      .on('broadcast', { event: 'join-room-response' }, ({ payload }) => {
+        if (!payload || payload.requestId !== currentRequestIdRef.current) return;
+
+        if (payload.status === 'ACCEPTED') {
+          setJoinStatus('ACCEPTED');
+          setIsCreator(false);
+          saveStudentSession(payload.roomCode, payload.roomName, false);
+          setTimeout(() => {
+            setRoomCode(payload.roomCode);
+            setCreatedRoomName(payload.roomName);
+            setStep('GAME');
+            setJoinStatus(null);
+          }, 800);
+        } else if (payload.status === 'REJECTED') {
+          setJoinStatus('REJECTED');
+          setJoinError(payload.reason || 'Permintaan bergabung ditolak oleh pembuat kelompok.');
+          setTimeout(() => {
+            setJoinStatus(null);
+          }, 3000);
+        }
+      })
       .subscribe();
 
     return () => {
       channel.unsubscribe();
       supabase.removeChannel(channel);
+      lobbyChannelRef.current = null;
     };
   }, [step]);
 
@@ -139,6 +172,7 @@ export default function Home() {
           if (session.activeClass) setActiveClass(session.activeClass);
           setRoomCode(session.roomCode);
           setCreatedRoomName(session.createdRoomName || 'Kelompok 1');
+          if (session.isCreator) setIsCreator(true);
           setStep('GAME');
         }
       }
@@ -147,7 +181,7 @@ export default function Home() {
     }
   }, []);
 
-  const saveStudentSession = (targetRoomCode, targetRoomName) => {
+  const saveStudentSession = (targetRoomCode, targetRoomName, creatorFlag = false) => {
     try {
       const session = {
         fullName,
@@ -158,6 +192,7 @@ export default function Home() {
         activeClass,
         roomCode: targetRoomCode,
         createdRoomName: targetRoomName,
+        isCreator: !!creatorFlag,
         step: 'GAME',
         savedAt: Date.now(),
       };
@@ -178,7 +213,8 @@ export default function Home() {
     setCreateRoomError('');
     const newCode = generateRoomCode();
     setRoomCode(newCode);
-    saveStudentSession(newCode, clean);
+    setIsCreator(true);
+    saveStudentSession(newCode, clean, true);
     setStep('GAME');
   };
 
@@ -193,10 +229,59 @@ export default function Home() {
       setJoinError('Kode Team minimal 4 karakter!');
       return;
     }
-    setRoomCode(clean);
+
+    // Find if the room is active in the shared universe
+    const allPresences = Array.from(activePresenceMap.values());
+    const targetPlayers = allPresences.filter(
+      (p) => p.roomCode && p.roomCode.trim().toUpperCase() === clean
+    );
+
+    if (targetPlayers.length === 0) {
+      setJoinError(`Kode Team "${clean}" tidak ditemukan atau pembuat kelompok sedang offline!`);
+      return;
+    }
+
+    // Find host/creator player in the group
+    const hostPlayer = targetPlayers.find((p) => p.isCreator) || targetPlayers[0];
+    const hostName = hostPlayer.fullName || hostPlayer.username || 'Ketua Kelompok';
+
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    currentRequestIdRef.current = requestId;
+    setWaitingHostName(hostName);
+    setJoinStatus('WAITING');
     setJoinError('');
-    saveStudentSession(clean, `Kelompok ${clean}`);
-    setStep('GAME');
+
+    if (lobbyChannelRef.current) {
+      lobbyChannelRef.current.send({
+        type: 'broadcast',
+        event: 'join-room-request',
+        payload: {
+          requestId,
+          roomCode: clean,
+          applicant: {
+            username,
+            fullName,
+            attendanceNo,
+            studentClass: activeClass,
+            characterIndex,
+            color,
+          },
+        },
+      });
+    }
+
+    // Timeout: if no response after 35 seconds
+    setTimeout(() => {
+      if (currentRequestIdRef.current === requestId) {
+        setJoinStatus((prev) => {
+          if (prev === 'WAITING') {
+            setJoinError(`Pembuat kelompok (${hostName}) belum merespons. Silakan hubungi langsung atau coba lagi.`);
+            return null;
+          }
+          return prev;
+        });
+      }
+    }, 35000);
   };
 
   const handleLeaveGame = () => {
@@ -551,37 +636,71 @@ export default function Home() {
                 />
                 <h3 className="font-bold text-xs text-amber-300 uppercase tracking-wider">Masuk via Kode Kelompok</h3>
               </div>
-              <p className="text-[11px] text-amber-200/70">Masukkan 6 karakter Kode Kelompok yang dibagikan ketua atau temanmu.</p>
-              
-              <form onSubmit={handleJoinRoom} className="space-y-2.5">
-                <input
-                  type="text"
-                  value={inputCode}
-                  onChange={(e) => {
-                    setInputCode(e.target.value.toUpperCase());
-                    setJoinError('');
-                  }}
-                  placeholder="Contoh: MCDV12"
-                  maxLength={10}
-                  className="w-full pixel-box-inset px-4 py-2 text-center text-base font-mono font-black tracking-widest text-amber-300 placeholder-amber-800/60 uppercase focus:outline-none focus:border-amber-400"
-                />
-                
-                {joinError && (
-                  <p className="text-xs text-red-400 font-bold text-center">{joinError}</p>
-                )}
 
-                <button
-                  type="submit"
-                  className="w-full py-2.5 pixel-btn-wood text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
-                >
-                  <span>Gabung Kelompok</span>
-                  <img
-                    src="/assets/fantasy_pixelart_ui/icons/gold_right.png"
-                    alt="Join"
-                    className="w-3.5 h-3.5 image-pixelated"
-                  />
-                </button>
-              </form>
+              {joinStatus === 'WAITING' ? (
+                <div className="p-3 bg-[#180a03] border border-amber-600/70 rounded text-center space-y-2 animate-in fade-in">
+                  <div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-200">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                    <span>Menunggu Konfirmasi Ketua Kelompok...</span>
+                  </div>
+                  <p className="text-[11px] text-amber-300/80">
+                    Permintaan telah dikirim ke <strong>{waitingHostName}</strong>. Mohon tunggu ketua menyetujui izin masuk Anda.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJoinStatus(null);
+                      currentRequestIdRef.current = null;
+                    }}
+                    className="pixel-btn-silver text-[10px] px-3 py-1 font-bold text-amber-200"
+                  >
+                    Batalkan Permintaan
+                  </button>
+                </div>
+              ) : joinStatus === 'ACCEPTED' ? (
+                <div className="p-3 bg-emerald-950/80 border border-emerald-500 rounded text-center space-y-1 animate-in zoom-in-95">
+                  <div className="text-xs font-bold text-emerald-300">
+                    Izin Diterima!
+                  </div>
+                  <p className="text-[10px] text-emerald-200">
+                    Memasuki ruang kelas bersama kelompok...
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] text-amber-200/70">Masukkan 6 karakter Kode Kelompok yang dibagikan ketua atau temanmu.</p>
+                  
+                  <form onSubmit={handleJoinRoom} className="space-y-2.5">
+                    <input
+                      type="text"
+                      value={inputCode}
+                      onChange={(e) => {
+                        setInputCode(e.target.value.toUpperCase());
+                        setJoinError('');
+                      }}
+                      placeholder="Contoh: MCDV12"
+                      maxLength={10}
+                      className="w-full pixel-box-inset px-4 py-2 text-center text-base font-mono font-black tracking-widest text-amber-300 placeholder-amber-800/60 uppercase focus:outline-none focus:border-amber-400"
+                    />
+                    
+                    {joinError && (
+                      <p className="text-xs text-red-400 font-bold text-center leading-snug">{joinError}</p>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 pixel-btn-wood text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                    >
+                      <span>Minta Izin Bergabung</span>
+                      <img
+                        src="/assets/fantasy_pixelart_ui/icons/gold_right.png"
+                        alt="Join"
+                        className="w-3.5 h-3.5 image-pixelated"
+                      />
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
           </div>
 
@@ -614,6 +733,7 @@ export default function Home() {
         characterIndex={characterIndex}
         color={color} 
         isAdmin={false}
+        isCreator={isCreator}
         onLeave={handleLeaveGame}
       />
     </main>

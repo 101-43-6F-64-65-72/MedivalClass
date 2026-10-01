@@ -52,7 +52,8 @@ export default function PresentationScreen({
   isFocused: externalIsFocused,
   setIsFocused: externalSetIsFocused,
   isAdmin = false,
-  presenterName = 'Guru'
+  presenterName = 'Guru',
+  presentation: externalPresentation,
 }) {
   const containerRef = useRef(null);
   const [mounted, setMounted] = useState(false);
@@ -71,7 +72,17 @@ export default function PresentationScreen({
   const [editLiveCodeInput, setEditLiveCodeInput] = useState('');
   const [copiedLiveCode, setCopiedLiveCode] = useState(false);
 
-  // Supabase Realtime Presentation hook
+  const inRoomVideoRef = useRef(null);
+  const theaterVideoRef = useRef(null);
+
+  // Supabase Realtime Presentation & Screen Share hook
+  const fallbackPresentation = usePresentation({ 
+    isAdmin, 
+    presenterName, 
+    enabled: !externalPresentation 
+  });
+  const presentation = externalPresentation || fallbackPresentation;
+
   const {
     currentSlide,
     totalSlides,
@@ -85,7 +96,27 @@ export default function PresentationScreen({
     prevSlide,
     changePresentationUrl,
     changeCanvaLiveCode,
-  } = usePresentation({ isAdmin, presenterName });
+    // WebRTC Screen Share
+    isScreenSharing,
+    screenStream,
+    screenPresenterName,
+    screenShareError,
+    startScreenShare,
+    stopScreenShare,
+  } = presentation;
+
+  // Attach screen stream to video elements
+  useEffect(() => {
+    if (inRoomVideoRef.current) {
+      inRoomVideoRef.current.srcObject = screenStream || null;
+    }
+  }, [screenStream]);
+
+  useEffect(() => {
+    if (theaterVideoRef.current && isFocused) {
+      theaterVideoRef.current.srcObject = screenStream || null;
+    }
+  }, [screenStream, isFocused]);
 
   useEffect(() => {
     setMounted(true);
@@ -266,10 +297,20 @@ export default function PresentationScreen({
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* Admin Quick Slide Controls on Whiteboard */}
             {/* Admin Whiteboard Settings & Quick Slide Controls */}
             {isAdmin && (
               <div className="flex items-center gap-1">
+                <button
+                  onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+                  className={isScreenSharing 
+                    ? "pixel-btn-silver text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 text-red-400 animate-pulse" 
+                    : "pixel-btn-gold text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 text-amber-950 shadow-sm"
+                  }
+                  title={isScreenSharing ? "Hentikan Bagikan Layar" : "Bagikan Layar Anda ke Papan Tulis"}
+                >
+                  <MonitorPlay className="w-3 h-3" />
+                  <span>{isScreenSharing ? 'Stop Share' : 'Share Layar'}</span>
+                </button>
                 <button
                   onClick={() => setIsSettingsOpen(true)}
                   title="Atur Link Tampilan Papan Tulis (Canva, Google Slides, Whiteboard, Video)"
@@ -333,9 +374,23 @@ export default function PresentationScreen({
           </div>
         </div>
 
-        {/* Live Canva Iframe inside Classroom */}
+        {/* Live Presentation / Screen Share Body inside Classroom */}
         <div className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden">
-          {!iframeError ? (
+          {screenStream ? (
+            <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
+              <video
+                ref={inRoomVideoRef}
+                autoPlay
+                playsInline
+                muted={isScreenSharing}
+                className="w-full h-full object-contain"
+              />
+              <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/85 backdrop-blur px-2 py-0.5 rounded text-[9px] text-amber-200 border border-amber-600/40 pointer-events-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                <span className="font-bold">Layar Langsung: {screenPresenterName || 'Pengajar'}</span>
+              </div>
+            </div>
+          ) : !iframeError ? (
             <iframe
               key={`in-room-${iframeKey}-${activeEmbedUrl}`}
               src={activeEmbedUrl}
@@ -391,14 +446,26 @@ export default function PresentationScreen({
           </div>
           <div className="flex items-center gap-1.5">
             {isAdmin && (
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className="pixel-btn-wood text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 cursor-pointer text-amber-300 hover:text-white shadow-sm"
-                title="Isi link yang akan ditampilkan di papan tulis"
-              >
-                <Edit2 className="w-2.5 h-2.5 text-amber-400" />
-                <span>Atur Link Papan Tulis</span>
-              </button>
+              <>
+                <button
+                  onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+                  className={`pixel-btn-wood text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 cursor-pointer ${
+                    isScreenSharing ? 'text-red-400' : 'text-amber-300'
+                  } hover:text-white shadow-sm`}
+                  title={isScreenSharing ? "Hentikan Bagikan Layar" : "Bagikan Layar Anda ke Papan Tulis"}
+                >
+                  <MonitorPlay className="w-2.5 h-2.5 text-amber-400" />
+                  <span>{isScreenSharing ? 'Stop Share' : 'Bagikan Layar'}</span>
+                </button>
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="pixel-btn-wood text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 cursor-pointer text-amber-300 hover:text-white shadow-sm"
+                  title="Isi link yang akan ditampilkan di papan tulis"
+                >
+                  <Edit2 className="w-2.5 h-2.5 text-amber-400" />
+                  <span>Atur Link Papan Tulis</span>
+                </button>
+              </>
             )}
             <button
               onClick={() => setIsFocused(true)}
@@ -460,6 +527,21 @@ export default function PresentationScreen({
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2">
+                {/* Admin Screen Share Button */}
+                {isAdmin && (
+                  <button
+                    onClick={isScreenSharing ? stopScreenShare : startScreenShare}
+                    className={isScreenSharing 
+                      ? "pixel-btn-silver text-xs px-2.5 py-1 flex items-center gap-1.5 font-bold text-red-400 animate-pulse" 
+                      : "pixel-btn-gold text-xs px-2.5 py-1 flex items-center gap-1.5 font-bold text-amber-950 shadow-sm"
+                    }
+                    title={isScreenSharing ? "Hentikan Bagikan Layar" : "Bagikan Layar Anda ke Papan Tulis"}
+                  >
+                    <MonitorPlay className="w-3.5 h-3.5" />
+                    <span>{isScreenSharing ? 'Stop Share' : 'Bagikan Layar'}</span>
+                  </button>
+                )}
+
                 {/* Admin Settings Button */}
                 {isAdmin && (
                   <button
@@ -468,7 +550,7 @@ export default function PresentationScreen({
                     className="pixel-btn-wood text-xs px-2.5 py-1 flex items-center gap-1.5 font-bold"
                   >
                     <Settings className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Ubah Canva</span>
+                    <span>Atur Papan Tulis</span>
                   </button>
                 )}
 
@@ -489,7 +571,7 @@ export default function PresentationScreen({
                   title="Buka di Tab Baru"
                   className="pixel-btn-wood text-xs px-2.5 py-1 flex items-center gap-1"
                 >
-                  <span>Buka Canva</span>
+                  <span>Buka Tab</span>
                   <ExternalLink className="w-3 h-3 text-amber-300" />
                 </a>
 
@@ -535,22 +617,38 @@ export default function PresentationScreen({
               </div>
             )}
 
-            {/* Canva Interactive Iframe Body */}
+            {/* Presentation / Screen Share Interactive Body */}
             <div className="relative flex-1 w-full bg-slate-950 overflow-hidden pixel-box-inset">
-              <iframe
-                key={`theater-${iframeKey}-${activeEmbedUrl}`}
-                src={activeEmbedUrl}
-                title="Canva Presentation Interactive Theater"
-                loading="eager"
-                allow="fullscreen; autoplay"
-                allowFullScreen
-                className="w-full h-full border-0"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  backgroundColor: '#0f172a',
-                }}
-              />
+              {screenStream ? (
+                <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
+                  <video
+                    ref={theaterVideoRef}
+                    autoPlay
+                    playsInline
+                    muted={isScreenSharing}
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-3 left-3 z-20 flex items-center gap-2 bg-black/85 backdrop-blur px-3 py-1 rounded-md text-xs text-amber-200 border border-amber-600/50 pointer-events-none">
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    <span className="font-bold">Siaran Layar Langsung: {screenPresenterName || 'Pengajar'}</span>
+                  </div>
+                </div>
+              ) : (
+                <iframe
+                  key={`theater-${iframeKey}-${activeEmbedUrl}`}
+                  src={activeEmbedUrl}
+                  title="Canva Presentation Interactive Theater"
+                  loading="eager"
+                  allow="fullscreen; autoplay"
+                  allowFullScreen
+                  className="w-full h-full border-0"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: '#0f172a',
+                  }}
+                />
+              )}
 
               {/* Floating Presenter Slide Navigator Overlay (For Admin) */}
               {isAdmin && (

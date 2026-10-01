@@ -16,9 +16,12 @@ import ChatBox from './ChatBox';
 import PetCompanion, { CAT_BREEDS } from './PetCompanion';
 import NpcTracker, { CLASSROOM_NPCS } from './NpcTracker';
 import AdminPanel from '@/components/admin/AdminPanel';
+import BookshelfModal from './BookshelfModal';
+import GameSubmissionModal from './GameSubmissionModal';
+import { usePresentation } from '@/hooks/usePresentation';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
-import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation, ShieldCheck, Sparkles } from 'lucide-react';
+import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation, ShieldCheck, Sparkles, BookOpen, UserPlus, X } from 'lucide-react';
 
 export default function VirtualRoom({ 
   username, 
@@ -30,6 +33,7 @@ export default function VirtualRoom({
   characterIndex = 1, 
   color, 
   isAdmin = false, 
+  isCreator = false,
   onLeave 
 }) {
   const containerRef = useRef(null);
@@ -51,9 +55,30 @@ export default function VirtualRoom({
   const [activeTrackedNpcId, setActiveTrackedNpcId] = useState(null);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const zoom = 1.15; // Optimal POV zoom for 3/4 classroom perspective
+
+  // Bookshelf and Game Submissions Modals state
+  const [isBookshelfModalOpen, setIsBookshelfModalOpen] = useState(false);
+  const [selectedBookshelfClass, setSelectedBookshelfClass] = useState('XI PPLG-B');
+  const [isSubmissionModalOpen, setIsSubmissionModalOpen] = useState(false);
+
+  // Shared Presentation & Screen Sharing instance for both Whiteboard and Admin Panel
+  const presentation = usePresentation({
+    isAdmin,
+    presenterName: fullName || username || (isAdmin ? 'Guru Pengajar' : 'Siswa'),
+  });
   
-  // Initialize local player with dynamic safe spawn in entrance aisle, disabled when presentation or dialogue modal is open
-  const localPlayer = usePlayerControls(undefined, undefined, !isPresentationActive && !isQeebosOpen && !isImanuelOpen && !isKrisnaOpen && !isDzakihOpen && !isSamOpen);
+  // Disable player movement while modals are active
+  const isModalBlocking = 
+    isPresentationActive || 
+    isQeebosOpen || 
+    isImanuelOpen || 
+    isKrisnaOpen || 
+    isDzakihOpen || 
+    isSamOpen || 
+    isBookshelfModalOpen || 
+    isSubmissionModalOpen;
+
+  const localPlayer = usePlayerControls(undefined, undefined, !isModalBlocking);
 
   // Initialize multiplayer with room metadata & shared universe cross-group presence
   const { 
@@ -68,6 +93,10 @@ export default function VirtualRoom({
     gameStarted,
     hasAdminOnline,
     startGame,
+    // Room join approval
+    pendingJoinRequests,
+    handleApproveJoin,
+    handleRejectJoin,
     // Admin & Spotlight
     spotlightPlayer,
     setSpotlight,
@@ -86,7 +115,7 @@ export default function VirtualRoom({
     localPlayer, 
     username, 
     color, 
-    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, characterIndex, isAdmin }
+    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, characterIndex, isAdmin, isCreator }
   );
 
   const handleCopyCode = () => {
@@ -135,6 +164,46 @@ export default function VirtualRoom({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Proximity to West Bookshelves (XI PPLG-A)
+  const isNearWestShelf = Boolean(
+    localPlayer &&
+    localPlayer.x <= 230 &&
+    localPlayer.y >= 120 &&
+    localPlayer.y <= 750
+  );
+
+  // Proximity to East Bookshelves (XI PPLG-B)
+  const isNearEastShelf = Boolean(
+    localPlayer &&
+    localPlayer.x >= 1520 &&
+    localPlayer.y >= 120 &&
+    localPlayer.y <= 750
+  );
+
+  // Keyboard shortcut listener to interact with Bookshelves via 'E'
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const active = document.activeElement;
+      const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+      if (isInput) return;
+
+      if ((e.key === 'e' || e.key === 'E') && !isModalBlocking) {
+        if (isNearWestShelf) {
+          e.preventDefault();
+          setSelectedBookshelfClass('XI PPLG-A');
+          setIsBookshelfModalOpen(true);
+        } else if (isNearEastShelf) {
+          e.preventDefault();
+          setSelectedBookshelfClass('XI PPLG-B');
+          setIsBookshelfModalOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isNearWestShelf, isNearEastShelf, isModalBlocking]);
 
   // Compute camera position clamped within classroom boundaries
   const maxCamX = Math.max(0, ROOM_WIDTH - viewport.w / zoom);
@@ -193,6 +262,7 @@ export default function VirtualRoom({
                 onFocusChange={setIsPresentationActive}
                 isAdmin={isAdmin}
                 presenterName={fullName || username || (isAdmin ? 'Guru Pengajar' : 'Siswa')}
+                presentation={presentation}
               />
             );
           }
@@ -210,6 +280,60 @@ export default function VirtualRoom({
             />
           );
         })}
+
+        {/* Bookshelf Identity Signs on Classroom Walls */}
+        <div 
+          className="absolute z-20 pointer-events-none select-none text-center"
+          style={{ left: '105px', top: '120px', transform: 'translate(-50%, -100%)' }}
+        >
+          <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-wider shadow border border-amber-900 flex items-center gap-1">
+            <BookOpen className="w-2.5 h-2.5 text-amber-900" />
+            <span>Rak Buku XI PPLG-A</span>
+          </div>
+        </div>
+
+        <div 
+          className="absolute z-20 pointer-events-none select-none text-center"
+          style={{ left: '1695px', top: '120px', transform: 'translate(-50%, -100%)' }}
+        >
+          <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 uppercase tracking-wider shadow border border-amber-900 flex items-center gap-1">
+            <BookOpen className="w-2.5 h-2.5 text-amber-900" />
+            <span>Rak Buku XI PPLG-B</span>
+          </div>
+        </div>
+
+        {/* Proximity Interaction Prompts for Bookshelves */}
+        {isNearWestShelf && !isModalBlocking && (
+          <div 
+            className="absolute z-40 pointer-events-auto cursor-pointer"
+            style={{ left: '105px', top: '230px', transform: 'translate(-50%, -100%)' }}
+            onClick={() => {
+              setSelectedBookshelfClass('XI PPLG-A');
+              setIsBookshelfModalOpen(true);
+            }}
+          >
+            <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 animate-bounce-short">
+              <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1 py-0.2">E</span>
+              <span className="text-[11px] font-bold text-amber-200">Periksa Rak Buku XI PPLG-A</span>
+            </div>
+          </div>
+        )}
+
+        {isNearEastShelf && !isModalBlocking && (
+          <div 
+            className="absolute z-40 pointer-events-auto cursor-pointer"
+            style={{ left: '1695px', top: '230px', transform: 'translate(-50%, -100%)' }}
+            onClick={() => {
+              setSelectedBookshelfClass('XI PPLG-B');
+              setIsBookshelfModalOpen(true);
+            }}
+          >
+            <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 animate-bounce-short">
+              <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1 py-0.2">E</span>
+              <span className="text-[11px] font-bold text-amber-200">Periksa Rak Buku XI PPLG-B</span>
+            </div>
+          </div>
+        )}
         
         {/* Render Remote Students / Players and their Pets */}
         {remotePlayers.map((p) => {
@@ -343,6 +467,11 @@ export default function VirtualRoom({
           localPlayer={localPlayer} 
           onOpenChange={setIsSamOpen} 
           isTracked={activeTrackedNpcId === 'npc-sam'}
+          onOpenSubmission={() => setIsSubmissionModalOpen(true)}
+          onOpenBookshelf={(targetCls) => {
+            setSelectedBookshelfClass(targetCls);
+            setIsBookshelfModalOpen(true);
+          }}
         />
       </div>
 
@@ -732,7 +861,81 @@ export default function VirtualRoom({
         }}
         spotlightPlayer={spotlightPlayer}
         onSetSpotlight={setSpotlight}
+        presentation={presentation}
       />
+
+      {/* Rak Buku Karya Game Modal */}
+      <BookshelfModal
+        isOpen={isBookshelfModalOpen}
+        onClose={() => setIsBookshelfModalOpen(false)}
+        targetClass={selectedBookshelfClass}
+        onOpenSubmit={() => {
+          setIsBookshelfModalOpen(false);
+          setIsSubmissionModalOpen(true);
+        }}
+      />
+
+      {/* Setor Link Game Modal */}
+      <GameSubmissionModal
+        isOpen={isSubmissionModalOpen}
+        onClose={() => setIsSubmissionModalOpen(false)}
+        studentInfo={{
+          fullName,
+          username,
+          attendanceNo,
+          studentClass: activeClass,
+          roomCode,
+          roomName,
+        }}
+        onSubmitted={() => {
+          setSelectedBookshelfClass(activeClass);
+          setIsBookshelfModalOpen(true);
+        }}
+      />
+
+      {/* Modal Konfirmasi Izin Bergabung Kelompok untuk Pembuat Room (Host) */}
+      {pendingJoinRequests && pendingJoinRequests.length > 0 && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md pixel-panel-wood p-5 text-amber-100 shadow-2xl border-2 border-amber-600 space-y-4">
+            <div className="flex items-center gap-2 border-b border-[#5c3416] pb-2">
+              <UserPlus className="w-5 h-5 text-amber-400 shrink-0" />
+              <h3 className="font-bold text-sm text-amber-200">
+                Permintaan Bergabung Kelompok ({pendingJoinRequests.length})
+              </h3>
+            </div>
+
+            <div className="pixel-box-inset p-3 bg-[#180a03] space-y-1.5 text-xs">
+              <div className="text-amber-300 font-bold text-sm">
+                {pendingJoinRequests[0].applicant?.fullName || pendingJoinRequests[0].applicant?.username || 'Siswa'}
+              </div>
+              <div className="text-[11px] text-amber-400 font-mono">
+                Absen: #{pendingJoinRequests[0].applicant?.attendanceNo || '-'} | Kelas: {pendingJoinRequests[0].applicant?.studentClass || activeClass}
+              </div>
+              <p className="text-[11px] text-amber-200/80 pt-1">
+                Ingin bergabung ke kelompok Anda (<strong>{roomName}</strong>, Kode: <strong className="font-mono text-amber-300">{roomCode}</strong>).
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => handleRejectJoin(pendingJoinRequests[0].requestId)}
+                className="pixel-btn-wood text-xs px-3 py-1.5 font-bold text-red-300 hover:text-white"
+              >
+                Tolak
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApproveJoin(pendingJoinRequests[0].requestId)}
+                className="pixel-btn-gold text-xs px-4 py-1.5 font-black text-amber-950 flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                <span>Terima / Izinkan Masuk</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
