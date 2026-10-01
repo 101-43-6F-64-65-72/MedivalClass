@@ -84,6 +84,13 @@ export const DECORATIVE_ASSETS = [
   { id: 'stage-carpet-bg', type: 'rug', x: 520, y: 440, width: 760, height: 340, zIndex: 2 },
 ];
 
+export const NPC_COLLIDERS = [
+  { id: 'npc-qeebos', name: 'Qeebos', x: 730, y: 530 },
+  { id: 'npc-imanuel', name: 'Imanuel', x: 95, y: 800 },
+  { id: 'npc-krisna', name: 'Krisna', x: 1715, y: 720 },
+  { id: 'npc-dzakih', name: 'Dzakih', x: 1250, y: 955 },
+];
+
 export const ASSET_PATHS = {
   CHARACTERS: '/assets/RPG Maker MZ (48x48)/characters',
   TILESETS: '/assets/New folder/tilesets',

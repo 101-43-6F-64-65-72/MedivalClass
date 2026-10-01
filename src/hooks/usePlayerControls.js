@@ -40,9 +40,16 @@ export function usePlayerControls(initialX, initialY, isControlsEnabled = true) 
     stateRef.current = playerState;
   }, [playerState]);
 
+  const isTypingInField = () => {
+    const active = document.activeElement;
+    if (!active) return false;
+    const tag = active.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || active.isContentEditable;
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (!isEnabledRef.current) return;
+      if (!isEnabledRef.current || isTypingInField()) return;
       if (keysRef.current.hasOwnProperty(e.key) || keysRef.current.hasOwnProperty(e.key.toLowerCase())) {
         keysRef.current[e.key] = true;
         keysRef.current[e.key.toLowerCase()] = true; // Handle uppercase letters
@@ -56,12 +63,25 @@ export function usePlayerControls(initialX, initialY, isControlsEnabled = true) 
       }
     };
 
+    // When user clicks into chat or an input field, immediately stop any running movement
+    const handleFocusIn = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) {
+        Object.keys(keysRef.current).forEach((k) => {
+          keysRef.current[k] = false;
+        });
+        setPlayerState((prev) => (prev.isMoving ? { ...prev, isMoving: false } : prev));
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('focusin', handleFocusIn);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('focusin', handleFocusIn);
     };
   }, []);
 
@@ -75,6 +95,15 @@ export function usePlayerControls(initialX, initialY, isControlsEnabled = true) 
     const rawDelta = (time - lastTimeRef.current) / 1000;
     const deltaTime = Math.min(rawDelta, 0.1); // Clamp to prevent tunneling on lag spikes
     lastTimeRef.current = time;
+
+    // Immediately stop moving if controls are disabled or user is typing in chat/input
+    if (!isEnabledRef.current || isTypingInField()) {
+      if (stateRef.current.isMoving) {
+        setPlayerState((prev) => (prev.isMoving ? { ...prev, isMoving: false } : prev));
+      }
+      requestRef.current = requestAnimationFrame(updatePosition);
+      return;
+    }
 
     const keys = keysRef.current;
     let dx = 0;
@@ -102,14 +131,14 @@ export function usePlayerControls(initialX, initialY, isControlsEnabled = true) 
       let finalX = stateRef.current.x;
       let finalY = stateRef.current.y;
 
-      const canMoveX = !checkCollision(newX, stateRef.current.y, playerWidth, playerHeight);
-      const canMoveY = !checkCollision(stateRef.current.x, newY, playerWidth, playerHeight);
+      const canMoveX = !checkCollision(newX, stateRef.current.y);
+      const canMoveY = !checkCollision(stateRef.current.x, newY);
 
       if (canMoveX) finalX = newX;
       if (canMoveY) finalY = newY;
 
       // Check diagonal corner case
-      if (canMoveX && canMoveY && checkCollision(finalX, finalY, playerWidth, playerHeight)) {
+      if (canMoveX && canMoveY && checkCollision(finalX, finalY)) {
         // If combined diagonal hits an outer corner, move only along the primary axis
         if (Math.abs(dx) >= Math.abs(dy)) {
           finalY = stateRef.current.y;

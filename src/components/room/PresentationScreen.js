@@ -1,18 +1,35 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { usePresentation } from '@/hooks/usePresentation';
-import { Maximize2, Minimize2, ExternalLink, Sparkles, MonitorPlay } from 'lucide-react';
+import { Maximize2, Minimize2, ExternalLink, Sparkles, MonitorPlay, X, RotateCw, ZoomIn } from 'lucide-react';
 
 const CANVA_EMBED_URL = 'https://www.canva.com/design/DAHWqHcG_Jw/4VfIFITHxeJqwMWPd1KeKA/view?embed';
 const CANVA_DIRECT_URL = 'https://www.canva.com/design/DAHWqHcG_Jw/4VfIFITHxeJqwMWPd1KeKA/view';
 
-export default function PresentationScreen({ object, localPlayer, onFocusChange }) {
+export default function PresentationScreen({ 
+  object, 
+  localPlayer, 
+  onFocusChange,
+  isFocused: externalIsFocused,
+  setIsFocused: externalSetIsFocused,
+}) {
   const containerRef = useRef(null);
   const { currentSlide, changeSlide } = usePresentation();
+  const [mounted, setMounted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
+  const [internalIsFocused, setInternalIsFocused] = useState(false);
+  
+  const isFocused = externalIsFocused !== undefined ? externalIsFocused : internalIsFocused;
+  const setIsFocused = externalSetIsFocused || setInternalIsFocused;
+
   const [iframeError, setIframeError] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Proximity check: Is local player near the front of the presentation screen?
   // Screen is at x: 550, width: 700 (center ~900), y: 25, height: 350
@@ -24,7 +41,15 @@ export default function PresentationScreen({ object, localPlayer, onFocusChange 
     localPlayer.y <= object.y + object.height + 170
   );
 
-  // Handle Fullscreen API
+  // Notify parent if focus or fullscreen is active to pause background movement
+  useEffect(() => {
+    const active = isFullscreen || isFocused;
+    if (onFocusChange) {
+      onFocusChange(active);
+    }
+  }, [isFullscreen, isFocused, onFocusChange]);
+
+  // Handle OS Fullscreen API
   const toggleFullscreen = async () => {
     try {
       if (document.fullscreenElement) {
@@ -39,28 +64,21 @@ export default function PresentationScreen({ object, localPlayer, onFocusChange 
           await containerRef.current.requestFullscreen();
         } else if (containerRef.current.webkitRequestFullscreen) {
           await containerRef.current.webkitRequestFullscreen();
-        } else if (containerRef.current.msRequestFullscreen) {
-          await containerRef.current.msRequestFullscreen();
         } else {
-          // Fallback to focused overlay if Fullscreen API is unavailable
           setIsFocused(true);
         }
       }
     } catch (err) {
-      console.warn('Browser Fullscreen API request fallback:', err);
-      // Fallback to high z-index modal
-      setIsFocused((prev) => !prev);
+      console.warn('Browser Fullscreen API fallback to Focus Mode:', err);
+      setIsFocused(true);
     }
   };
 
-  // Sync fullscreen change event from browser (e.g. user pressed ESC)
+  // Sync fullscreen change event from browser
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isFs = Boolean(document.fullscreenElement);
       setIsFullscreen(isFs);
-      if (!isFs) {
-        setIsFocused(false);
-      }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -72,132 +90,108 @@ export default function PresentationScreen({ object, localPlayer, onFocusChange 
     };
   }, []);
 
-  // Notify parent component if presentation is in focus or fullscreen mode
-  useEffect(() => {
-    const active = isFullscreen || isFocused;
-    if (onFocusChange) {
-      onFocusChange(active);
-    }
-  }, [isFullscreen, isFocused, onFocusChange]);
-
-  // Handle 'E' or 'e' key for interaction when player is near the presentation screen
+  // Handle Keyboard interaction: Only 'Escape' to close focus mode (no E key conflict)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Do not capture if user is typing in an input or textarea
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
 
-      if ((e.key === 'e' || e.key === 'E') && isNear && !isFullscreen && !isFocused) {
-        e.preventDefault();
-        toggleFullscreen();
-      }
-
-      // Allow ESC to close focused mode fallback
       if (e.key === 'Escape' && isFocused) {
+        e.preventDefault();
         setIsFocused(false);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNear, isFullscreen, isFocused]);
+  }, [isFocused, setIsFocused]);
 
   if (!object.visible) return null;
 
   const zIndex = Math.floor(object.y + object.height);
-  const isPresentingActive = isFullscreen || isFocused;
 
   return (
     <>
       {/* ========================================================
-          1. IN-ROOM PHYSICAL SMART WHITEBOARD PRESENTATION BOARD
+          1. IN-ROOM PHYSICAL WHITEBOARD SCREEN (Always rendered in 2D Classroom)
          ======================================================== */}
       <div
         ref={containerRef}
         style={{
-          position: isPresentingActive ? 'fixed' : 'absolute',
-          left: isPresentingActive ? 0 : object.x,
-          top: isPresentingActive ? 0 : object.y,
-          width: isPresentingActive ? '100vw' : object.width,
-          height: isPresentingActive ? '100vh' : object.height,
-          zIndex: isPresentingActive ? 99999 : zIndex,
+          position: 'absolute',
+          left: object.x,
+          top: object.y,
+          width: object.width,
+          height: object.height,
+          zIndex: zIndex,
           backgroundColor: '#0f172a',
-          boxShadow: isPresentingActive
-            ? 'none'
-            : '0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 6px #5c3416, 0 0 0 10px #381c08, 0 0 0 12px #78421b',
-          borderRadius: isPresentingActive ? '0px' : '12px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 6px #5c3416, 0 0 0 10px #381c08, 0 0 0 12px #78421b',
+          borderRadius: '12px',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          transition: 'all 0.2s ease-in-out',
         }}
       >
         {/* Presentation Header Bar */}
-        <div
-          className={`w-full flex items-center justify-between px-3.5 py-2 select-none border-b ${
-            isPresentingActive
-              ? 'bg-slate-900 border-slate-700 py-3 px-6'
-              : 'bg-[#381c08] border-[#5c3416]'
-          }`}
-        >
+        <div className="w-full flex items-center justify-between px-3 py-1.5 select-none bg-[#381c08] border-b border-[#5c3416]">
           {/* Left Title & Status */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="flex h-2.5 w-2.5 relative shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="flex h-2 w-2 relative shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[11px] font-bold text-amber-100 tracking-wide flex items-center gap-1.5 truncate">
-                <MonitorPlay className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>Layar Presentasi Kelas</span>
-                <span className="text-[9px] bg-amber-950 text-amber-300 font-mono px-1.5 py-0.2 rounded border border-amber-800">
-                  Canva Live
-                </span>
+            <div className="flex items-center gap-1.5 truncate">
+              <MonitorPlay className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="text-[11px] font-bold text-amber-100 truncate">
+                Layar Kelas
+              </span>
+              <span className="text-[8px] bg-amber-950 text-amber-300 font-mono px-1 py-0.2 rounded border border-amber-800">
+                Canva Live
               </span>
             </div>
           </div>
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Fallback Direct Link Button */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Easy Focus / Theater Mode Button */}
+            <button
+              onClick={() => setIsFocused(true)}
+              title="Perbesar Layar / Mode Fokus (Kontrol Mudah)"
+              className="pixel-btn-gold text-[10px] px-2 py-0.5 font-bold"
+            >
+              <ZoomIn className="w-3 h-3 mr-1" />
+              <span>Mode Fokus</span>
+            </button>
+
+            {/* Direct Link External Button */}
             <a
               href={CANVA_DIRECT_URL}
               target="_blank"
               rel="noopener noreferrer"
-              title="Buka Presentasi di Tab Baru (Fallback)"
-              className="flex items-center gap-1 bg-[#5c3416] hover:bg-[#78421b] text-amber-100 hover:text-white text-[11px] font-medium px-2.5 py-1 rounded-lg border border-[#8c5324] transition shadow-sm"
-              onClick={(e) => e.stopPropagation()}
+              title="Buka Presentasi di Tab Baru"
+              className="pixel-btn-wood p-1"
             >
-              <span>Buka Canva</span>
               <ExternalLink className="w-3 h-3 text-amber-300" />
             </a>
 
-            {/* Fullscreen Button */}
+            {/* Native OS Fullscreen Button */}
             <button
               onClick={toggleFullscreen}
-              title={isPresentingActive ? 'Keluar Fullscreen (ESC)' : 'Layar Penuh (Fullscreen)'}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-amber-50 text-[11px] font-bold px-3 py-1 rounded-lg shadow-md border border-amber-800 transition-all active:scale-95"
+              title="Layar Penuh"
+              className="pixel-btn-wood p-1"
             >
-              {isPresentingActive ? (
-                <>
-                  <Minimize2 className="w-3.5 h-3.5" />
-                  <span>Tutup Layar Penuh (ESC)</span>
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="w-3.5 h-3.5" />
-                  <span>Fullscreen</span>
-                </>
-              )}
+              <Maximize2 className="w-3 h-3 text-amber-300" />
             </button>
           </div>
         </div>
 
-        {/* Presentation Iframe Container */}
+        {/* Live Canva Iframe inside Classroom */}
         <div className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden">
           {!iframeError ? (
             <iframe
+              key={`in-room-${iframeKey}`}
               src={CANVA_EMBED_URL}
-              title="Canva Presentation Virtual Classroom"
+              title="Canva Presentation In-Room"
               loading="lazy"
               allow="fullscreen"
               allowFullScreen
@@ -210,75 +204,137 @@ export default function PresentationScreen({ object, localPlayer, onFocusChange 
               }}
             />
           ) : (
-            /* Fallback Card if iframe blocked */
-            <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-900 text-white space-y-4">
-              <div className="w-14 h-14 bg-amber-500/20 rounded-2xl flex items-center justify-center text-2xl border border-amber-500/40">
-                📊
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-100">Presentasi Canva Siap Ditampilkan</h3>
-                <p className="text-xs text-slate-400 max-w-sm mt-1">
-                  Jika preview iframe dibatasi oleh browser Anda, Anda dapat membuka presentasi langsung di tab baru:
-                </p>
-              </div>
+            <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-slate-900 text-white space-y-2">
+              <MonitorPlay className="w-6 h-6 text-amber-300" />
+              <p className="text-xs text-slate-300">Presentasi Canva Siap Ditampilkan</p>
               <a
                 href={CANVA_DIRECT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center gap-2"
+                className="pixel-btn-gold py-1.5 px-3 font-bold text-[10px] flex items-center gap-1.5"
               >
-                <span>Buka Presentasi Canva</span>
-                <ExternalLink className="w-4 h-4" />
+                <span>Buka Tab Baru</span>
+                <ExternalLink className="w-3 h-3" />
               </a>
             </div>
           )}
-
-          {/* Transparent click catcher when in normal room view to enable clean click-to-focus */}
-          {!isPresentingActive && (
-            <div
-              onClick={toggleFullscreen}
-              className="absolute inset-0 z-10 cursor-pointer bg-transparent hover:bg-slate-950/10 transition-colors"
-              title="Klik untuk membuka layar penuh (Fullscreen)"
-            />
-          )}
         </div>
 
-        {/* Bottom Whiteboard Tray (Only in normal room view) */}
-        {!isPresentingActive && (
-          <div className="h-3.5 bg-slate-800 border-t border-slate-700 flex items-center justify-center px-4">
-            <div className="w-24 h-1.5 bg-slate-600 rounded-full flex items-center justify-center gap-1 opacity-70">
-              <div className="w-3 h-1 bg-red-400 rounded-full"></div>
-              <div className="w-3 h-1 bg-blue-400 rounded-full"></div>
-              <div className="w-3 h-1 bg-emerald-400 rounded-full"></div>
-            </div>
+        {/* Bottom Whiteboard Marker Tray with Interactive Click Button */}
+        <div className="h-7 bg-slate-800 border-t border-slate-700 flex items-center justify-between px-3 select-none">
+          <div className="w-20 h-1 bg-slate-600 rounded-full flex items-center justify-center gap-1 opacity-70">
+            <div className="w-2.5 h-1 bg-red-400 rounded-full"></div>
+            <div className="w-2.5 h-1 bg-blue-400 rounded-full"></div>
+            <div className="w-2.5 h-1 bg-emerald-400 rounded-full"></div>
           </div>
-        )}
+          <button
+            onClick={() => setIsFocused(true)}
+            className="pixel-btn-gold text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 cursor-pointer shadow-sm hover:scale-105 active:scale-95 transition-transform"
+            title="Klik untuk membuka layar presentasi (Mode Fokus)"
+          >
+            <ZoomIn className="w-3 h-3" />
+            <span>Buka Presentasi</span>
+          </button>
+        </div>
       </div>
 
       {/* ========================================================
-          2. PROXIMITY INTERACTION HINT ("PRESS E TO VIEW")
+          3. THEATER / FOCUS MODE PORTAL (Directly on document.body)
+             Allows super easy slide control without forced OS fullscreen!
          ======================================================== */}
-      {isNear && !isPresentingActive && (
-        <div
-          className="absolute pointer-events-none select-none animate-bounce"
-          style={{
-            left: object.x + object.width / 2,
-            top: object.y + object.height + 18,
-            transform: 'translateX(-50%)',
-            zIndex: zIndex + 20,
-          }}
-        >
-          <div className="flex items-center gap-2 bg-slate-900/95 text-white px-3.5 py-1.5 rounded-full border border-emerald-500/80 shadow-2xl backdrop-blur-md">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
-            </span>
-            <span className="text-[11px] font-bold text-slate-100">
-              Tekan <kbd className="bg-emerald-500 text-slate-950 px-1.5 py-0.5 rounded font-mono font-extrabold text-[10px] shadow">E</kbd> atau Klik untuk Layar Penuh
-            </span>
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+      {mounted && isFocused && createPortal(
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-6 animate-in fade-in duration-150 select-none">
+          {/* Modal Container */}
+          <div className="w-full max-w-6xl h-[90vh] pixel-panel-wood flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="px-4 py-2 bg-[#2d1607] border-b border-[#5c3416] flex items-center justify-between text-white">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-2.5 w-2.5 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <MonitorPlay className="w-4 h-4 text-amber-400" />
+                <span className="font-bold text-sm text-amber-200">Layar Presentasi Canva (Mode Fokus)</span>
+                <span className="text-[10px] font-mono pixel-btn-gold text-amber-950 px-2 py-0.5 pointer-events-none">
+                  Kontrol Penuh Aktif
+                </span>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2">
+                {/* Reload iframe */}
+                <button
+                  onClick={() => setIframeKey((prev) => prev + 1)}
+                  title="Muat Ulang Presentasi"
+                  className="pixel-btn-wood p-1.5"
+                >
+                  <RotateCw className="w-3.5 h-3.5 text-amber-300" />
+                </button>
+
+                {/* Open in new tab */}
+                <a
+                  href={CANVA_DIRECT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Buka di Tab Baru"
+                  className="pixel-btn-wood text-xs px-2.5 py-1 flex items-center gap-1"
+                >
+                  <span>Buka Canva</span>
+                  <ExternalLink className="w-3 h-3 text-amber-300" />
+                </a>
+
+                {/* Fullscreen Button */}
+                <button
+                  onClick={toggleFullscreen}
+                  title="Layar Penuh Monitor"
+                  className="pixel-btn-wood text-xs px-2.5 py-1 flex items-center gap-1"
+                >
+                  <Maximize2 className="w-3 h-3 text-amber-300" />
+                  <span>Layar Penuh</span>
+                </button>
+
+                {/* Close Button */}
+                <button
+                  onClick={() => setIsFocused(false)}
+                  title="Tutup Mode Fokus (Esc)"
+                  className="pixel-btn-gold text-xs px-3 py-1 font-bold flex items-center gap-1 ml-1"
+                >
+                  <img 
+                    src="/assets/fantasy_pixelart_ui/icons/gold_cross.png" 
+                    alt="Close" 
+                    className="w-3.5 h-3.5 image-rendering-pixelated" 
+                  />
+                  <span>Tutup (Esc)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Canva Interactive Iframe Body */}
+            <div className="relative flex-1 w-full bg-slate-950 overflow-hidden pixel-box-inset">
+              <iframe
+                key={`theater-${iframeKey}`}
+                src={CANVA_EMBED_URL}
+                title="Canva Presentation Interactive Theater"
+                loading="eager"
+                allow="fullscreen; autoplay"
+                allowFullScreen
+                className="w-full h-full border-0"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  backgroundColor: '#0f172a',
+                }}
+              />
+            </div>
+
+            {/* Modal Footer Controls Hint */}
+            <div className="px-4 py-1.5 bg-[#1a0a03] border-t border-[#5c3416] flex items-center justify-between text-xs text-amber-300/70">
+              <span>Petunjuk: Klik langsung pada slide atau gunakan tombol navigasi di dalam Canva untuk berpindah halaman.</span>
+              <span className="font-mono text-[10px] text-amber-400/60">Tekan Esc atau klik Tutup untuk kembali ke kelas</span>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

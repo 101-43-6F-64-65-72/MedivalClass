@@ -29,6 +29,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   const [chatMessages, setChatMessages] = useState([]);
   const [localChatBubble, setLocalChatBubble] = useState(null);
   const [remoteChatBubbles, setRemoteChatBubbles] = useState({});
+  const [remotePets, setRemotePets] = useState({});
 
   // GAME PHASE STATE
   const [gamePhase, setGamePhase] = useState(GAME_PHASES.WAITING);
@@ -181,7 +182,18 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
         setChatMessages((prev) => [...prev.slice(-49), payload]);
         setRemoteChatBubbles((prev) => ({
           ...prev,
-          [payload.senderId]: { text: payload.text, time: Date.now() },
+          [payload.senderId]: {
+            id: payload.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            text: payload.text,
+            time: payload.timestamp || Date.now(),
+          },
+        }));
+      })
+      .on('broadcast', { event: 'petUpdate' }, ({ payload }) => {
+        if (!payload || payload.playerId === myIdRef.current) return;
+        setRemotePets((prev) => ({
+          ...prev,
+          [payload.playerId]: payload.petBreed,
         }));
       })
       .on('broadcast', { event: 'movement' }, ({ payload }) => {
@@ -273,13 +285,28 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     };
 
     setChatMessages((prev) => [...prev.slice(-49), msg]);
-    setLocalChatBubble({ text: msg.text, time: Date.now() });
+    setLocalChatBubble({ id: msg.id, text: msg.text, time: msg.timestamp });
 
     if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
       channelRef.current.send({
         type: 'broadcast',
         event: 'chatMessage',
         payload: msg,
+      });
+    }
+  };
+
+  // Broadcast pet adoption or dismissal to other students
+  const updatePet = (breedId) => {
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'petUpdate',
+        payload: {
+          playerId: myIdRef.current,
+          petBreed: breedId,
+          timestamp: Date.now(),
+        },
       });
     }
   };
@@ -489,6 +516,9 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     localChatBubble,
     remoteChatBubbles,
     sendMessage,
+    // Pet companion system
+    remotePets,
+    updatePet,
     // Phase and story states & controls
     gamePhase,
     storyPhase,

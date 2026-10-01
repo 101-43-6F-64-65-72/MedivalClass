@@ -1,10 +1,9 @@
-import { MAP_OBJECTS, ROOM_WIDTH, ROOM_HEIGHT } from './constants';
+import { MAP_OBJECTS, ROOM_WIDTH, ROOM_HEIGHT, NPC_COLLIDERS } from './constants';
 
 /**
- * Returns the exact physical obstacle collision box for an object.
- * In 2.5D / semi-isometric perspective (like Stardew Valley), collision only
- * applies to the physical base/legs footprint, allowing characters to walk
- * behind chairs, stand close to tables, and depth-sort cleanly.
+ * Returns the exact physical collision box for an obstacle on the classroom floor.
+ * In 2.5D perspective, only the physical base footprint touching the floor blocks movement,
+ * allowing characters to stand right at tables and depth-sort cleanly.
  */
 export function getObjectCollider(obj) {
   if (obj.collider) {
@@ -19,61 +18,65 @@ export function getObjectCollider(obj) {
   switch (obj.type) {
     case 'student-desk':
     case 'desk':
-      // The upper 26px contains the student chairs (walkeable behind desk)
-      // Physical table body & legs occupy y + 26 with 8px margin on sides
+      // 150x85 student desk:
+      // - Upper 24px allows student to stand/sit behind desk (y: obj.y + 4 to +24)
+      // - Physical desk body & legs occupy y: obj.y + 24 to obj.y + 80
       return {
-        x: obj.x + 8,
-        y: obj.y + 26,
-        width: Math.max(10, obj.width - 16),
-        height: Math.max(10, obj.height - 32),
+        x: obj.x + 6,
+        y: obj.y + 24,
+        width: Math.max(10, obj.width - 12),
+        height: 56, // ends at obj.y + 80
       };
 
     case 'teacher-desk':
-      // Upper 30px is armchair space (walkeable behind desk)
+      // 200x95 teacher executive desk:
+      // - Armchair area allows standing behind desk at y: obj.y + 28
+      // - Solid desk drawers and base occupy y: obj.y + 28 to obj.y + 88
       return {
-        x: obj.x + 10,
-        y: obj.y + 30,
-        width: Math.max(10, obj.width - 20),
-        height: Math.max(10, obj.height - 35),
+        x: obj.x + 6,
+        y: obj.y + 28,
+        width: Math.max(10, obj.width - 12),
+        height: 60, // ends at obj.y + 88
       };
 
     case 'bookshelf':
     case 'bookshelf-alt':
     case 'bookshelf-narrow':
     case 'cabinet':
-      // Physical plinth base (lower 46px) blocks walking
+      // Oak bookcases against wall: solid structure from y: obj.y + 20 to obj.y + obj.height - 4
       return {
-        x: obj.x + 6,
-        y: obj.y + Math.max(0, obj.height - 46),
-        width: Math.max(10, obj.width - 12),
-        height: 44,
+        x: obj.x + 4,
+        y: obj.y + 20,
+        width: Math.max(10, obj.width - 8),
+        height: Math.max(10, obj.height - 24),
       };
 
     case 'plant':
-      // Only the terracotta pot base blocks walking
+      // Terracotta pot base on floor
       return {
-        x: obj.x + 14,
-        y: obj.y + 36,
-        width: 28,
-        height: 24,
+        x: obj.x + 10,
+        y: obj.y + 32,
+        width: Math.max(10, obj.width - 20),
+        height: Math.max(10, obj.height - 36),
       };
 
     case 'globe':
-      // Wooden spindle pedestal base
+      // Wooden spindle pedestal base on floor
       return {
-        x: obj.x + 12,
-        y: obj.y + 34,
-        width: 24,
-        height: 20,
+        x: obj.x + 8,
+        y: obj.y + 30,
+        width: Math.max(10, obj.width - 16),
+        height: Math.max(10, obj.height - 34),
       };
 
     case 'screen':
-      // Front presentation screen boundary
+      // Front presentation screen hangs against front wall down to y = obj.y + obj.height (440)
+      // Solid collision from top wall down to bottom whiteboard frame at y = 440
       return {
         x: obj.x,
-        y: obj.y,
+        y: 0,
         width: obj.width,
-        height: Math.min(380, obj.height - 25),
+        height: obj.y + obj.height,
       };
 
     case 'wall':
@@ -82,7 +85,7 @@ export function getObjectCollider(obj) {
           x: obj.x,
           y: obj.y,
           width: obj.width,
-          height: 104, // Right at the baseboard line
+          height: 110, // Right at wall baseboard
         };
       }
       return {
@@ -104,20 +107,21 @@ export function getObjectCollider(obj) {
 
 /**
  * Precise 2.5D collision detection
- * Hitbox is anchored strictly to the player's feet (shoes/ground contact),
- * allowing nimble movement through aisles and seamless corner-sliding.
+ * Coordinates (x, y) represent the center-bottom of the character's feet:
+ * - x: horizontal center of sprite (48px sprite spans [x - 24, x + 24])
+ * - y: bottom ground contact line of shoes (sprite spans [y - 48, y])
  */
-export function checkCollision(x, y, width = 32, height = 48) {
-  // Hitbox focused on shoe contact area
-  const hitboxWidth = 16;
-  const hitboxHeight = 10;
-  const hitboxX = x + (width - hitboxWidth) / 2;
-  const hitboxY = y + height - hitboxHeight - 2;
+export function checkCollision(x, y) {
+  // Shoe contact area hitbox: 20px wide centered at x, 12px tall anchored at feet y
+  const hitboxWidth = 20;
+  const hitboxHeight = 12;
+  const hitboxX = x - hitboxWidth / 2; // [x - 10, x + 10]
+  const hitboxY = y - hitboxHeight;     // [y - 12, y]
 
   // 1. Room boundary walls check
   if (
     hitboxX < 45 || 
-    hitboxY < 105 || 
+    hitboxY < 110 || 
     hitboxX + hitboxWidth > ROOM_WIDTH - 45 || 
     hitboxY + hitboxHeight > ROOM_HEIGHT - 45
   ) {
@@ -140,6 +144,25 @@ export function checkCollision(x, y, width = 32, height = 48) {
     }
   }
 
+  // 3. NPC solid obstacle check (Players bump into NPCs and cannot walk through or stack on them)
+  if (Array.isArray(NPC_COLLIDERS)) {
+    for (const npc of NPC_COLLIDERS) {
+      const npcWidth = 30;
+      const npcHeight = 22;
+      const npcX = npc.x - npcWidth / 2; // [npc.x - 15, npc.x + 15]
+      const npcY = npc.y - 18;           // [npc.y - 18, npc.y + 4]
+
+      if (
+        hitboxX < npcX + npcWidth &&
+        hitboxX + hitboxWidth > npcX &&
+        hitboxY < npcY + npcHeight &&
+        hitboxY + hitboxHeight > npcY
+      ) {
+        return true; // Bumped into NPC
+      }
+    }
+  }
+
   return false;
 }
 
@@ -154,7 +177,7 @@ export function getSafeSpawnPosition() {
     const randomX = baseArea.minX + Math.floor(Math.random() * (baseArea.maxX - baseArea.minX));
     const randomY = baseArea.minY + Math.floor(Math.random() * (baseArea.maxY - baseArea.minY));
 
-    if (!checkCollision(randomX, randomY, 32, 48)) {
+    if (!checkCollision(randomX, randomY)) {
       return { x: randomX, y: randomY };
     }
   }

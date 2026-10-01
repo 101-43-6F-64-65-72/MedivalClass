@@ -44,7 +44,7 @@ export default function GameArea({ object, localPlayer }) {
         />
         {isNear && !isPlaying && (
           <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md animate-bounce">
-            Press to Play 🕹️
+            Press to Play
           </div>
         )}
       </div>

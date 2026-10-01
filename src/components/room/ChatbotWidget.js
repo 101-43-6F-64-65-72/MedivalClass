@@ -110,159 +110,181 @@ Sekarang mulai dari PHASE 0 — GAME CONCEPT. Analisis ide game saya terlebih da
         <button
           onClick={() => setIsOpen(true)}
           title="Mentor AI (Badai Ide)"
-          className="w-12 h-12 rounded-full bg-[#261408]/95 hover:bg-[#3d2010] text-amber-300 border-2 border-[#8c5324] shadow-2xl flex items-center justify-center transition-all duration-150 active:scale-95 hover:scale-105"
+          className="pixel-btn-wood px-3 py-2 flex items-center gap-2 shadow-2xl group hover:scale-105 active:scale-95 transition-transform"
         >
-          <Bot className="w-5 h-5 text-amber-400" />
+          <img
+            src="/assets/fantasy_pixelart_ui/icons/gold_star.png"
+            alt="Mentor AI"
+            className="w-5 h-5 image-pixelated animate-bounce-short"
+          />
+          <span className="text-xs font-bold tracking-wide text-amber-200 hidden sm:inline">Mentor AI</span>
         </button>
       ) : (
-        <div className="w-[360px] sm:w-[440px] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col max-h-[580px] h-[580px] overflow-hidden">
+        <div className="w-[360px] sm:w-[460px] pixel-panel-wood flex flex-col max-h-[580px] h-[580px] overflow-hidden text-amber-100 shadow-2xl">
           {/* Widget Header */}
-          <div className="p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700 flex items-center justify-between">
+          <div className="p-3 border-b-2 border-[#5a3012] bg-[#2a1306]/90 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-amber-500/20 rounded-xl border border-amber-500/30">
-                <Bot className="w-5 h-5 text-amber-400" />
+              <div className="p-1 bg-[#1a0a03] border border-[#7a4218] rounded flex items-center justify-center">
+                <img
+                  src="/assets/fantasy_pixelart_ui/icons/gold_castle.png"
+                  alt="NPC"
+                  className="w-5 h-5 image-pixelated"
+                />
               </div>
               <div>
-                <h3 className="font-bold text-sm text-white flex items-center gap-1.5">
+                <h3 className="font-bold text-sm text-amber-300 flex items-center gap-1.5">
                   NPC Mentor Game
-                  <span className="text-[10px] bg-amber-950 text-amber-300 px-2 py-0.5 rounded-full border border-amber-800 font-mono">
+                  <span className="text-[10px] bg-[#1a0a03] text-amber-400 px-2 py-0.5 border border-[#8c5324] font-mono">
                     Phase 2
                   </span>
                 </h3>
-                <p className="text-[10px] text-slate-400">Skenario Badai Ide & Master Prompt Generator</p>
+                <p className="text-[10px] text-amber-200/70">Skenario Badai Ide & Master Prompt</p>
               </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="p-1 text-slate-400 hover:text-white rounded-lg transition"
+              className="pixel-btn-wood px-2 py-1 text-xs"
+              title="Tutup Dialog"
             >
-              <X className="w-5 h-5" />
+              <img
+                src="/assets/fantasy_pixelart_ui/icons/gold_cross.png"
+                alt="Close"
+                className="w-3.5 h-3.5 image-pixelated"
+              />
             </button>
           </div>
 
           {/* Widget Body Content (Step Controlled) */}
-          <div className="flex-1 p-5 overflow-y-auto space-y-4 text-sm bg-slate-950/50">
+          <div className="flex-1 p-4 overflow-y-auto space-y-4 text-xs bg-[#190902]/85 text-amber-100">
             {/* STEP 1: INTRO */}
             {step === 'INTRO' && (
               <div className="space-y-4 animate-in fade-in duration-200">
-                <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-3">
+                <div className="pixel-box-inset p-3.5 space-y-2.5">
                   <div className="flex items-center gap-2 text-red-400 font-bold text-xs uppercase tracking-wide">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <img
+                      src="/assets/fantasy_pixelart_ui/icons/gold_flag.png"
+                      alt="Alert"
+                      className="w-4 h-4 image-pixelated"
+                    />
                     <span>⛈️ KAPAL KITA DITERJANG BADAI IDE DASYAT!</span>
                   </div>
-                  <p className="text-slate-300 text-xs leading-relaxed italic">
+                  <p className="text-amber-100/90 text-xs leading-relaxed italic">
                     "Sebelum aku terseret badai, mari kita rumuskan Master Prompt AI Game Architect! Ini akan memandu AI Agent kalian mendirikan kerajaan game yang megah! Cepat, badai makin dekat!"
                   </p>
                 </div>
 
-                <div className="bg-indigo-950/40 border border-indigo-800/50 p-3.5 rounded-xl text-xs text-indigo-200 leading-relaxed">
+                <div className="bg-[#2e180a]/90 border border-[#8c5324] p-3 rounded text-xs text-amber-200 leading-relaxed">
                   💡 <strong>Tugas Tim:</strong> Rumuskan 8 parameter game design bersama rekan se-room untuk bekal memandu AI Agent.
                 </div>
 
                 <button
                   onClick={() => setStep('FORM')}
-                  className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg"
+                  className="w-full py-2.5 pixel-btn-gold text-sm tracking-wide flex items-center justify-center gap-2"
                 >
                   <span>Mulai Badai Ide (Isi Form)</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <img
+                    src="/assets/fantasy_pixelart_ui/icons/gold_right.png"
+                    alt="Next"
+                    className="w-3.5 h-3.5 image-pixelated"
+                  />
                 </button>
               </div>
             )}
 
             {/* STEP 2: FORM PARAMETER */}
             {step === 'FORM' && (
-              <div className="space-y-3.5 animate-in fade-in duration-200 text-xs">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <h4 className="font-bold text-amber-400">Form Parameter Master Prompt</h4>
-                  <span className="text-[10px] text-slate-400">8 Parameter</span>
+              <div className="space-y-3 animate-in fade-in duration-200 text-xs">
+                <div className="flex items-center justify-between border-b border-[#5a3012] pb-1.5">
+                  <h4 className="font-bold text-amber-300">Form Parameter Master Prompt</h4>
+                  <span className="text-[10px] text-amber-400/80">8 Parameter</span>
                 </div>
 
-                <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">1. Nama Game</label>
+                    <label className="block text-amber-300 font-medium mb-1">1. Nama Game</label>
                     <input
                       type="text"
                       value={formData.gameName}
                       onChange={(e) => handleChange('gameName', e.target.value)}
                       placeholder="Contoh: Medival Dungeon Runner"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                      className="w-full pixel-box-inset px-3 py-1.5 text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">2. Genre Game</label>
+                    <label className="block text-amber-300 font-medium mb-1">2. Genre Game</label>
                     <input
                       type="text"
                       value={formData.genre}
                       onChange={(e) => handleChange('genre', e.target.value)}
                       placeholder="Contoh: 2D Pixel Action RPG / Puzzle"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                      className="w-full pixel-box-inset px-3 py-1.5 text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">3. Target Pengguna</label>
+                    <label className="block text-amber-300 font-medium mb-1">3. Target Pengguna</label>
                     <input
                       type="text"
                       value={formData.targetUser}
                       onChange={(e) => handleChange('targetUser', e.target.value)}
                       placeholder="Contoh: Siswa SMA / Gamer Casual Web"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                      className="w-full pixel-box-inset px-3 py-1.5 text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">4. Tujuan Game</label>
+                    <label className="block text-amber-300 font-medium mb-1">4. Tujuan Game</label>
                     <input
                       type="text"
                       value={formData.gameGoal}
                       onChange={(e) => handleChange('gameGoal', e.target.value)}
                       placeholder="Contoh: Pembelajaran logika & kolaborasi team"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                      className="w-full pixel-box-inset px-3 py-1.5 text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">5. Core Gameplay</label>
+                    <label className="block text-amber-300 font-medium mb-1">5. Core Gameplay</label>
                     <input
                       type="text"
                       value={formData.coreGameplay}
                       onChange={(e) => handleChange('coreGameplay', e.target.value)}
                       placeholder="Contoh: Pergerakan 4 player & kolaborasi teka-teki"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                      className="w-full pixel-box-inset px-3 py-1.5 text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">6. Target Durasi Pengerjaan</label>
+                    <label className="block text-amber-300 font-medium mb-1">6. Target Durasi Pengerjaan</label>
                     <input
                       type="text"
                       value={formData.targetDuration}
                       onChange={(e) => handleChange('targetDuration', e.target.value)}
                       placeholder="Contoh: 3 Hari / 1 Minggu"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                      className="w-full pixel-box-inset px-3 py-1.5 text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">7. Level Kemampuan Developer</label>
+                    <label className="block text-amber-300 font-medium mb-1">7. Level Kemampuan Developer</label>
                     <input
                       type="text"
                       value={formData.devLevel}
                       onChange={(e) => handleChange('devLevel', e.target.value)}
                       placeholder="Contoh: Pemula - Menengah (Next.js & JS)"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                      className="w-full pixel-box-inset px-3 py-1.5 text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-slate-300 font-medium mb-1">8. Kondisi Perangkat</label>
+                    <label className="block text-amber-300 font-medium mb-1">8. Kondisi Perangkat</label>
                     <input
                       type="text"
                       value={formData.deviceCondition}
                       onChange={(e) => handleChange('deviceCondition', e.target.value)}
                       placeholder="Contoh: Laptop standar tanpa GPU khusus"
-                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-amber-500"
+                      className="w-full pixel-box-inset px-3 py-1.5 text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                     />
                   </div>
                 </div>
@@ -270,17 +292,21 @@ Sekarang mulai dari PHASE 0 — GAME CONCEPT. Analisis ide game saya terlebih da
                 <div className="pt-2 flex gap-2">
                   <button
                     onClick={() => setStep('INTRO')}
-                    className="w-1/3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition"
+                    className="w-1/3 py-2 pixel-btn-wood text-xs"
                   >
                     Kembali
                   </button>
                   <button
                     onClick={() => setStep('PREVIEW')}
                     disabled={!isFormComplete}
-                    className="w-2/3 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold rounded-xl transition flex items-center justify-center gap-1.5"
+                    className="w-2/3 py-2 pixel-btn-gold disabled:opacity-50 text-xs flex items-center justify-center gap-1.5"
                   >
                     <span>Generate Prompt</span>
-                    <Sparkles className="w-4 h-4" />
+                    <img
+                      src="/assets/fantasy_pixelart_ui/icons/gold_star.png"
+                      alt="Star"
+                      className="w-3.5 h-3.5 image-pixelated"
+                    />
                   </button>
                 </div>
               </div>
@@ -288,40 +314,52 @@ Sekarang mulai dari PHASE 0 — GAME CONCEPT. Analisis ide game saya terlebih da
 
             {/* STEP 3: PREVIEW PROMPT & COPY BUTTON */}
             {step === 'PREVIEW' && (
-              <div className="space-y-3.5 animate-in fade-in duration-200 text-xs">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <h4 className="font-bold text-emerald-400 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4" />
+              <div className="space-y-3 animate-in fade-in duration-200 text-xs">
+                <div className="flex items-center justify-between border-b border-[#5a3012] pb-1.5">
+                  <h4 className="font-bold text-amber-300 flex items-center gap-1.5">
+                    <img
+                      src="/assets/fantasy_pixelart_ui/icons/gold_tick.png"
+                      alt="Ready"
+                      className="w-3.5 h-3.5 image-pixelated"
+                    />
                     <span>Master Prompt Siap!</span>
                   </h4>
                   <button
                     onClick={() => setStep('FORM')}
-                    className="text-[10px] text-slate-400 hover:text-white underline"
+                    className="text-[10px] text-amber-400 hover:text-amber-200 underline"
                   >
                     Edit Form
                   </button>
                 </div>
 
-                <p className="text-slate-300 text-[11px]">
+                <p className="text-amber-200/80 text-[11px]">
                   Tinjau teks di bawah ini lalu klik tombol salin untuk diserahkan ke AI Agent kalian:
                 </p>
 
-                <div className="bg-slate-900 border border-slate-800 p-3 rounded-xl max-h-[280px] overflow-y-auto font-mono text-[10px] text-slate-300 leading-relaxed whitespace-pre-wrap select-text">
+                <div className="pixel-box-inset p-3 max-h-[260px] overflow-y-auto font-mono text-[10px] text-amber-100 leading-relaxed whitespace-pre-wrap select-text">
                   {generateMasterPrompt()}
                 </div>
 
                 <button
                   onClick={handleCopyPrompt}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg"
+                  className="w-full py-2.5 pixel-btn-gold text-xs flex items-center justify-center gap-2"
                 >
                   {copied ? (
                     <>
-                      <Check className="w-4 h-4 text-emerald-200" />
+                      <img
+                        src="/assets/fantasy_pixelart_ui/icons/gold_tick.png"
+                        alt="Copied"
+                        className="w-4 h-4 image-pixelated"
+                      />
                       <span>Berhasil Disalin!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-4 h-4" />
+                      <img
+                        src="/assets/fantasy_pixelart_ui/icons/gold_star.png"
+                        alt="Copy"
+                        className="w-4 h-4 image-pixelated"
+                      />
                       <span>Salin Master Prompt</span>
                     </>
                   )}
@@ -331,34 +369,38 @@ Sekarang mulai dari PHASE 0 — GAME CONCEPT. Analisis ide game saya terlebih da
 
             {/* STEP 4: DISASTER — KLIMAKS NPC HANYUT */}
             {step === 'DISASTER' && (
-              <div className="space-y-4 animate-in zoom-in duration-300 text-xs">
-                <div className="bg-red-950/60 border border-red-800/80 p-5 rounded-2xl text-center space-y-3 shadow-2xl relative overflow-hidden">
-                  <div className="w-12 h-12 bg-red-900/80 text-red-300 rounded-full flex items-center justify-center mx-auto border border-red-600 text-2xl animate-spin">
+              <div className="space-y-3.5 animate-in zoom-in duration-300 text-xs">
+                <div className="pixel-box-inset p-4 text-center space-y-2.5 border-red-900/60 bg-[#280d09]">
+                  <div className="w-10 h-10 bg-red-950 text-red-300 rounded-full flex items-center justify-center mx-auto border border-red-600 text-xl animate-spin">
                     🌪️
                   </div>
                   
-                  <h4 className="font-extrabold text-base text-red-400 tracking-wide uppercase">
+                  <h4 className="font-extrabold text-sm text-red-400 tracking-wide uppercase">
                     ARGHHH... BADAI TERLALU KUAT!
                   </h4>
 
-                  <p className="text-slate-200 leading-relaxed font-semibold italic">
+                  <p className="text-amber-100 leading-relaxed font-medium italic">
                     "Master Prompt sudah siap! Gunakan ini untuk memandu AI Agent kalian! Arghhh... badai terlalu kuat, aku hanyuttt! Kalian berempat harus melanjutkan ini bersama-sama!"
                   </p>
 
-                  <div className="text-[10px] bg-red-900/40 text-red-300 py-1 px-2.5 rounded-full inline-block border border-red-700/50">
+                  <div className="text-[10px] bg-red-950 text-red-300 py-1 px-2.5 inline-block border border-red-800">
                     🌊 NPC Terseret Badai Ide...
                   </div>
                 </div>
 
-                <div className="bg-slate-900 p-3.5 rounded-xl border border-slate-800 text-[11px] text-slate-300 leading-relaxed text-center">
+                <div className="bg-[#241107] p-3 border border-[#6f3d17] text-[11px] text-amber-200/90 leading-relaxed text-center">
                   ✅ <strong>Master Prompt telah berhasil disalin ke clipboard!</strong> Sekarang mulailah berdiskusi dengan tim Anda dan gunakan prompt tersebut untuk memandu AI Agent.
                 </div>
 
                 <button
                   onClick={() => setStep('INTRO')}
-                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition flex items-center justify-center gap-1.5"
+                  className="w-full py-2 pixel-btn-wood text-xs flex items-center justify-center gap-1.5"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
+                  <img
+                    src="/assets/fantasy_pixelart_ui/icons/gold_feather.png"
+                    alt="Reset"
+                    className="w-3.5 h-3.5 image-pixelated"
+                  />
                   <span>Ulangi Badai Ide</span>
                 </button>
               </div>

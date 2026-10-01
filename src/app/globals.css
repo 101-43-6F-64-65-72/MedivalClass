@@ -30,3 +30,122 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===================================================
+   FANTASY PIXEL ART UI DESIGN SYSTEM
+   =================================================== */
+
+.pixel-panel-wood {
+  border-style: solid;
+  border-width: 6px;
+  border-image: url('/assets/fantasy_pixelart_ui/panels/wood_panel.png') 6 fill / 6px stretch;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.6));
+}
+
+.pixel-panel-gold {
+  border-style: solid;
+  border-width: 6px;
+  border-image: url('/assets/fantasy_pixelart_ui/panels/gold_panel.png') 6 fill / 6px stretch;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.6));
+}
+
+.pixel-panel-silver {
+  border-style: solid;
+  border-width: 6px;
+  border-image: url('/assets/fantasy_pixelart_ui/panels/silver_panel.png') 6 fill / 6px stretch;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.6));
+}
+
+.pixel-btn-wood {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-style: solid;
+  border-width: 5px;
+  border-image: url('/assets/fantasy_pixelart_ui/buttons/wood_button_normal.png') 5 fill / 5px stretch;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  color: #faebd7;
+  text-shadow: 0 1px 2px #261204;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.05s ease, filter 0.1s ease;
+}
+
+.pixel-btn-wood:hover {
+  filter: brightness(1.12);
+}
+
+.pixel-btn-wood:active {
+  border-image: url('/assets/fantasy_pixelart_ui/buttons/wood_button_pressed.png') 5 fill / 5px stretch;
+  transform: translateY(1px);
+}
+
+.pixel-btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-style: solid;
+  border-width: 5px;
+  border-image: url('/assets/fantasy_pixelart_ui/buttons/gold_button_normal.png') 5 fill / 5px stretch;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  color: #381a05;
+  font-weight: bold;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.05s ease, filter 0.1s ease;
+}
+
+.pixel-btn-gold:hover {
+  filter: brightness(1.1);
+}
+
+.pixel-btn-gold:active {
+  border-image: url('/assets/fantasy_pixelart_ui/buttons/gold_button_pressed.png') 5 fill / 5px stretch;
+  transform: translateY(1px);
+}
+
+.pixel-btn-silver {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-style: solid;
+  border-width: 5px;
+  border-image: url('/assets/fantasy_pixelart_ui/buttons/silver_button_normal.png') 5 fill / 5px stretch;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  color: #1e293b;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.05s ease, filter 0.1s ease;
+}
+
+.pixel-btn-silver:hover {
+  filter: brightness(1.1);
+}
+
+.pixel-btn-silver:active {
+  border-image: url('/assets/fantasy_pixelart_ui/buttons/silver_button_pressed.png') 5 fill / 5px stretch;
+  transform: translateY(1px);
+}
+
+.pixel-box-inset {
+  background-color: #1c0d05;
+  border: 2px solid #5a3012;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+.image-pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
