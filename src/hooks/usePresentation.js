@@ -161,9 +161,15 @@ export function usePresentation(options = {}) {
         throw new Error('Browser tidak mendukung fitur Bagikan Layar (getDisplayMedia).');
       }
 
+      // Constraints optimized for smooth 60 FPS game performance and clear slide text
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { cursor: 'always', frameRate: { max: 30 } },
-        audio: true,
+        video: {
+          cursor: 'always',
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 15, max: 20 },
+        },
+        audio: false,
       });
 
       localStreamRef.current = stream;
@@ -264,10 +270,24 @@ export function usePresentation(options = {}) {
         }
 
         const pc = new RTCPeerConnection(ICE_SERVERS);
+        pc._pendingIceCandidates = [];
         peerConnectionsRef.current.set(viewerId, pc);
 
         localStreamRef.current.getTracks().forEach((track) => {
-          pc.addTrack(track, localStreamRef.current);
+          const sender = pc.addTrack(track, localStreamRef.current);
+          if (track.kind === 'video' && sender) {
+            try {
+              const params = sender.getParameters();
+              if (!params.encodings || params.encodings.length === 0) {
+                params.encodings = [{}];
+              }
+              // Limit upload bitrate to 900 kbps to preserve Supabase multiplayer network bandwidth
+              params.encodings[0].maxBitrate = 900000;
+              params.encodings[0].maxFramerate = 15;
+              params.degradationPreference = 'maintain-resolution';
+              sender.setParameters(params).catch(() => {});
+            } catch (err) {}
+          }
         });
 
         pc.onicecandidate = (event) => {
@@ -311,6 +331,7 @@ export function usePresentation(options = {}) {
         }
 
         const pc = new RTCPeerConnection(ICE_SERVERS);
+        pc._pendingIceCandidates = [];
         viewerPcRef.current = pc;
 
         pc.ontrack = (event) => {
@@ -335,6 +356,15 @@ export function usePresentation(options = {}) {
 
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+
+          // Flush any pending candidates received before remote description was ready
+          if (pc._pendingIceCandidates && pc._pendingIceCandidates.length > 0) {
+            for (const cand of pc._pendingIceCandidates) {
+              try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch (e) {}
+            }
+            pc._pendingIceCandidates = [];
+          }
+
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
 
@@ -359,6 +389,13 @@ export function usePresentation(options = {}) {
         if (pc) {
           try {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+            // Flush any pending candidates on presenter
+            if (pc._pendingIceCandidates && pc._pendingIceCandidates.length > 0) {
+              for (const cand of pc._pendingIceCandidates) {
+                try { await pc.addIceCandidate(new RTCIceCandidate(cand)); } catch (e) {}
+              }
+              pc._pendingIceCandidates = [];
+            }
           } catch (err) {
             console.warn('Set remote description error on presenter:', err);
           }
@@ -367,11 +404,16 @@ export function usePresentation(options = {}) {
       .on('broadcast', { event: 'screenshare-ice-candidate' }, async ({ payload }) => {
         if (!payload || payload.to !== myPeerIdRef.current || !payload.candidate) return;
         try {
-          if (isScreenSharingRef.current) {
-            const pc = peerConnectionsRef.current.get(payload.from);
-            if (pc) await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
-          } else if (viewerPcRef.current) {
-            await viewerPcRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          const pc = isScreenSharingRef.current
+            ? peerConnectionsRef.current.get(payload.from)
+            : viewerPcRef.current;
+          if (!pc) return;
+
+          if (pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          } else {
+            if (!pc._pendingIceCandidates) pc._pendingIceCandidates = [];
+            pc._pendingIceCandidates.push(payload.candidate);
           }
         } catch (err) {
           console.warn('Add ICE candidate error:', err);

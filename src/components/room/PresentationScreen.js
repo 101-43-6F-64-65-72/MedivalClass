@@ -45,9 +45,8 @@ function getDirectCanvaUrl(embedUrl) {
   return embedUrl.replace(/\?embed.*$/, '').replace(/&embed.*$/, '');
 }
 
-export default function PresentationScreen({ 
+function PresentationScreen({ 
   object, 
-  localPlayer, 
   onFocusChange,
   isFocused: externalIsFocused,
   setIsFocused: externalSetIsFocused,
@@ -105,16 +104,25 @@ export default function PresentationScreen({
     stopScreenShare,
   } = presentation;
 
-  // Attach screen stream to video elements
+  // Attach screen stream to active video element only (avoids dual GPU decoding)
   useEffect(() => {
-    if (inRoomVideoRef.current) {
-      inRoomVideoRef.current.srcObject = screenStream || null;
+    if (!screenStream) {
+      if (inRoomVideoRef.current) inRoomVideoRef.current.srcObject = null;
+      if (theaterVideoRef.current) theaterVideoRef.current.srcObject = null;
+      return;
     }
-  }, [screenStream]);
 
-  useEffect(() => {
-    if (theaterVideoRef.current && isFocused) {
-      theaterVideoRef.current.srcObject = screenStream || null;
+    if (isFocused) {
+      // Free GPU decoding resources by detaching hidden in-room canvas video
+      if (inRoomVideoRef.current) inRoomVideoRef.current.srcObject = null;
+      if (theaterVideoRef.current) {
+        theaterVideoRef.current.srcObject = screenStream;
+      }
+    } else {
+      if (theaterVideoRef.current) theaterVideoRef.current.srcObject = null;
+      if (inRoomVideoRef.current) {
+        inRoomVideoRef.current.srcObject = screenStream;
+      }
     }
   }, [screenStream, isFocused]);
 
@@ -139,15 +147,6 @@ export default function PresentationScreen({
       return () => clearTimeout(timer);
     }
   }, [lastNotification, clearNotification]);
-
-  // Proximity check: Is local player near the front of the presentation screen?
-  const isNear = Boolean(
-    localPlayer &&
-    localPlayer.x >= object.x - 70 &&
-    localPlayer.x <= object.x + object.width + 70 &&
-    localPlayer.y >= object.y + 100 &&
-    localPlayer.y <= object.y + object.height + 170
-  );
 
   // Notify parent if focus or fullscreen is active to pause player movement
   useEffect(() => {
@@ -383,7 +382,12 @@ export default function PresentationScreen({
                 autoPlay
                 playsInline
                 muted={isScreenSharing}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain pointer-events-none"
+                style={{
+                  transform: 'translateZ(0)',
+                  willChange: 'transform',
+                  contain: 'strict',
+                }}
               />
               <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/85 backdrop-blur px-2 py-0.5 rounded text-[9px] text-amber-200 border border-amber-600/40 pointer-events-none">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
@@ -627,6 +631,11 @@ export default function PresentationScreen({
                     playsInline
                     muted={isScreenSharing}
                     className="w-full h-full object-contain"
+                    style={{
+                      transform: 'translateZ(0)',
+                      willChange: 'transform',
+                      contain: 'strict',
+                    }}
                   />
                   <div className="absolute top-3 left-3 z-20 flex items-center gap-2 bg-black/85 backdrop-blur px-3 py-1 rounded-md text-xs text-amber-200 border border-amber-600/50 pointer-events-none">
                     <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
@@ -837,3 +846,5 @@ export default function PresentationScreen({
     </>
   );
 }
+
+export default React.memo(PresentationScreen);

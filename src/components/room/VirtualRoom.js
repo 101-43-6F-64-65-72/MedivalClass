@@ -256,7 +256,6 @@ export default function VirtualRoom({
               <PresentationScreen 
                 key={obj.id} 
                 object={obj} 
-                localPlayer={localPlayer}
                 isFocused={isPresentationFocused}
                 setIsFocused={setIsPresentationFocused}
                 onFocusChange={setIsPresentationActive}
