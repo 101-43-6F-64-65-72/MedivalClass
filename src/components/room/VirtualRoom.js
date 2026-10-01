@@ -18,6 +18,7 @@ import NpcTracker, { CLASSROOM_NPCS } from './NpcTracker';
 import AdminPanel from '@/components/admin/AdminPanel';
 import BookshelfModal from './BookshelfModal';
 import GameSubmissionModal from './GameSubmissionModal';
+import NetworkMonitor from './NetworkMonitor';
 import AnnouncementOverlay from './AnnouncementOverlay';
 import StudentPresenterModal from './StudentPresenterModal';
 import { usePresentation } from '@/hooks/usePresentation';
@@ -987,6 +988,9 @@ export default function VirtualRoom({
         }}
         onRevokePresenter={presentation.revokePresenter}
       />
+
+      {/* Network & Bandwidth Monitor */}
+      <NetworkMonitor />
 
     </div>
   );
