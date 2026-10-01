@@ -12,11 +12,23 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     isAdmin = false,
     onRoomFull 
   } = options;
+
+  const cleanRoomCode = (roomCode || 'LOBBY1').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+
   const [players, setPlayers] = useState(new Map());
   const [isRoomFull, setIsRoomFull] = useState(false);
   const [playerCount, setPlayerCount] = useState(1);
   const [roomName, setRoomName] = useState(initialRoomName || 'Kelas Virtual');
   const [gameStarted, setGameStarted] = useState(true);
+
+  // Emoticon States
+  const [localEmote, setLocalEmote] = useState(null);
+  const [remoteEmotes, setRemoteEmotes] = useState({});
+
+  // In-Game Realtime Chat & Overhead Speech Bubble States
+  const [chatMessages, setChatMessages] = useState([]);
+  const [localChatBubble, setLocalChatBubble] = useState(null);
+  const [remoteChatBubbles, setRemoteChatBubbles] = useState({});
 
   // GAME PHASE STATE
   const [gamePhase, setGamePhase] = useState(GAME_PHASES.WAITING);
@@ -29,7 +41,6 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   
   // Throttle broadcast
   const lastBroadcastRef = useRef(0);
-
   const localPlayerStateRef = useRef(localPlayerState);
 
   useEffect(() => {
@@ -37,15 +48,13 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   }, [localPlayerState]);
 
   useEffect(() => {
-    // If Supabase URL isn't set, just run locally
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      console.warn('Supabase URL not set, multiplayer disabled.');
+      console.warn('Supabase URL not set, multiplayer running in local sandbox.');
       return;
     }
 
-    const cleanRoomCode = (roomCode || 'LOBBY1').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-
-    const channel = supabase.channel(`room:${cleanRoomCode}`, {
+    // Shared Universe Channel: All groups inhabit the same classroom world
+    const channel = supabase.channel('classroom:shared_universe', {
       config: {
         broadcast: { ack: false, self: false },
         presence: { key: myIdRef.current },
@@ -58,18 +67,9 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       .on('presence', { event: 'sync' }, () => {
         const newState = channel.presenceState();
         const allPresenceKeys = Object.keys(newState);
-        const totalCount = allPresenceKeys.length;
-        setPlayerCount(totalCount);
+        setPlayerCount(allPresenceKeys.length);
 
-        // Limit 4 players check: If total players > 4 and local player is not in presence state yet or room capacity exceeded
-        const isSelfPresent = allPresenceKeys.includes(myIdRef.current);
-        if (totalCount > 4 && !isSelfPresent) {
-          setIsRoomFull(true);
-          if (onRoomFull) onRoomFull();
-          return;
-        }
-
-        // Sync synced room name & gameStarted if available from any player
+        // Sync room name from presence if available
         for (const [, presenceData] of Object.entries(newState)) {
           if (presenceData && presenceData.length > 0) {
             if (presenceData[0].roomName) {
@@ -99,6 +99,8 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
                   characterIndex: data.characterIndex || existing.characterIndex || 1,
                   isAdmin: !!data.isAdmin,
                   color: data.color || existing.color,
+                  roomCode: data.roomCode || existing.roomCode || cleanRoomCode,
+                  roomName: data.roomName || existing.roomName,
                 });
               } else {
                 next.set(key, {
@@ -109,8 +111,10 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
                   characterIndex: data.characterIndex || 1,
                   isAdmin: !!data.isAdmin,
                   color: data.color || '#3b82f6',
-                  x: data.x != null ? data.x : 500,
-                  y: data.y != null ? data.y : 410,
+                  roomCode: data.roomCode || cleanRoomCode,
+                  roomName: data.roomName || 'Kelas Virtual',
+                  x: data.x != null ? data.x : 900,
+                  y: data.y != null ? data.y : 1010,
                   direction: data.direction || 'down',
                   isMoving: false,
                 });
@@ -126,6 +130,11 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           next.delete(key);
           return next;
         });
+        setRemoteEmotes((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
       })
       .on('broadcast', { event: 'gameStart' }, () => {
         setGameStarted(true);
@@ -139,7 +148,6 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       .on('broadcast', { event: 'roleAssignment' }, ({ payload }) => {
         if (!payload) return;
         setPlayerRoles(payload.roles || {});
-        // Update roles in players map
         if (payload.roles) {
           setPlayers((prev) => {
             const next = new Map(prev);
@@ -161,6 +169,21 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           setRoomName(payload.roomName);
         }
       })
+      .on('broadcast', { event: 'emote' }, ({ payload }) => {
+        if (!payload || payload.playerId === myIdRef.current) return;
+        setRemoteEmotes((prev) => ({
+          ...prev,
+          [payload.playerId]: { id: payload.emoteId, time: payload.timestamp || Date.now() },
+        }));
+      })
+      .on('broadcast', { event: 'chatMessage' }, ({ payload }) => {
+        if (!payload || payload.senderId === myIdRef.current) return;
+        setChatMessages((prev) => [...prev.slice(-49), payload]);
+        setRemoteChatBubbles((prev) => ({
+          ...prev,
+          [payload.senderId]: { text: payload.text, time: Date.now() },
+        }));
+      })
       .on('broadcast', { event: 'movement' }, ({ payload }) => {
         if (!payload || payload.id === myIdRef.current) return;
 
@@ -176,6 +199,8 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
             characterIndex: payload.characterIndex || (existing ? existing.characterIndex : 1),
             isAdmin: typeof payload.isAdmin !== 'undefined' ? !!payload.isAdmin : (existing ? !!existing.isAdmin : false),
             color: payload.color || (existing ? existing.color : '#3b82f6'),
+            roomCode: payload.roomCode || (existing ? existing.roomCode : cleanRoomCode),
+            roomName: payload.roomName || (existing ? existing.roomName : ''),
             x: payload.x,
             y: payload.y,
             direction: payload.direction || (existing ? existing.direction : 'down'),
@@ -188,15 +213,6 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           const currentState = localPlayerStateRef.current;
-          
-          // Check current presence before tracking if room is full
-          const currentPresence = channel.presenceState();
-          const activeKeys = Object.keys(currentPresence);
-          if (activeKeys.length >= 4 && !activeKeys.includes(myIdRef.current)) {
-            setIsRoomFull(true);
-            if (onRoomFull) onRoomFull();
-            return;
-          }
 
           await channel.track({
             id: myIdRef.current,
@@ -207,6 +223,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
             isAdmin,
             gameStarted,
             color,
+            roomCode: cleanRoomCode,
             roomName: roomName || initialRoomName || 'Kelas Virtual',
             x: currentState.x,
             y: currentState.y,
@@ -221,13 +238,55 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [username, color, roomCode, fullName, attendanceNo, isAdmin]);
+  }, [username, color, cleanRoomCode, fullName, attendanceNo, isAdmin]);
 
-  // Function untuk admin memulai game
+  // Function to broadcast an emoticon reaction
+  const sendEmote = (emoteId) => {
+    const emotePayload = { id: emoteId, time: Date.now() };
+    setLocalEmote(emotePayload);
+
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'emote',
+        payload: {
+          playerId: myIdRef.current,
+          emoteId,
+          timestamp: Date.now(),
+        },
+      });
+    }
+  };
+
+  // Function to send in-game chat messages
+  const sendMessage = (text, isTeamOnly = false) => {
+    if (!text || !text.trim()) return;
+    const msg = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      senderId: myIdRef.current,
+      senderName: username,
+      attendanceNo,
+      senderRoomCode: cleanRoomCode,
+      text: text.trim(),
+      isTeamOnly,
+      timestamp: Date.now(),
+    };
+
+    setChatMessages((prev) => [...prev.slice(-49), msg]);
+    setLocalChatBubble({ text: msg.text, time: Date.now() });
+
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'chatMessage',
+        payload: msg,
+      });
+    }
+  };
+
   const startGame = async () => {
     setGameStarted(true);
     if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      // Re-track presence with gameStarted: true
       const currentState = localPlayerStateRef.current;
       channelRef.current.track({
         id: myIdRef.current,
@@ -238,6 +297,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
         isAdmin,
         gameStarted: true,
         color,
+        roomCode: cleanRoomCode,
         roomName,
         x: currentState.x,
         y: currentState.y,
@@ -245,7 +305,6 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
         isMoving: currentState.isMoving,
       });
 
-      // Broadcast gameStart event ke semua player
       channelRef.current.send({
         type: 'broadcast',
         event: 'gameStart',
@@ -254,7 +313,6 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     }
   };
 
-  // Function to start the narrative story
   const startStory = async () => {
     setGamePhase(GAME_PHASES.PHASE_1);
     setStoryPhase('phase_1');
@@ -278,7 +336,6 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     }
   };
 
-  // Function to transition game phase
   const advancePhase = async (nextPhase, nextStoryPhase) => {
     setGamePhase(nextPhase);
     setStoryPhase(nextStoryPhase || null);
@@ -296,7 +353,6 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     }
   };
 
-  // Function to assign player roles
   const assignRoles = async (roleAssignment) => {
     setPlayerRoles(roleAssignment);
 
@@ -309,7 +365,6 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     }
   };
 
-  // Function to commit master prompt
   const commitMasterPrompt = async (promptData) => {
     setMasterPromptData(promptData);
 
@@ -347,11 +402,9 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     }
   };
 
-  // Function to dynamically update room name for everyone
   const updateRoomName = (newName) => {
     setRoomName(newName);
     if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      // Re-track presence with updated roomName
       const currentState = localPlayerStateRef.current;
       channelRef.current.track({
         id: myIdRef.current,
@@ -362,6 +415,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
         isAdmin,
         gameStarted,
         color,
+        roomCode: cleanRoomCode,
         roomName: newName,
         x: currentState.x,
         y: currentState.y,
@@ -369,7 +423,6 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
         isMoving: currentState.isMoving,
       });
 
-      // Broadcast room name change immediately
       channelRef.current.send({
         type: 'broadcast',
         event: 'roomNameUpdate',
@@ -378,13 +431,12 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     }
   };
 
-  // Broadcast movement when local state changes
+  // Broadcast movement
   useEffect(() => {
-    if (!channelRef.current || !process.env.NEXT_PUBLIC_SUPABASE_URL || isRoomFull) return;
-    if (!localPlayerState.isMoving && lastBroadcastRef.current === -1) return; // Prevent spamming stop
+    if (!channelRef.current || !process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+    if (!localPlayerState.isMoving && lastBroadcastRef.current === -1) return;
 
     const now = Date.now();
-    // Throttle to roughly 20fps for broadcast
     if (now - lastBroadcastRef.current > 50 || !localPlayerState.isMoving) {
       channelRef.current.send({
         type: 'broadcast',
@@ -400,27 +452,43 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           attendanceNo,
           characterIndex,
           isAdmin,
-          color
+          color,
+          roomCode: cleanRoomCode,
+          roomName
         },
       });
       lastBroadcastRef.current = localPlayerState.isMoving ? now : -1;
     }
-  }, [localPlayerState.x, localPlayerState.y, localPlayerState.direction, localPlayerState.isMoving, isRoomFull, isAdmin]);
+  }, [localPlayerState.x, localPlayerState.y, localPlayerState.direction, localPlayerState.isMoving, isAdmin, cleanRoomCode]);
 
   const playerList = Array.from(players.values());
-  const hasAdminOnline = isAdmin || playerList.some(p => p.isAdmin);
+  const hasAdminOnline = isAdmin || playerList.some((p) => p.isAdmin);
+  // Count how many players belong to my specific room/group
+  const myGroupCount = 1 + playerList.filter(
+    (p) => p.roomCode && p.roomCode.trim().toUpperCase() === cleanRoomCode
+  ).length;
 
   return {
     players: playerList,
     myId: myIdRef.current,
     connected: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    isRoomFull,
+    isRoomFull: false,
     playerCount,
+    myGroupCount,
     roomName,
     updateRoomName,
     gameStarted,
     hasAdminOnline,
     startGame,
+    // Emote system
+    localEmote,
+    remoteEmotes,
+    sendEmote,
+    // Realtime in-game chat system
+    chatMessages,
+    localChatBubble,
+    remoteChatBubbles,
+    sendMessage,
     // Phase and story states & controls
     gamePhase,
     storyPhase,

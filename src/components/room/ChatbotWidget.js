@@ -109,14 +109,10 @@ Sekarang mulai dari PHASE 0 — GAME CONCEPT. Analisis ide game saya terlebih da
       {!isOpen ? (
         <button
           onClick={() => setIsOpen(true)}
-          className="flex items-center gap-2.5 bg-gradient-to-r from-amber-500 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-white px-5 py-3.5 rounded-full shadow-2xl transition-all scale-100 hover:scale-105 border border-white/20"
+          title="Mentor AI (Badai Ide)"
+          className="w-12 h-12 rounded-full bg-[#261408]/95 hover:bg-[#3d2010] text-amber-300 border-2 border-[#8c5324] shadow-2xl flex items-center justify-center transition-all duration-150 active:scale-95 hover:scale-105"
         >
-          <Bot className="w-6 h-6 animate-bounce" />
-          <span className="font-bold text-sm tracking-wide">Badai Ide NPC</span>
-          <span className="flex h-2.5 w-2.5 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-300"></span>
-          </span>
+          <Bot className="w-5 h-5 text-amber-400" />
         </button>
       ) : (
         <div className="w-[360px] sm:w-[440px] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl flex flex-col max-h-[580px] h-[580px] overflow-hidden">
