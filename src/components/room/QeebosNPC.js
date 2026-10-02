@@ -323,6 +323,10 @@ Setelah brainstorming selesai, berhenti dan tunggu keputusan saya.`;
   const generateMcpPrompt = () => {
     return `# SUPABASE CONNECTION & MCP SETUP
 
+# CONTEXT
+This project is a web game titled ${formData.supabaseProjectName.trim() || '[project name]'} built with Next.js. 
+In this first step, we are ONLY setting up the Supabase connection and MCP configuration. Do NOT install game engine libraries yet.
+
 You are the Software Engineer responsible for connecting this existing project to the student's Supabase project.
 
 Your task is to configure the project so that:
