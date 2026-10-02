@@ -652,6 +652,10 @@ Wait for my approval before proceeding to the next phase.`;
             src="/assets/OwnAssets/qeebos/qeebos.png" 
             alt="Qeebos" 
             className="w-12 h-12 object-contain image-pixelated transition-transform group-hover:scale-105 active:scale-95" 
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = '/assets/OwnAssets/qeebos/normal.png';
+            }}
           />
           {/* Shadow directly at feet */}
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1 pointer-events-none" />
@@ -855,9 +859,13 @@ Wait for my approval before proceeding to the next phase.`;
                       }}
                     >
                       <img
-                        src="/assets/OwnAssets/qeebos/qeebos.png"
+                        src={dialogStage === 'sayang' ? '/assets/OwnAssets/qeebos/blush.png' : '/assets/OwnAssets/qeebos/normal.png'}
                         alt="Qeebos Portrait"
                         className="w-full h-full object-contain image-pixelated pointer-events-none select-none"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = '/assets/OwnAssets/qeebos/normal.png';
+                        }}
                       />
                     </div>
 
@@ -893,9 +901,13 @@ Wait for my approval before proceeding to the next phase.`;
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 pixel-box-inset flex items-center justify-center bg-[#1a0a03] border border-amber-600/50">
                       <img
-                        src="/assets/OwnAssets/qeebos/qeebos.png"
+                        src="/assets/OwnAssets/qeebos/normal.png"
                         alt="Qeebos"
                         className="w-7 h-7 object-contain image-pixelated"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = '/assets/OwnAssets/qeebos/qeebos.png';
+                        }}
                       />
                     </div>
                     <div>

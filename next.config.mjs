@@ -2,6 +2,14 @@
 const nextConfig = {
   /* config options here */
   reactCompiler: true,
+  async rewrites() {
+    return [
+      {
+        source: '/qeebos.png',
+        destination: '/assets/OwnAssets/qeebos/qeebos.png',
+      },
+    ];
+  },
   async headers() {
     return [
       {

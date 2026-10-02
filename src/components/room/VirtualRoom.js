@@ -903,6 +903,7 @@ export default function VirtualRoom({
         onSetSpotlight={setSpotlight}
         presentation={presentation}
         pingMap={pingMap}
+        isAdmin={isAdmin}
       />
 
       {/* Rak Buku Karya Game Modal */}

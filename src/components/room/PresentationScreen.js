@@ -433,8 +433,7 @@ function PresentationScreen({
               src={activeEmbedUrl}
               title="Canva Presentation In-Room"
               loading="lazy"
-              allow="fullscreen; clipboard-write; web-share; presentation; autoplay"
-              allowFullScreen
+              allow="fullscreen; clipboard-write; web-share; autoplay"
               className="w-full h-full border-0 select-none"
               onError={() => setIframeError(true)}
               style={{
@@ -752,8 +751,7 @@ function PresentationScreen({
                   src={activeEmbedUrl}
                   title="Canva Presentation Interactive Theater"
                   loading="eager"
-                  allow="fullscreen; clipboard-write; web-share; presentation; autoplay"
-                  allowFullScreen
+                  allow="fullscreen; clipboard-write; web-share; autoplay"
                   className="w-full h-full border-0"
                   style={{
                     width: '100%',

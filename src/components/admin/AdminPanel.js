@@ -49,15 +49,18 @@ export default function AdminPanel({
   onSetSpotlight,
   presentation: externalPresentation,
   pingMap = {},
+  isAdmin = true,
 }) {
   const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'slide' | 'broadcast' | 'classes'
   const [searchQuery, setSearchQuery] = useState('');
   const adminScreenVideoRef = useRef(null);
 
+  const resolvedIsAdmin = Boolean(isAdmin ?? localPlayerInfo?.isAdmin ?? true);
+
   // Canva Realtime Presentation Sync Hook
   const fallbackPresentation = usePresentation({
-    isAdmin: true,
-    presenterName: isAdmin ? `Admin ${localPlayerInfo?.fullName || localPlayerInfo?.username || ''}`.trim() : (localPlayerInfo?.fullName || localPlayerInfo?.username || 'Admin'),
+    isAdmin: resolvedIsAdmin,
+    presenterName: resolvedIsAdmin ? `Admin ${localPlayerInfo?.fullName || localPlayerInfo?.username || ''}`.trim() : (localPlayerInfo?.fullName || localPlayerInfo?.username || 'Admin'),
     enabled: !externalPresentation,
   });
 
