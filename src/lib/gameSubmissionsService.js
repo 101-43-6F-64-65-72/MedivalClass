@@ -69,6 +69,7 @@ export async function submitGameLink({
   studentClass,
   roomCode,
   roomName,
+  groupMembers,
 }) {
   const classification = classifyGameUrl(gameUrl);
 
@@ -78,6 +79,7 @@ export async function submitGameLink({
     student_class: studentClass || 'XI PPLG-B',
     room_code: roomCode || '',
     room_name: roomName || 'Kelompok Belajar',
+    group_members: Array.isArray(groupMembers) ? groupMembers.join(', ') : String(groupMembers || ''),
     game_url: classification.cleanUrl,
     category: classification.category,
     platform: classification.platform,

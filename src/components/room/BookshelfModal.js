@@ -65,6 +65,7 @@ export default function BookshelfModal({
         !q ||
         (item.student_name && item.student_name.toLowerCase().includes(q)) ||
         (item.room_name && item.room_name.toLowerCase().includes(q)) ||
+        (item.group_members && item.group_members.toLowerCase().includes(q)) ||
         (item.platform && item.platform.toLowerCase().includes(q)) ||
         (item.game_url && item.game_url.toLowerCase().includes(q));
 
@@ -226,20 +227,31 @@ export default function BookshelfModal({
                       </span>
                     </div>
 
-                    {/* Middle: Submitter info & Group */}
-                    <div>
-                      <div className="text-xs font-bold text-amber-100 flex items-center gap-1.5 truncate">
-                        <Users className="w-3 h-3 text-amber-400 shrink-0" />
-                        <span className="truncate">{sub.student_name}</span>
-                        {sub.attendance_no && (
-                          <span className="text-[9px] text-amber-400/80 font-mono shrink-0">
-                            (#{sub.attendance_no})
+                    {/* Middle: Group Name, Members & Submitter */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="text-[11px] font-black text-amber-200 truncate flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          <span>{sub.room_name || 'Kelompok Belajar'}</span>
+                        </span>
+                        {sub.room_code && (
+                          <span className="text-[9px] font-mono text-amber-400/80 bg-amber-950/60 px-1 py-0.2 rounded border border-amber-800/40 shrink-0">
+                            {sub.room_code}
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-amber-300 font-mono mt-0.5 truncate">
-                        {sub.room_name || 'Kelompok Belajar'}
-                      </div>
+
+                      {/* Group Members List */}
+                      {sub.group_members ? (
+                        <div className="text-[10px] text-amber-100/90 line-clamp-2 leading-tight bg-[#120501] p-1.5 rounded border border-[#3d1e0a]">
+                          <span className="text-amber-400/80 font-bold">Anggota: </span>
+                          <span>{sub.group_members}</span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-amber-300/80 font-mono truncate">
+                          Pengirim: {sub.student_name} {sub.attendance_no ? `(#${sub.attendance_no})` : ''}
+                        </div>
+                      )}
                     </div>
 
                     {/* URL Link Preview */}

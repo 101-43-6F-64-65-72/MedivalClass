@@ -27,13 +27,14 @@ import { usePresentation } from '@/hooks/usePresentation';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import TeamPromptVault from './TeamPromptVault';
+import AdminAuraModal from './AdminAuraModal';
 import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation, ShieldCheck, Sparkles, BookOpen, UserPlus, X, MapPin } from 'lucide-react';
 
 export default function VirtualRoom({ 
   username, 
   fullName, 
   attendanceNo, 
-  studentClass = 'XI PPLG-B',
+  studentClass = 'XI PPLG-B', 
   roomCode, 
   initialRoomName, 
   groupNumber = null,
@@ -61,6 +62,7 @@ export default function VirtualRoom({
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [activeTrackedNpcId, setActiveTrackedNpcId] = useState(null);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [isAdminAuraModalOpen, setIsAdminAuraModalOpen] = useState(false);
   const [isTeamVaultOpen, setIsTeamVaultOpen] = useState(false);
   const [lowLatencyMode, setLowLatencyMode] = useState(false);
   // Admin name editing state
@@ -107,6 +109,7 @@ export default function VirtualRoom({
     isBookshelfModalOpen || 
     isSubmissionModalOpen ||
     isTeamVaultOpen ||
+    isAdminAuraModalOpen ||
     isDesignatedPresenter ||
     presentation.isForcedFullscreen; // Freeze movement when admin locks fullscreen focus
 
@@ -128,15 +131,13 @@ export default function VirtualRoom({
     gameStarted,
     hasAdminOnline,
     startGame,
-    // Room join approval
-    pendingJoinRequests,
-    handleApproveJoin,
-    handleRejectJoin,
     // Admin & Spotlight
     spotlightPlayer,
     setSpotlight,
     activeClass,
     changeActiveClass,
+    adminAura,
+    updateAdminAura,
     localEmote,
     remoteEmotes,
     sendEmote,
@@ -150,12 +151,25 @@ export default function VirtualRoom({
     teamSharedPrompts,
     sharePromptData,
     deleteSharedPrompt,
+    groupDevTodos,
+    toggleGroupDevTodo,
+    completedGroups,
+    isMyGroupDevCompleted,
   } = useMultiplayer(
     localPlayer, 
     username, 
     color, 
     { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, groupNumber, characterIndex, isAdmin, isCreator }
   );
+
+  // Security guard: Prohibit non-admin students from entering the Admin Room
+  useEffect(() => {
+    const clean = (roomCode || '').trim().toUpperCase();
+    if (!isAdmin && (clean === 'ADMIN' || clean === 'ADMIN_ROOM' || clean === 'ADMINROOM' || clean.startsWith('ADMIN'))) {
+      alert('Dilarang masuk ke Room Admin! Room ini khusus untuk Pengajar/Instruktur.');
+      if (onLeave) onLeave();
+    }
+  }, [roomCode, isAdmin, onLeave]);
 
   // In Low Latency Mode, only render players from the same group (reduces realtime overhead)
   const visibleRemotePlayers = lowLatencyMode
@@ -183,6 +197,39 @@ export default function VirtualRoom({
   const handleOpenSubmission = useCallback(() => {
     setIsSubmissionModalOpen(true);
   }, []);
+
+  // Compute members of local student's group
+  const myGroupMembers = useMemo(() => {
+    const list = [];
+    const myGroupCode = (roomCode || '').trim().toUpperCase();
+
+    // 1. Local student
+    list.push({
+      id: myId,
+      fullName: currentFullName || fullName,
+      username: currentUsername || username,
+      attendanceNo: attendanceNo || '',
+      isSelf: true,
+    });
+
+    // 2. Teammates in same group
+    if (Array.isArray(remotePlayers)) {
+      remotePlayers.forEach((p) => {
+        const pCode = (p.roomCode || '').trim().toUpperCase();
+        if (myGroupCode && pCode === myGroupCode && !p.isAdmin) {
+          list.push({
+            id: p.id,
+            fullName: p.fullName || p.username,
+            username: p.username,
+            attendanceNo: p.attendanceNo || '',
+            isSelf: false,
+          });
+        }
+      });
+    }
+
+    return list;
+  }, [myId, fullName, username, currentFullName, currentUsername, attendanceNo, roomCode, remotePlayers]);
 
   const handleOpenBookshelf = useCallback((targetCls) => {
     if (targetCls) setSelectedBookshelfClass(targetCls);
@@ -519,12 +566,14 @@ export default function VirtualRoom({
                 attendanceNo={p.attendanceNo}
                 characterIndex={p.characterIndex || 1}
                 isAdmin={p.isAdmin}
+                aura={p.aura}
                 color={p.color}
                 roomCode={p.roomCode}
                 localRoomCode={roomCode}
                 emote={remoteEmotes[p.id]}
                 chatBubble={remoteChatBubbles[p.id]}
                 isSpotlighted={isPlayerSpotlighted}
+                isGroupCompleted={Boolean(p.roomCode && completedGroups && completedGroups.has(p.roomCode.trim().toUpperCase()))}
                 isLocal={false}
               />
               {remotePets[p.id] && (
@@ -561,12 +610,14 @@ export default function VirtualRoom({
               attendanceNo={attendanceNo}
               characterIndex={characterIndex}
               isAdmin={isAdmin}
+              aura={isAdmin ? adminAura : null}
               color={color}
               roomCode={roomCode}
               localRoomCode={roomCode}
               emote={localEmote}
               chatBubble={localChatBubble}
               isSpotlighted={isLocalSpotlighted}
+              isGroupCompleted={Boolean(isMyGroupDevCompleted || (roomCode && completedGroups && completedGroups.has(roomCode.trim().toUpperCase())))}
               isLocal={true}
             />
           );
@@ -749,14 +800,24 @@ export default function VirtualRoom({
             )}
 
             {isAdmin && (
-              <button
-                onClick={() => setIsAdminPanelOpen(true)}
-                title="Buka Panel Admin / Pengajar"
-                className="pixel-btn-gold text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 shadow animate-pulse"
-              >
-                <ShieldCheck className="w-3 h-3" />
-                <span>Admin</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setIsAdminPanelOpen(true)}
+                  title="Buka Panel Admin / Pengajar"
+                  className="pixel-btn-gold text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 shadow animate-pulse"
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  <span>Admin</span>
+                </button>
+                <button
+                  onClick={() => setIsAdminAuraModalOpen(true)}
+                  title="Kustomisasi Aura Admin (Biasa, Love, Bintang, Warna)"
+                  className="pixel-btn-wood text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 text-amber-200"
+                >
+                  <Sparkles className="w-3 h-3 text-amber-400" />
+                  <span>Aura</span>
+                </button>
+              </>
             )}
             <button
               onClick={() => setIsPresentationFocused(true)}
@@ -947,14 +1008,24 @@ export default function VirtualRoom({
             <div className="pt-1 border-t border-[#5c3416] flex items-center justify-between text-[10px] text-amber-300/70">
               <div className="flex items-center gap-1.5">
                 {isAdmin && (
-                  <button
-                    onClick={() => setIsAdminPanelOpen(true)}
-                    title="Buka Panel Admin / Pengajar"
-                    className="pixel-btn-gold text-[10px] px-2 py-0.5 text-amber-950 flex items-center gap-1 font-bold shadow-sm animate-pulse"
-                  >
-                    <ShieldCheck className="w-3 h-3" />
-                    <span>Admin</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setIsAdminPanelOpen(true)}
+                      title="Buka Panel Admin / Pengajar"
+                      className="pixel-btn-gold text-[10px] px-2 py-0.5 text-amber-950 flex items-center gap-1 font-bold shadow-sm animate-pulse"
+                    >
+                      <ShieldCheck className="w-3 h-3" />
+                      <span>Admin</span>
+                    </button>
+                    <button
+                      onClick={() => setIsAdminAuraModalOpen(true)}
+                      title="Kustomisasi Aura Admin (Biasa, Love, Bintang, Warna)"
+                      className="pixel-btn-wood text-[10px] px-2 py-0.5 text-amber-200 flex items-center gap-1 font-bold"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <span>Aura</span>
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => setIsPresentationFocused(true)}
@@ -1145,6 +1216,8 @@ export default function VirtualRoom({
         presentation={presentation}
         pingMap={pingMap}
         isAdmin={isAdmin}
+        adminAura={adminAura}
+        onOpenAuraModal={() => setIsAdminAuraModalOpen(true)}
       />
 
       {/* Rak Buku Karya Game Modal */}
@@ -1170,55 +1243,14 @@ export default function VirtualRoom({
           roomCode,
           roomName,
         }}
+        groupMembers={myGroupMembers}
         onSubmitted={() => {
           setSelectedBookshelfClass(activeClass);
           setIsBookshelfModalOpen(true);
         }}
       />
 
-      {/* Modal Konfirmasi Izin Bergabung Kelompok untuk Pembuat Room (Host) */}
-      {pendingJoinRequests && pendingJoinRequests.length > 0 && (
-        <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-md pixel-panel-wood p-5 text-amber-100 shadow-2xl border-2 border-amber-600 space-y-4">
-            <div className="flex items-center gap-2 border-b border-[#5c3416] pb-2">
-              <UserPlus className="w-5 h-5 text-amber-400 shrink-0" />
-              <h3 className="font-bold text-sm text-amber-200">
-                Permintaan Bergabung Kelompok ({pendingJoinRequests.length})
-              </h3>
-            </div>
 
-            <div className="pixel-box-inset p-3 bg-[#180a03] space-y-1.5 text-xs">
-              <div className="text-amber-300 font-bold text-sm">
-                {pendingJoinRequests[0].applicant?.fullName || pendingJoinRequests[0].applicant?.username || 'Siswa'}
-              </div>
-              <div className="text-[11px] text-amber-400 font-mono">
-                Absen: #{pendingJoinRequests[0].applicant?.attendanceNo || '-'} | Kelas: {pendingJoinRequests[0].applicant?.studentClass || activeClass}
-              </div>
-              <p className="text-[11px] text-amber-200/80 pt-1">
-                Ingin bergabung ke kelompok Anda (<strong>{roomName}</strong>, Kode: <strong className="font-mono text-amber-300">{roomCode}</strong>).
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => handleRejectJoin(pendingJoinRequests[0].requestId)}
-                className="pixel-btn-wood text-xs px-3 py-1.5 font-bold text-red-300 hover:text-white"
-              >
-                Tolak
-              </button>
-              <button
-                type="button"
-                onClick={() => handleApproveJoin(pendingJoinRequests[0].requestId)}
-                className="pixel-btn-gold text-xs px-4 py-1.5 font-black text-amber-950 flex items-center gap-1.5"
-              >
-                <Check className="w-3.5 h-3.5 stroke-[3]" />
-                <span>Terima / Izinkan Masuk</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Broadcast Announcement Overlay (Top Marquee Banner or Center Bounce Popup) */}
       <AnnouncementOverlay
@@ -1255,9 +1287,13 @@ export default function VirtualRoom({
         onToggleLowLatency={setLowLatencyMode}
       />
 
-      {/* Dev Todo Checklist Widget (tracks DEV 1-4 milestones, directs to Sam when done) */}
+      {/* Dev Todo Checklist Widget (tracks shared DEV 1-4 milestones, directs to Sam when done) */}
       <DevTodoWidget
         onDirectToSam={() => setActiveTrackedNpcId('npc-sam')}
+        todos={groupDevTodos}
+        onToggleTodo={toggleGroupDevTodo}
+        roomCode={roomCode}
+        isAllCompleted={isMyGroupDevCompleted}
       />
 
       {/* Standalone Team Shared Prompt Vault Modal */}
@@ -1271,6 +1307,17 @@ export default function VirtualRoom({
           onDeleteSharedPrompt={deleteSharedPrompt}
           isEmbedded={false}
           onClose={() => setIsTeamVaultOpen(false)}
+        />
+      )}
+
+      {/* Admin Custom Aura Modal */}
+      {isAdmin && (
+        <AdminAuraModal
+          isOpen={isAdminAuraModalOpen}
+          onClose={() => setIsAdminAuraModalOpen(false)}
+          currentAura={adminAura}
+          onSaveAura={updateAdminAura}
+          characterIndex={characterIndex}
         />
       )}
 

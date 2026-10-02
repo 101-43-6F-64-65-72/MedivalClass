@@ -222,15 +222,24 @@ function QeebosNPC({
     formData.supabaseAnonKey.trim()
   );
 
-  // Prompt Generator 1: Brainstorming ONLY
+  // Prompt Generator 1: Brainstorming & Planning ONLY (Bukan untuk Agent Coding langsung)
   const generateBrainstormPrompt = () => {
-    return `# AI GAME ARCHITECT — BRAINSTORMING
+    return `# AI GAME ARCHITECT — BRAINSTORMING & PLANNING
+
+PENTING — ALUR KERJA (WORKFLOW):
+1. Sesi ini adalah TAHAP PERENCANAAN (PLANNING).
+2. PROMPT INI BUKAN UNTUK DIKIRIM KE AI AGENT CODING.
+3. Kirimkan prompt ini ke AI Chat / LLM (ChatGPT, Claude, atau Gemini) untuk melakukan diskusi, mematangkan konsep, dan menyusun RENCANA KERJA (PLANNING) yang terstruktur terlebih dahulu.
+4. Jangan menulis kode atau membuat file sekarang!
+5. Setelah rencana kerja (planning) selesai, matang, dan disetujui, barulah instruksi kerja tersebut diberikan ke AI Agent coding untuk dieksekusi langkah demi langkah.
+
+---
 
 Saya ingin membuat game multiplayer berbasis web dengan bantuan AI Agent.
 
 Kamu bertindak sebagai Senior Game Designer, Game Architect, dan Technical Mentor.
 
-Saya adalah Product Owner. Bantu saya mengembangkan ide, tetapi jangan langsung membuat kode.
+Saya adalah Product Owner. Bantu saya menyusun perencanaan (planning) dan konsep arsitektur yang solid, tetapi jangan langsung membuat kode.
 
 ## PROJECT INPUT
 
@@ -268,55 +277,42 @@ Prioritaskan solusi sederhana dan realistis untuk developer pemula.
 
 Jangan menambahkan teknologi lain kecuali benar-benar diperlukan.
 
-## TUGAS
+## TUGAS PLANNING & BRAINSTORMING
 
-Bantu saya mengembangkan:
+Bantu saya menyusun perencanaan terperinci untuk:
 
-1. Game Concept
-2. Core Gameplay
-3. Gameplay Loop
-4. Cara multiplayer bekerja
-5. Player interaction
-6. Kondisi menang/kalah
-7. Fitur MVP
-8. Fitur yang sebaiknya ditunda
-9. Data yang perlu disimpan di Supabase
-10. Bagian yang menggunakan Supabase Realtime
-11. Struktur halaman utama
-12. Risiko teknis terbesar
-13. Urutan development sederhana
+1. Game Concept & Core Fantasy
+2. Core Gameplay Loop
+3. Cara multiplayer bekerja secara teknis (room / sync)
+4. Player interaction & collision / movement
+5. Kondisi menang/kalah
+6. Fitur MVP (Wajib ada di tahap pertama)
+7. Fitur Tambahan (Dikerjakan setelah MVP berjalan)
+8. Skema data yang perlu disimpan di Supabase
+9. Fitur yang menggunakan Supabase Realtime
+10. Struktur komponen halaman utama Next.js
+11. Risiko teknis terbesar & cara mengatasinya
+12. Urutan development (Step-by-step roadmap dari Dev 1 sampai Dev 4)
 
-Jika ide saya terlalu besar, sederhanakan.
+Jika ide saya terlalu besar, sederhanakan menjadi versi MVP yang realistis.
 
-Jangan menambahkan fitur hanya agar game terlihat lebih kompleks.
+Jangan menambahkan fitur berlebihan hanya agar terlihat rumit.
 
 Bedakan dengan jelas:
 
-MVP = wajib untuk game bisa dimainkan.
+MVP = wajib untuk game bisa dimainkan pertama kali.
 
-Optional = dikerjakan jika MVP sudah selesai.
+Optional = dikerjakan jika MVP sudah selesai dan stabil.
 
-## ATURAN
+## ATURAN PERENCANAAN
 
-Jangan membuat kode.
+1. FOKUS PLANNING DAHULU: Jangan membuat kode, jangan membuat file, dan jangan melakukan implementasi sekarang.
+2. Tugas AI Agent coding baru akan dimulai SETELAH planning ini selesai dan saya setujui.
+3. Jangan menentukan semuanya sendiri; jika ada keputusan desain penting, berikan beberapa opsi dan jelaskan trade-off singkatnya agar saya dapat memilih.
+4. Fokus pada game yang:
+   SIMPLE → PLAYABLE → MULTIPLAYER → STABLE → FUN
 
-Jangan membuat file.
-
-Jangan melakukan implementasi.
-
-Jangan menentukan semuanya sendiri.
-
-Jika ada keputusan desain penting, berikan beberapa opsi dan jelaskan trade-off singkatnya agar saya dapat memilih.
-
-Fokus pada game yang:
-
-SIMPLE
-→ PLAYABLE
-→ MULTIPLAYER
-→ STABLE
-→ FUN
-
-Setelah brainstorming selesai, berhenti dan tunggu keputusan saya.`;
+Setelah selesai menyusun draf planning di atas, berhenti dan tunggu tanggapan serta keputusan saya.`;
   };
 
   // Prompt Generator 2: Supabase Connection & MCP Server Setup ONLY
@@ -992,7 +988,7 @@ Wait for my approval before proceeding to the next phase.`;
                       </h2>
                       <p className="text-[11px] text-amber-200/80">
                         {activeTab === 'brainstorm' 
-                          ? 'Scroll 1: Brainstorming Ide Game (Konsep, Loop, & MVP)' 
+                          ? 'Scroll 1: Brainstorming & Planning (Diskusikan di AI Chat Dahulu, Bukan untuk Coding Agent)' 
                           : 'Scroll 2: MCP Server & Koneksi Supabase Database'}
                       </p>
                     </div>
@@ -1024,7 +1020,7 @@ Wait for my approval before proceeding to the next phase.`;
                     }`}
                   >
                     <Gamepad2 className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Scroll 1: Brainstorming</span>
+                    <span className="truncate">Scroll 1: Brainstorming & Planning</span>
                     {isBrainstormValid && <span className="text-emerald-400 text-xs font-bold shrink-0">✓</span>}
                   </button>
 
@@ -1302,10 +1298,10 @@ Wait for my approval before proceeding to the next phase.`;
                             <div>
                               <h4 className="font-bold text-amber-300 flex items-center gap-1.5 text-xs">
                                 <Check className="w-4 h-4 text-emerald-400" />
-                                <span>Prompt Brainstorming Siap Digunakan!</span>
+                                <span>Prompt Brainstorming & Planning Siap Digunakan!</span>
                               </h4>
-                              <p className="text-[10px] text-amber-200/70">
-                                Berikan prompt ini ke AI Agent untuk merumuskan konsep game secara terarah.
+                              <p className="text-[10px] text-amber-200/80">
+                                Kirimkan ke AI Chat untuk menyusun <strong className="text-amber-300">PLANNING</strong> terlebih dahulu. <strong className="text-red-300">BUKAN</strong> untuk Coding Agent!
                               </p>
                             </div>
                             <button
@@ -1324,6 +1320,19 @@ Wait for my approval before proceeding to the next phase.`;
                                 </>
                               )}
                             </button>
+                          </div>
+
+                          {/* Important Workflow Notice Banner */}
+                          <div className="p-2.5 bg-amber-950/70 border border-amber-600/70 rounded text-xs space-y-1">
+                            <div className="font-bold text-amber-300 flex items-center gap-1.5 text-[11px]">
+                              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                              <span>Aturan Alur Kerja: Planning di AI Chat Terlebih Dahulu</span>
+                            </div>
+                            <p className="text-[10.5px] text-amber-100/90 leading-relaxed">
+                              1. Salin prompt di bawah ini lalu kirimkan ke <strong>ChatGPT, Claude, atau Gemini</strong> untuk diskusi konsep dan menyusun rencana kerja (planning).<br />
+                              2. <strong>JANGAN</strong> kirim prompt brainstorming ini ke AI Agent Coding.<br />
+                              3. Setelah dokumen planning selesai dan disetujui, barulah instruksi kerja diberikan ke AI Agent Coding bertahap (Dev 1 sampai Dev 4).
+                            </p>
                           </div>
 
                           {/* Code Block for Brainstorming */}

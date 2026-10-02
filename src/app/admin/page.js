@@ -21,8 +21,8 @@ export default function AdminPortalPage() {
     return DEFAULT_ACTIVE_CLASS;
   });
 
-  const [roomCode, setRoomCode] = useState('LOBBY1');
-  const [roomName, setRoomName] = useState('Kelas Virtual Utama');
+  const [roomCode, setRoomCode] = useState('ADMIN_ROOM');
+  const [roomName, setRoomName] = useState('Ruang Kendali Admin');
   const [inputCode, setInputCode] = useState('');
   const [joinError, setJoinError] = useState('');
 

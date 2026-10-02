@@ -50,6 +50,8 @@ export default function AdminPanel({
   presentation: externalPresentation,
   pingMap = {},
   isAdmin = true,
+  adminAura = null,
+  onOpenAuraModal = null,
 }) {
   const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'slide' | 'broadcast' | 'classes'
   const [searchQuery, setSearchQuery] = useState('');
@@ -317,14 +319,34 @@ export default function AdminPanel({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="pixel-btn-gold text-xs px-2.5 py-1 flex items-center gap-1 font-bold"
-            title="Tutup Panel Admin"
-          >
-            <X className="w-3.5 h-3.5" />
-            <span>Tutup</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenAuraModal && (
+              <button
+                type="button"
+                onClick={onOpenAuraModal}
+                className="pixel-btn-wood text-xs px-2.5 py-1 flex items-center gap-1.5 font-bold text-amber-200 hover:text-amber-100"
+                title="Kustomisasi Aura Admin (Biasa, Love, Bintang, Warna)"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Aura Admin</span>
+                {adminAura?.type && adminAura.type !== 'none' && (
+                  <span 
+                    className="w-2.5 h-2.5 rounded-full inline-block border border-black/40 ml-0.5"
+                    style={{ backgroundColor: adminAura.color || '#f59e0b' }}
+                  />
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="pixel-btn-gold text-xs px-2.5 py-1 flex items-center gap-1 font-bold"
+              title="Tutup Panel Admin"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Tutup</span>
+            </button>
+          </div>
         </div>
 
         {/* Spotlight Status Notification Banner (if any) */}
@@ -1024,6 +1046,11 @@ export default function AdminPanel({
                         >
                           {designatedPresenter.submission.game_url}
                         </a>
+                        {designatedPresenter.submission.group_members && (
+                          <div className="text-[9.5px] text-amber-400/80 font-mono truncate max-w-xs mt-0.5">
+                            Anggota: {designatedPresenter.submission.group_members}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -11,7 +11,8 @@ import {
   Layers, 
   Gamepad2, 
   Building2, 
-  UserCheck 
+  UserCheck,
+  Users
 } from 'lucide-react';
 import { classifyGameUrl } from '@/lib/gameClassifier';
 import { submitGameLink } from '@/lib/gameSubmissionsService';
@@ -21,12 +22,41 @@ export default function GameSubmissionModal({
   isOpen,
   onClose,
   studentInfo = {},
+  groupMembers = [],
   onSubmitted,
 }) {
   const [url, setUrl] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [membersText, setMembersText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Sync default values when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      const defaultName = studentInfo.roomName || (studentInfo.roomCode ? `Kelompok ${studentInfo.roomCode}` : 'Kelompok Belajar');
+      setGroupName(defaultName);
+
+      // Collect member names & numbers
+      const memberList = [];
+      if (Array.isArray(groupMembers) && groupMembers.length > 0) {
+        groupMembers.forEach((m) => {
+          const name = m.fullName || m.username || '';
+          const no = m.attendanceNo ? `#${m.attendanceNo} ` : '';
+          const tag = `${no}${name}`.trim();
+          if (tag && !memberList.includes(tag)) {
+            memberList.push(tag);
+          }
+        });
+      } else {
+        const myName = studentInfo.fullName || studentInfo.username || 'Siswa';
+        const myNo = studentInfo.attendanceNo ? `#${studentInfo.attendanceNo} ` : '';
+        memberList.push(`${myNo}${myName}`.trim());
+      }
+      setMembersText(memberList.join(', '));
+    }
+  }, [isOpen, studentInfo, groupMembers]);
 
   if (!isOpen) return null;
 
@@ -37,6 +67,14 @@ export default function GameSubmissionModal({
     e.preventDefault();
     if (!isValidUrl) {
       setError('Masukkan tautan URL game yang valid (dimulai dengan https:// atau http://)!');
+      return;
+    }
+    if (!groupName.trim()) {
+      setError('Nama kelompok wajib diisi!');
+      return;
+    }
+    if (!membersText.trim()) {
+      setError('Daftar anggota kelompok wajib diisi!');
       return;
     }
 
@@ -50,7 +88,8 @@ export default function GameSubmissionModal({
         attendanceNo: studentInfo.attendanceNo || '',
         studentClass: studentInfo.studentClass || 'XI PPLG-B',
         roomCode: studentInfo.roomCode || '',
-        roomName: studentInfo.roomName || 'Kelompok Belajar',
+        roomName: groupName.trim(),
+        groupMembers: membersText.trim(),
       });
 
       playSuccessChime();
@@ -135,12 +174,12 @@ export default function GameSubmissionModal({
               </span>
             </div>
 
-            {/* URL Input Only */}
+            {/* URL Input */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-amber-300 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Link2 className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Link Hasil Game:</span>
+                  <span>Link Hasil Game: <span className="text-red-400">*</span></span>
                 </span>
                 <span className="text-[10px] text-amber-400/70 font-mono">
                   Wajib dimulai https://
@@ -161,11 +200,64 @@ export default function GameSubmissionModal({
                   autoFocus
                 />
               </div>
-
-              {error && (
-                <p className="text-[11px] text-red-400 font-bold">{error}</p>
-              )}
             </div>
+
+            {/* Nama Kelompok Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-amber-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Nama Kelompok: <span className="text-red-400">*</span></span>
+                </span>
+                {studentInfo.roomCode && (
+                  <span className="text-[10px] font-mono text-amber-400/80 bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-800/40">
+                    Kode: {studentInfo.roomCode}
+                  </span>
+                )}
+              </label>
+              <input
+                type="text"
+                required
+                value={groupName}
+                onChange={(e) => {
+                  setGroupName(e.target.value);
+                  if (error) setError('');
+                }}
+                placeholder="Contoh: Kelompok 1 (RPG Quest)"
+                className="w-full bg-[#120702] border-2 border-[#5c3416] focus:border-amber-400 rounded p-2.5 text-xs font-bold text-amber-100 placeholder-amber-800 focus:outline-none"
+              />
+            </div>
+
+            {/* Anggota-Anggota Kelompok Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-amber-300 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Anggota-Anggota Kelompok: <span className="text-red-400">*</span></span>
+                </span>
+                <span className="text-[10px] text-amber-400/70 font-mono">
+                  Format: #Absen Nama
+                </span>
+              </label>
+              <textarea
+                rows={2}
+                required
+                value={membersText}
+                onChange={(e) => {
+                  setMembersText(e.target.value);
+                  if (error) setError('');
+                }}
+                placeholder="Contoh: #12 Budi Santoso, #15 Siti Aminah, #3 Ahmad Rizki"
+                className="w-full bg-[#120702] border-2 border-[#5c3416] focus:border-amber-400 rounded p-2.5 text-xs text-amber-100 placeholder-amber-800 focus:outline-none resize-none leading-relaxed"
+              />
+              <p className="text-[9px] text-amber-400/70">
+                Terisi otomatis dari teman yang terhubung. Anda dapat menambah atau mengedit nama anggota tim Anda.
+              </p>
+            </div>
+
+            {error && (
+              <p className="text-[11px] text-red-400 font-bold">{error}</p>
+            )}
 
             {/* Live Auto-Categorization & Identity Card */}
             <div className="pixel-box-inset p-3 bg-[#1a0c04] border border-[#5c3416] space-y-2.5">
@@ -215,10 +307,14 @@ export default function GameSubmissionModal({
                 </div>
               </div>
 
-              <div className="text-[10px] text-amber-400/70 pt-1 border-t border-[#3d1e0a] flex items-center justify-between">
-                <span>Kelompok: <strong>{studentInfo.roomName || 'Kelompok Belajar'}</strong></span>
-                {studentInfo.attendanceNo && (
-                  <span>Absen #{studentInfo.attendanceNo}</span>
+              <div className="text-[10px] text-amber-300/90 pt-1.5 border-t border-[#3d1e0a] space-y-1">
+                <div>
+                  Kelompok: <strong className="text-amber-200">{groupName || 'Kelompok Belajar'}</strong>
+                </div>
+                {membersText && (
+                  <div className="text-[9.5px] text-amber-200/80 leading-snug">
+                    Anggota: <span className="font-medium text-amber-100">{membersText}</span>
+                  </div>
                 )}
               </div>
             </div>

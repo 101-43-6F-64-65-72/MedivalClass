@@ -56,6 +56,28 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   // Team Shared Prompt Materials & Credentials
   const [teamSharedPrompts, setTeamSharedPrompts] = useState([]);
 
+  // Group Dev Checklist Synchronization & Completion State
+  const [groupDevTodos, setGroupDevTodos] = useState({
+    dev1: false,
+    dev2: false,
+    dev3: false,
+    dev4: false,
+  });
+  const [completedGroups, setCompletedGroups] = useState(new Set());
+
+  // Admin Custom Aura State (subtle, customizable: 'biasa', 'love', 'bintang', 'none')
+  const [adminAura, setAdminAura] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('admin_aura_config');
+        if (saved) return JSON.parse(saved);
+      } catch (_) {}
+    }
+    return { type: 'biasa', color: '#f59e0b' };
+  });
+  const adminAuraRef = useRef(adminAura);
+  adminAuraRef.current = adminAura;
+
   // GAME PHASE STATE
   const [gamePhase, setGamePhase] = useState(GAME_PHASES.WAITING);
   const [storyPhase, setStoryPhase] = useState(null);
@@ -128,6 +150,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
                   studentClass: data.studentClass || existing.studentClass || 'XI PPLG-B',
                   characterIndex: data.characterIndex || existing.characterIndex || 1,
                   isAdmin: !!data.isAdmin,
+                  aura: data.aura || existing.aura || (data.isAdmin ? { type: 'biasa', color: '#f59e0b' } : null),
                   color: data.color || existing.color,
                   groupNumber: data.groupNumber || existing.groupNumber || null,
                   roomCode: data.roomCode || existing.roomCode || cleanRoomCode,
@@ -142,6 +165,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
                   studentClass: data.studentClass || 'XI PPLG-B',
                   characterIndex: data.characterIndex || 1,
                   isAdmin: !!data.isAdmin,
+                  aura: data.aura || (data.isAdmin ? { type: 'biasa', color: '#f59e0b' } : null),
                   color: data.color || '#3b82f6',
                   groupNumber: data.groupNumber || null,
                   roomCode: data.roomCode || cleanRoomCode,
@@ -281,13 +305,36 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           setTeamSharedPrompts((prev) => prev.filter((item) => item.id !== payload.id));
         }
       })
-      .on('broadcast', { event: 'join-room-request' }, ({ payload }) => {
-        if (!payload || payload.roomCode !== cleanRoomCode) return;
-        // Only host/creator (or admin) receives the approval prompt
-        if (!isCreator && !isAdmin) return;
-        setPendingJoinRequests((prev) => {
-          if (prev.some((r) => r.requestId === payload.requestId)) return prev;
-          return [...prev, payload];
+      .on('broadcast', { event: 'groupDevTodoChange' }, ({ payload }) => {
+        if (!payload || !payload.roomCode) return;
+        const targetCode = payload.roomCode.trim().toUpperCase();
+
+        if (cleanRoomCode && targetCode === cleanRoomCode) {
+          if (payload.todos) {
+            setGroupDevTodos(payload.todos);
+          }
+        }
+
+        if (payload.isAllCompleted) {
+          setCompletedGroups((prev) => new Set(prev).add(targetCode));
+        } else {
+          setCompletedGroups((prev) => {
+            const next = new Set(prev);
+            next.delete(targetCode);
+            return next;
+          });
+        }
+      })
+      .on('broadcast', { event: 'adminAuraChange' }, ({ payload }) => {
+        if (!payload || !payload.aura) return;
+        setPlayers((prev) => {
+          const next = new Map(prev);
+          next.forEach((p, id) => {
+            if (p.isAdmin || (payload.adminId && id === payload.adminId)) {
+              next.set(id, { ...p, aura: payload.aura });
+            }
+          });
+          return next;
         });
       })
       .on('broadcast', { event: 'movement' }, ({ payload }) => {
@@ -314,6 +361,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
                   studentClass: data.studentClass || (existing ? existing.studentClass : 'XI PPLG-B'),
                   characterIndex: data.characterIndex || (existing ? existing.characterIndex : 1),
                   isAdmin: typeof data.isAdmin !== 'undefined' ? !!data.isAdmin : (existing ? !!existing.isAdmin : false),
+                  aura: data.aura || (existing ? existing.aura : (data.isAdmin ? { type: 'biasa', color: '#f59e0b' } : null)),
                   color: data.color || (existing ? existing.color : '#3b82f6'),
                   roomCode: data.roomCode || (existing ? existing.roomCode : cleanRoomCode),
                   roomName: data.roomName || (existing ? existing.roomName : ''),
@@ -342,6 +390,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
             studentClass: studentClass || activeClass,
             characterIndex,
             isAdmin,
+            aura: isAdmin ? adminAuraRef.current : null,
             isCreator: !!isCreator,
             groupNumber: groupNumber || (cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i) ? Number(cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i)[1]) : null),
             gameStarted,
@@ -367,6 +416,102 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       channelRef.current = null;
     };
   }, [username, color, cleanRoomCode, fullName, attendanceNo, isAdmin]);
+
+  // Synchronize Group Dev Checklist progress from Supabase
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+
+    supabase
+      .from('team_dev_progress')
+      .select('room_code, is_all_completed, dev1, dev2, dev3, dev4')
+      .then(({ data, error }) => {
+        if (!error && Array.isArray(data)) {
+          const completedSet = new Set();
+          data.forEach((row) => {
+            if (row.is_all_completed && row.room_code) {
+              completedSet.add(row.room_code.trim().toUpperCase());
+            }
+          });
+          setCompletedGroups(completedSet);
+
+          if (cleanRoomCode) {
+            const current = data.find(
+              (r) => r.room_code && r.room_code.trim().toUpperCase() === cleanRoomCode
+            );
+            if (current) {
+              setGroupDevTodos({
+                dev1: !!current.dev1,
+                dev2: !!current.dev2,
+                dev3: !!current.dev3,
+                dev4: !!current.dev4,
+              });
+            }
+          }
+        }
+      });
+  }, [cleanRoomCode]);
+
+  // Function to toggle group dev checklist item and sync to everyone in group
+  const toggleGroupDevTodo = async (todoId) => {
+    if (!todoId) return;
+    const currentVal = !!groupDevTodos[todoId];
+    const nextTodos = {
+      ...groupDevTodos,
+      [todoId]: !currentVal,
+    };
+
+    const isNowAllDone = Boolean(
+      nextTodos.dev1 && nextTodos.dev2 && nextTodos.dev3 && nextTodos.dev4
+    );
+
+    // Optimistic update
+    setGroupDevTodos(nextTodos);
+    setCompletedGroups((prev) => {
+      const next = new Set(prev);
+      if (isNowAllDone) {
+        next.add(cleanRoomCode);
+      } else {
+        next.delete(cleanRoomCode);
+      }
+      return next;
+    });
+
+    // Realtime broadcast to group in universe
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'groupDevTodoChange',
+        payload: {
+          roomCode: cleanRoomCode,
+          todos: nextTodos,
+          isAllCompleted: isNowAllDone,
+          updatedBy: currentFullNameRef.current || currentUsernameRef.current || 'Anggota Tim',
+          timestamp: Date.now(),
+        },
+      });
+    }
+
+    // Persist to database
+    try {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        await supabase
+          .from('team_dev_progress')
+          .upsert({
+            room_code: cleanRoomCode,
+            dev1: nextTodos.dev1,
+            dev2: nextTodos.dev2,
+            dev3: nextTodos.dev3,
+            dev4: nextTodos.dev4,
+            is_all_completed: isNowAllDone,
+            completed_at: isNowAllDone ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString(),
+            updated_by: currentFullNameRef.current || currentUsernameRef.current || 'Anggota Tim',
+          }, { onConflict: 'room_code' });
+      }
+    } catch (err) {
+      console.warn('Gagal menyimpan progres dev kelompok:', err);
+    }
+  };
 
   // Function to broadcast an emoticon reaction
   const sendEmote = (emoteId) => {
@@ -660,6 +805,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           studentClass: studentClass || activeClass,
           characterIndex,
           isAdmin,
+          aura: isAdmin ? adminAuraRef.current : null,
           color,
           roomCode: cleanRoomCode,
           roomName
@@ -853,6 +999,45 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     } catch (_) {}
   };
 
+  // Update & broadcast admin custom aura
+  const updateAdminAura = (newAura) => {
+    setAdminAura(newAura);
+    adminAuraRef.current = newAura;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('admin_aura_config', JSON.stringify(newAura));
+      } catch (_) {}
+    }
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'adminAuraChange',
+        payload: { aura: newAura, adminId: myIdRef.current },
+      });
+      const currentState = localPlayerStateRef.current;
+      channelRef.current.track({
+        id: myIdRef.current,
+        username: currentUsernameRef.current,
+        fullName: currentFullNameRef.current,
+        attendanceNo,
+        studentClass: studentClass || activeClass,
+        characterIndex,
+        isAdmin,
+        aura: newAura,
+        isCreator: !!isCreator,
+        groupNumber: groupNumber || (cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i) ? Number(cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i)[1]) : null),
+        gameStarted,
+        color,
+        roomCode: cleanRoomCode,
+        roomName: roomName || initialRoomName || 'Kelas Virtual',
+        x: currentState.x,
+        y: currentState.y,
+        direction: currentState.direction,
+        isMoving: currentState.isMoving,
+      });
+    }
+  };
+
   const playerList = Array.from(players.values());
   const hasAdminOnline = isAdmin || playerList.some((p) => p.isAdmin);
   // Count how many players belong to my specific room/group
@@ -885,6 +1070,9 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     setSpotlight,
     activeClass,
     changeActiveClass,
+    // Admin Aura System
+    adminAura,
+    updateAdminAura,
     // Emote system
     localEmote,
     remoteEmotes,
@@ -912,5 +1100,10 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     teamSharedPrompts,
     sharePromptData,
     deleteSharedPrompt,
+    // Group Dev Checklist & Completion
+    groupDevTodos,
+    toggleGroupDevTodo,
+    completedGroups,
+    isMyGroupDevCompleted: completedGroups.has(cleanRoomCode),
   };
 }

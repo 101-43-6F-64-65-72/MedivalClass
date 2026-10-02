@@ -315,47 +315,18 @@ export default function Home() {
       setJoinError(`Kelompok ${groupData.slot} sudah penuh (4/4 peserta).`);
       return;
     }
-    const targetRoomCode = groupData.roomCode;
-    const hostPlayer = groupData.hostPlayer;
-    const hostName = groupData.hostName;
+    const targetRoomCode = groupData.roomCode || `KEL${groupData.slot}`;
+    const targetRoomName = groupData.roomName || `Kelompok ${groupData.slot}`;
 
-    const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    currentRequestIdRef.current = requestId;
-    setWaitingHostName(hostName);
-    setJoinStatus('WAITING');
+    // Direct join without waiting for host confirmation
+    setCreateRoomError('');
     setJoinError('');
-
-    if (lobbyChannelRef.current) {
-      lobbyChannelRef.current.send({
-        type: 'broadcast',
-        event: 'join-room-request',
-        payload: {
-          requestId,
-          roomCode: targetRoomCode,
-          applicant: {
-            username,
-            fullName,
-            attendanceNo,
-            studentClass: activeClass,
-            characterIndex,
-            color,
-          },
-        },
-      });
-    }
-
-    // Timeout: if no response after 35 seconds
-    setTimeout(() => {
-      if (currentRequestIdRef.current === requestId) {
-        setJoinStatus((prev) => {
-          if (prev === 'WAITING') {
-            setJoinError(`Pembuat kelompok (${hostName}) belum merespons. Silakan hubungi langsung atau coba lagi.`);
-            return null;
-          }
-          return prev;
-        });
-      }
-    }, 35000);
+    setRoomCode(targetRoomCode);
+    setCreatedRoomName(targetRoomName);
+    setSelectedGroup(groupData.slot);
+    setIsCreator(false);
+    saveStudentSession(targetRoomCode, targetRoomName, false, groupData.slot);
+    setStep('GAME');
   };
 
   const handleJoinRoom = (e) => {
@@ -365,8 +336,15 @@ export default function Home() {
       setJoinError('Masukkan Kode Kelompok terlebih dahulu!');
       return;
     }
-    if (clean.length < 4) {
-      setJoinError('Kode Kelompok minimal 4 karakter!');
+
+    // STRICT CHECK: FORBIDDEN TO ENTER ADMIN ROOM
+    if (
+      clean === 'ADMIN' ||
+      clean === 'ADMIN_ROOM' ||
+      clean === 'ADMINROOM' ||
+      clean.startsWith('ADMIN')
+    ) {
+      setJoinError('Dilarang masuk ke Room Admin! Room ini khusus untuk Pengajar / Instruktur.');
       return;
     }
 
@@ -382,48 +360,33 @@ export default function Home() {
       return;
     }
 
-    // Find host/creator player in the group
-    const hostPlayer = targetPlayers.find((p) => p.isCreator) || targetPlayers[0];
-    const hostName = hostPlayer.fullName || hostPlayer.username || 'Ketua Kelompok';
-    const targetCode = hostPlayer.roomCode || clean;
-
-    const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    currentRequestIdRef.current = requestId;
-    setWaitingHostName(hostName);
-    setJoinStatus('WAITING');
-    setJoinError('');
-
-    if (lobbyChannelRef.current) {
-      lobbyChannelRef.current.send({
-        type: 'broadcast',
-        event: 'join-room-request',
-        payload: {
-          requestId,
-          roomCode: targetCode,
-          applicant: {
-            username,
-            fullName,
-            attendanceNo,
-            studentClass: activeClass,
-            characterIndex,
-            color,
-          },
-        },
-      });
+    // Check if target room is an admin-only room
+    const hasOnlyAdmin = targetPlayers.length > 0 && targetPlayers.every((p) => p.isAdmin);
+    if (hasOnlyAdmin) {
+      setJoinError('Dilarang masuk ke Room Admin! Room ini khusus untuk Pengajar / Instruktur.');
+      return;
     }
 
-    // Timeout: if no response after 35 seconds
-    setTimeout(() => {
-      if (currentRequestIdRef.current === requestId) {
-        setJoinStatus((prev) => {
-          if (prev === 'WAITING') {
-            setJoinError(`Pembuat kelompok (${hostName}) belum merespons. Silakan hubungi langsung atau coba lagi.`);
-            return null;
-          }
-          return prev;
-        });
-      }
-    }, 35000);
+    // Check if room is full (4/4 students)
+    const studentMembers = targetPlayers.filter((p) => !p.isAdmin);
+    if (studentMembers.length >= 4) {
+      setJoinError('Kelompok sudah penuh (4/4 peserta).');
+      return;
+    }
+
+    const hostPlayer = targetPlayers.find((p) => p.isCreator) || targetPlayers[0];
+    const targetCode = hostPlayer.roomCode || clean;
+    const targetRoomName = hostPlayer.roomName || clean;
+    const slot = getPlayerGroupSlot(hostPlayer);
+
+    // Direct join without waiting for confirmation
+    setJoinError('');
+    setRoomCode(targetCode);
+    setCreatedRoomName(targetRoomName);
+    if (slot) setSelectedGroup(slot);
+    setIsCreator(false);
+    saveStudentSession(targetCode, targetRoomName, false, slot);
+    setStep('GAME');
   };
 
   const handleLeaveGame = () => {
@@ -498,8 +461,8 @@ export default function Home() {
                   </option>
                 ))}
               </select>
-              <p className="text-[9px] text-amber-400/60 mt-1">
-                Atau Anda juga dapat mengisi kolom nama di bawah secara manual.
+              <p className="text-[9px] text-amber-400/80 mt-1">
+                Pilih nama Anda dari daftar resmi di atas. Nomor absen akan terisi dan terkunci secara otomatis.
               </p>
             </div>
 
@@ -511,7 +474,7 @@ export default function Home() {
                 type="text" 
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="Contoh: Budi Santoso"
+                placeholder="Pilih siswa di atas atau ketik nama"
                 className="w-full pixel-box-inset px-3.5 py-2 text-sm text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
                 required
               />
@@ -519,15 +482,17 @@ export default function Home() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-amber-300 mb-1 uppercase tracking-wider">
-                  No. Absen <span className="text-red-400">*</span>
+                <label className="block text-[11px] font-bold text-amber-300 mb-1 uppercase tracking-wider flex items-center justify-between">
+                  <span>No. Absen <span className="text-red-400">*</span></span>
+                  <span className="text-[9px] text-amber-500 font-mono font-normal">Terkunci</span>
                 </label>
                 <input 
                   type="text" 
-                  value={attendanceNo}
-                  onChange={(e) => setAttendanceNo(e.target.value)}
-                  placeholder="Contoh: 12"
-                  className="w-full pixel-box-inset px-3.5 py-2 text-sm text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
+                  value={attendanceNo ? `#${attendanceNo}` : ''}
+                  readOnly
+                  placeholder="Pilih nama"
+                  title="Nomor absen terkunci otomatis sesuai data kelas"
+                  className="w-full pixel-box-inset px-3.5 py-2 text-sm text-amber-300 font-mono font-bold bg-[#140802] cursor-not-allowed opacity-90 select-none focus:outline-none"
                   required
                 />
               </div>
@@ -872,43 +837,12 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* Status Join Waiting / Accepted / Error */}
-                {joinStatus === 'WAITING' ? (
-                  <div className="p-3 bg-[#180a03] border border-amber-600/70 rounded text-center space-y-2 animate-in fade-in">
-                    <div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-200">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
-                      <span>Menunggu Konfirmasi Ketua Kelompok...</span>
-                    </div>
-                    <p className="text-[11px] text-amber-300/80">
-                      Permintaan telah dikirim ke <strong>{waitingHostName}</strong>. Mohon tunggu ketua menyetujui izin masuk Anda.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setJoinStatus(null);
-                        currentRequestIdRef.current = null;
-                      }}
-                      className="pixel-btn-silver text-[10px] px-3 py-1 font-bold text-amber-200"
-                    >
-                      Batalkan Permintaan
-                    </button>
-                  </div>
-                ) : joinStatus === 'ACCEPTED' ? (
-                  <div className="p-3 bg-emerald-950/80 border border-emerald-500 rounded text-center space-y-1 animate-in zoom-in-95">
-                    <div className="text-xs font-bold text-emerald-300">
-                      Izin Diterima!
-                    </div>
-                    <p className="text-[10px] text-emerald-200">
-                      Memasuki ruang kelas bersama kelompok...
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    {joinError && (
-                      <p className="text-xs text-red-400 font-bold text-center leading-snug">{joinError}</p>
-                    )}
+                {/* Error message if any */}
+                {joinError && (
+                  <p className="text-xs text-red-400 font-bold text-center leading-snug">{joinError}</p>
+                )}
 
-                    {currentSelectedGroupData.exists ? (
+                {currentSelectedGroupData.exists ? (
                       currentSelectedGroupData.isFull ? (
                         <button
                           type="button"
@@ -945,8 +879,6 @@ export default function Home() {
                         />
                       </button>
                     )}
-                  </>
-                )}
               </div>
             </div>
 

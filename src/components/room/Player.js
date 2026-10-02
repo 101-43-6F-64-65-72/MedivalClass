@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin } from 'lucide-react';
 import { CLASSROOM_EMOTES } from './CircularEmoteMenu';
+import AdminAuraEffect from './AdminAuraEffect';
 
 /**
  * Player Component
@@ -37,6 +38,8 @@ function Player(props) {
     roomCode && localRoomCode && roomCode.trim().toUpperCase() === localRoomCode.trim().toUpperCase()
   );
   const isSpotlighted = Boolean(props.isSpotlighted);
+  const isGroupCompleted = Boolean(props.isGroupCompleted);
+  const playerAura = props.aura || player.aura || (player.isAdmin ? { type: 'biasa', color: '#f59e0b' } : null);
 
   // Walk animation frame cycle: 0 -> 1 -> 2 -> 1
   const [walkStep, setWalkStep] = useState(1);
@@ -290,6 +293,23 @@ function Player(props) {
       )}
 
       {/* ========================================================
+          SUBTLE ADMIN AURA EFFECT (Rendered around character)
+         ======================================================== */}
+      {player.isAdmin && playerAura && (
+        <div 
+          className="absolute left-1/2 -translate-x-1/2 pointer-events-none"
+          style={{
+            top: '0px',
+            width: '48px',
+            height: '48px',
+            zIndex: 0,
+          }}
+        >
+          <AdminAuraEffect aura={playerAura} />
+        </div>
+      )}
+
+      {/* ========================================================
           2. CHARACTER SPRITE CONTAINER (48x48)
          ======================================================== */}
       <div
@@ -333,6 +353,33 @@ function Player(props) {
         )}
       </div>
 
+      {/* Ground victory seal effect for completed group */}
+      {isGroupCompleted && (
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 pointer-events-none z-0 flex flex-col items-center">
+          <div 
+            className="rounded-full animate-pulse"
+            style={{
+              width: '52px',
+              height: '18px',
+              background: 'radial-gradient(ellipse at center, rgba(245, 158, 11, 0.45) 0%, rgba(245, 158, 11, 0.12) 65%, transparent 85%)',
+              boxShadow: '0 0 14px rgba(245, 158, 11, 0.8), inset 0 0 8px rgba(245, 158, 11, 0.4)',
+              border: '1.5px solid rgba(251, 191, 36, 0.85)',
+            }}
+          />
+          {/* Micro sparkles ascending */}
+          <div className="absolute -top-3 left-1 animate-ping" style={{ animationDuration: '2.2s', color: '#fbbf24' }}>
+            <svg width="6" height="6" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z"/>
+            </svg>
+          </div>
+          <div className="absolute -top-5 right-1 animate-ping" style={{ animationDuration: '2.8s', animationDelay: '0.7s', color: '#fbbf24' }}>
+            <svg width="5" height="5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0L14.5 9.5L24 12L14.5 14.5L12 24L9.5 14.5L0 12L9.5 9.5L12 0Z"/>
+            </svg>
+          </div>
+        </div>
+      )}
+
       {/* Shadow at feet */}
       <div 
         className="w-8 h-2.5 bg-black/45 rounded-full blur-[1px] mx-auto -mt-2" 
@@ -346,10 +393,16 @@ function Player(props) {
         <div 
           className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium backdrop-blur-md shadow-md transition-all"
           style={{
-            backgroundColor: isSpotlighted ? 'rgba(69, 26, 3, 0.92)' : 'rgba(15, 23, 42, 0.85)',
-            color: player.isAdmin ? '#f87171' : '#f8fafc',
+            backgroundColor: isSpotlighted 
+              ? 'rgba(69, 26, 3, 0.92)' 
+              : isGroupCompleted
+              ? 'rgba(32, 17, 4, 0.92)'
+              : 'rgba(15, 23, 42, 0.85)',
+            color: player.isAdmin ? '#f87171' : isGroupCompleted ? '#fef08a' : '#f8fafc',
             border: isSpotlighted
               ? '1.5px solid #fbbf24'
+              : isGroupCompleted
+              ? '1.5px solid #f59e0b'
               : player.isAdmin
               ? '1.5px solid rgba(239, 68, 68, 0.85)'
               : isSameRoom 
@@ -357,6 +410,8 @@ function Player(props) {
               : '1px solid rgba(255, 255, 255, 0.15)',
             boxShadow: isSpotlighted
               ? '0 0 14px rgba(251, 191, 36, 0.6)'
+              : isGroupCompleted
+              ? '0 0 16px rgba(245, 158, 11, 0.85)'
               : player.isAdmin
               ? '0 0 10px rgba(239, 68, 68, 0.45)'
               : isSameRoom 
@@ -364,6 +419,14 @@ function Player(props) {
               : '0 2px 6px rgba(0, 0, 0, 0.35)',
           }}
         >
+          {/* Group Dev Completed Victory Tag */}
+          {isGroupCompleted && (
+            <span className="text-[8px] bg-amber-400 text-amber-950 font-black px-1.5 py-0.2 rounded font-mono uppercase tracking-wider flex items-center gap-0.5 shadow-sm">
+              <span>DEV SELESAI</span>
+              <span className="font-bold">✓</span>
+            </span>
+          )}
+
           {/* Spotlight Location Tag */}
           {isSpotlighted && (
             <span className="text-[8px] bg-amber-400 text-amber-950 font-black px-1.5 py-0.2 rounded font-mono uppercase tracking-wider flex items-center gap-0.5">

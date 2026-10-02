@@ -13,38 +13,58 @@ const TODO_ITEMS = [
 
 const STORAGE_KEY = 'virtual_dev_todos';
 
-export default function DevTodoWidget({ onDirectToSam }) {
+export default function DevTodoWidget({ 
+  onDirectToSam,
+  todos: groupTodos,
+  onToggleTodo,
+  roomCode = '',
+  isAllCompleted = false,
+}) {
   const [isCollapsed, setIsCollapsed] = useState(true);
-  const [checked, setChecked] = useState({});
+  const [localChecked, setLocalChecked] = useState({});
   const [justCompleted, setJustCompleted] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  // Load from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setChecked(JSON.parse(saved));
-    } catch (_) {}
-  }, []);
+  // Use groupTodos if provided, otherwise fallback to localChecked
+  const checked = groupTodos || localChecked;
+  const allDone = Boolean(
+    isAllCompleted || TODO_ITEMS.every((t) => checked[t.id])
+  );
 
-  const allDone = TODO_ITEMS.every((t) => checked[t.id]);
+  const prevAllDoneRef = React.useRef(allDone);
+  useEffect(() => {
+    if (allDone && !prevAllDoneRef.current) {
+      playSuccessChime();
+      setJustCompleted(true);
+      setIsCollapsed(false);
+      const timer = setTimeout(() => setJustCompleted(false), 5000);
+      return () => clearTimeout(timer);
+    }
+    prevAllDoneRef.current = allDone;
+  }, [allDone]);
+
+  // Load from localStorage if local mode only
+  useEffect(() => {
+    if (!groupTodos) {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) setLocalChecked(JSON.parse(saved));
+      } catch (_) {}
+    }
+  }, [groupTodos]);
 
   const toggleItem = (id) => {
     playChoiceClick();
-    setChecked((prev) => {
+    if (onToggleTodo) {
+      onToggleTodo(id);
+      return;
+    }
+
+    setLocalChecked((prev) => {
       const next = { ...prev, [id]: !prev[id] };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       } catch (_) {}
-
-      // Check if just completed all
-      const nowAllDone = TODO_ITEMS.every((t) => next[t.id]);
-      if (nowAllDone && !allDone) {
-        playSuccessChime();
-        setJustCompleted(true);
-        setIsCollapsed(false);
-        setTimeout(() => setJustCompleted(false), 4000);
-      }
       return next;
     });
   };
@@ -56,7 +76,7 @@ export default function DevTodoWidget({ onDirectToSam }) {
   return (
     <div
       className="absolute bottom-14 right-2 z-[60] select-none"
-      style={{ minWidth: '210px', maxWidth: '260px' }}
+      style={{ minWidth: '220px', maxWidth: '270px' }}
     >
       {/* Completion Banner pointing to Sam */}
       {allDone && (
@@ -87,7 +107,7 @@ export default function DevTodoWidget({ onDirectToSam }) {
           <div className="flex items-center gap-2">
             <CheckSquare className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span className="text-[10px] font-black text-amber-200 uppercase tracking-wider">
-              Dev Checklist
+              Checklist Dev {roomCode ? `(${roomCode})` : ''}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
