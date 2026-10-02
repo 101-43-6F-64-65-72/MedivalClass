@@ -53,6 +53,8 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   const [remotePets, setRemotePets] = useState({});
   // Ping map: { [playerId]: latencyMs }
   const [pingMap, setPingMap] = useState({});
+  // Team Shared Prompt Materials & Credentials
+  const [teamSharedPrompts, setTeamSharedPrompts] = useState([]);
 
   // GAME PHASE STATE
   const [gamePhase, setGamePhase] = useState(GAME_PHASES.WAITING);
@@ -262,6 +264,22 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       .on('broadcast', { event: 'ping-report' }, ({ payload }) => {
         if (!payload || payload.playerId === myIdRef.current) return;
         setPingMap((prev) => ({ ...prev, [payload.playerId]: payload.ping }));
+      })
+      .on('broadcast', { event: 'teamSharedPrompt' }, ({ payload }) => {
+        if (!payload) return;
+        // Strict group scoping: only members of the same group receive this
+        if (payload.roomCode && cleanRoomCode && payload.roomCode.trim().toUpperCase() === cleanRoomCode.trim().toUpperCase()) {
+          setTeamSharedPrompts((prev) => {
+            const filtered = prev.filter((item) => item.id !== payload.id);
+            return [payload, ...filtered];
+          });
+        }
+      })
+      .on('broadcast', { event: 'teamDeleteSharedPrompt' }, ({ payload }) => {
+        if (!payload) return;
+        if (payload.roomCode && cleanRoomCode && payload.roomCode.trim().toUpperCase() === cleanRoomCode.trim().toUpperCase()) {
+          setTeamSharedPrompts((prev) => prev.filter((item) => item.id !== payload.id));
+        }
       })
       .on('broadcast', { event: 'join-room-request' }, ({ payload }) => {
         if (!payload || payload.roomCode !== cleanRoomCode) return;
@@ -738,6 +756,103 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     setPendingJoinRequests((prev) => prev.filter((r) => r.requestId !== requestId));
   };
 
+  // Load team shared prompts from Supabase when room code is active
+  useEffect(() => {
+    if (!cleanRoomCode || !process.env.NEXT_PUBLIC_SUPABASE_URL || !supabase.from) return;
+
+    let isMounted = true;
+    const loadTeamPrompts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('team_shared_prompts')
+          .select('*')
+          .eq('room_code', cleanRoomCode)
+          .order('created_at', { ascending: false })
+          .limit(30);
+
+        if (!error && data && isMounted) {
+          const formatted = data.map((d) => ({
+            id: d.id,
+            roomCode: d.room_code,
+            senderName: d.sender_name,
+            attendanceNo: d.attendance_no,
+            itemType: d.item_type,
+            data: d.data,
+            created_at: d.created_at,
+            timestamp: new Date(d.created_at).getTime(),
+          }));
+          setTeamSharedPrompts(formatted);
+        }
+      } catch (e) {
+        console.warn('Error loading team prompts:', e);
+      }
+    };
+
+    loadTeamPrompts();
+    return () => { isMounted = false; };
+  }, [cleanRoomCode]);
+
+  // Share prompt data / credentials with same group
+  const sharePromptData = async ({ itemType, data, summary = '' }) => {
+    if (!cleanRoomCode) return;
+
+    const newItem = {
+      id: `share-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      roomCode: cleanRoomCode,
+      senderName: currentUsernameRef.current || username || 'Anggota Tim',
+      attendanceNo: attendanceNo || '',
+      itemType: itemType || 'general',
+      data: data || {},
+      summary: summary || '',
+      timestamp: Date.now(),
+      created_at: new Date().toISOString(),
+    };
+
+    // Optimistically update local team state
+    setTeamSharedPrompts((prev) => [newItem, ...prev.filter((i) => i.id !== newItem.id)]);
+
+    // Broadcast in real-time to group members
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'teamSharedPrompt',
+        payload: newItem,
+      });
+    }
+
+    // Persist to Supabase team_shared_prompts table
+    try {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && supabase.from) {
+        await supabase.from('team_shared_prompts').insert([{
+          room_code: cleanRoomCode,
+          sender_name: newItem.senderName,
+          attendance_no: newItem.attendanceNo,
+          item_type: newItem.itemType,
+          data: newItem.data,
+        }]);
+      }
+    } catch (err) {
+      console.warn('Persist team shared prompt error:', err);
+    }
+  };
+
+  // Delete shared prompt item from team
+  const deleteSharedPrompt = async (itemId) => {
+    setTeamSharedPrompts((prev) => prev.filter((i) => i.id !== itemId));
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'teamDeleteSharedPrompt',
+        payload: { id: itemId, roomCode: cleanRoomCode },
+      });
+    }
+    try {
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && supabase.from) {
+        await supabase.from('team_shared_prompts').delete().eq('id', itemId);
+      }
+    } catch (_) {}
+  };
+
   const playerList = Array.from(players.values());
   const hasAdminOnline = isAdmin || playerList.some((p) => p.isAdmin);
   // Count how many players belong to my specific room/group
@@ -793,5 +908,9 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     advancePhase,
     assignRoles,
     commitMasterPrompt,
+    // Team Shared Prompts & Credentials
+    teamSharedPrompts,
+    sharePromptData,
+    deleteSharedPrompt,
   };
 }

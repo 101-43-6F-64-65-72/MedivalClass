@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Bot, Copy, Check, Sparkles, X, ChevronRight, Database, Gamepad2, ArrowRight, AlertCircle, FileText, Settings, Navigation } from 'lucide-react';
+import { Bot, Copy, Check, Sparkles, X, ChevronRight, Database, Gamepad2, ArrowRight, AlertCircle, FileText, Settings, Navigation, Users, Share2, Radio, Send } from 'lucide-react';
+import TeamPromptVault from './TeamPromptVault';
 import { 
   playTypewriterBlip, 
   playDialogueOpen, 
@@ -20,12 +21,18 @@ function QeebosNPC({
   localPlayer,
   onOpenChange,
   isTracked = false,
+  roomCode = '',
+  username = '',
+  attendanceNo = '',
+  teamSharedPrompts = [],
+  onSharePromptData = null,
+  onDeleteSharedPrompt = null,
 }) {
   const [mounted, setMounted] = useState(false);
   // Dialogue state: null | 'intro' | 'explain' | 'sayang' | 'form'
   const [dialogStage, setDialogStage] = useState(null);
   
-  // Independent tabs: 'brainstorm' | 'mcp'
+  // Independent tabs: 'brainstorm' | 'mcp' | 'vault'
   const [activeTab, setActiveTab] = useState('brainstorm');
   // Independent view modes per tab: 'form' | 'preview'
   const [brainstormView, setBrainstormView] = useState('form');
@@ -33,6 +40,7 @@ function QeebosNPC({
 
   const [copiedType, setCopiedType] = useState(null); // 'brainstorm' | 'mcp' | null
   const [validationError, setValidationError] = useState('');
+  const [shareFeedback, setShareFeedback] = useState('');
 
   // Visual Novel Typing Effect State
   const [displayedText, setDisplayedText] = useState('');
@@ -574,6 +582,72 @@ Wait for my approval before proceeding to the next phase.`;
     setDialogStage('form');
   };
 
+  const latestSharedSupabase = teamSharedPrompts.find((p) => p.itemType === 'supabase');
+  const latestSharedBrainstorm = teamSharedPrompts.find((p) => p.itemType === 'brainstorm');
+
+  const handleShareBrainstorm = () => {
+    if (!isBrainstormValid) {
+      setValidationError('Semua kolom ide game wajib diisi sebelum membagikan ke tim!');
+      return;
+    }
+    if (onSharePromptData) {
+      onSharePromptData({
+        itemType: 'brainstorm',
+        data: {
+          gameName: formData.gameName,
+          genre: formData.genre,
+          ideDescription: formData.ideDescription,
+          targetPlayer: formData.targetPlayer,
+          gameStyle: formData.gameStyle,
+          developer: formData.developer || 'PEMULA',
+        },
+        summary: `Ide Game: ${formData.gameName.trim()}`,
+      });
+      playSuccessChime();
+      setShareFeedback('Ide game berhasil dibagikan ke seluruh anggota tim!');
+      setTimeout(() => setShareFeedback(''), 4000);
+    }
+  };
+
+  const handleShareSupabase = () => {
+    if (!isMcpValid) {
+      setValidationError('Semua kolom Supabase wajib diisi sebelum membagikan ke tim!');
+      return;
+    }
+    if (onSharePromptData) {
+      onSharePromptData({
+        itemType: 'supabase',
+        data: {
+          supabaseProjectName: formData.supabaseProjectName,
+          supabaseRefId: formData.supabaseRefId,
+          supabaseUrl: formData.supabaseUrl,
+          supabaseAnonKey: formData.supabaseAnonKey,
+        },
+        summary: `Kredensial Supabase: ${formData.supabaseProjectName.trim() || formData.supabaseRefId.trim()}`,
+      });
+      playSuccessChime();
+      setShareFeedback('Kredensial Supabase berhasil dibagikan ke seluruh anggota tim!');
+      setTimeout(() => setShareFeedback(''), 4000);
+    }
+  };
+
+  const handleApplySharedData = (data, itemType) => {
+    setFormData((prev) => ({
+      ...prev,
+      ...data,
+    }));
+    playSuccessChime();
+    if (itemType === 'supabase') {
+      setActiveTab('mcp');
+      setMcpView('form');
+    } else if (itemType === 'brainstorm') {
+      setActiveTab('brainstorm');
+      setBrainstormView('form');
+    }
+    setShareFeedback('Data tim berhasil diterapkan ke form!');
+    setTimeout(() => setShareFeedback(''), 4000);
+  };
+
   const handleCloseAll = () => {
     playCloseSound();
     setDialogStage(null);
@@ -932,22 +1006,22 @@ Wait for my approval before proceeding to the next phase.`;
                   </button>
                 </div>
 
-                {/* Primary Category Tabs: Strictly Separated */}
-                <div className="flex items-center gap-2 p-2 bg-[#200e04] border-b border-[#5a3012] text-xs">
+                {/* Primary Category Tabs: Brainstorm, MCP, and Team Shared Vault */}
+                <div className="flex items-center gap-2 p-2 bg-[#200e04] border-b border-[#5a3012] text-xs flex-wrap sm:flex-nowrap">
                   <button
                     onClick={() => {
                       setValidationError('');
                       setActiveTab('brainstorm');
                     }}
-                    className={`flex-1 py-2 px-3 font-bold flex items-center justify-center gap-2 transition-all ${
+                    className={`flex-1 py-2 px-2.5 font-bold flex items-center justify-center gap-1.5 transition-all text-center ${
                       activeTab === 'brainstorm' 
                         ? 'pixel-btn-gold text-amber-950 shadow-md ring-1 ring-amber-300' 
                         : 'pixel-btn-wood text-amber-200/80 hover:text-amber-100'
                     }`}
                   >
-                    <Gamepad2 className="w-4 h-4" />
-                    <span>Scroll 1: Brainstorming Ide Game</span>
-                    {isBrainstormValid && <span className="text-emerald-400 text-xs font-bold">✓</span>}
+                    <Gamepad2 className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Scroll 1: Brainstorming</span>
+                    {isBrainstormValid && <span className="text-emerald-400 text-xs font-bold shrink-0">✓</span>}
                   </button>
 
                   <button
@@ -955,17 +1029,45 @@ Wait for my approval before proceeding to the next phase.`;
                       setValidationError('');
                       setActiveTab('mcp');
                     }}
-                    className={`flex-1 py-2 px-3 font-bold flex items-center justify-center gap-2 transition-all ${
+                    className={`flex-1 py-2 px-2.5 font-bold flex items-center justify-center gap-1.5 transition-all text-center ${
                       activeTab === 'mcp' 
                         ? 'pixel-btn-gold text-amber-950 shadow-md ring-1 ring-amber-300' 
                         : 'pixel-btn-wood text-amber-200/80 hover:text-amber-100'
                     }`}
                   >
-                    <Database className="w-4 h-4" />
-                    <span>Scroll 2: MCP Server & Supabase</span>
-                    {isMcpValid && <span className="text-emerald-400 text-xs font-bold">✓</span>}
+                    <Database className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Scroll 2: MCP Server</span>
+                    {isMcpValid && <span className="text-emerald-400 text-xs font-bold shrink-0">✓</span>}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setValidationError('');
+                      setActiveTab('vault');
+                    }}
+                    className={`flex-1 py-2 px-2.5 font-bold flex items-center justify-center gap-1.5 transition-all text-center relative ${
+                      activeTab === 'vault' 
+                        ? 'pixel-btn-gold text-amber-950 shadow-md ring-1 ring-amber-300' 
+                        : 'pixel-btn-wood text-amber-200/80 hover:text-amber-100'
+                    }`}
+                  >
+                    <Users className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Bahan Tim</span>
+                    {teamSharedPrompts.length > 0 && (
+                      <span className="bg-amber-400 text-amber-950 text-[10px] px-1.5 py-0.2 rounded-full font-black ml-1 shrink-0 shadow">
+                        {teamSharedPrompts.length}
+                      </span>
+                    )}
                   </button>
                 </div>
+
+                {/* Success Feedback Banner */}
+                {shareFeedback && (
+                  <div className="bg-emerald-950/90 border-b border-emerald-600 px-4 py-2 text-xs text-emerald-200 flex items-center gap-2 animate-in fade-in duration-150">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="font-semibold">{shareFeedback}</span>
+                  </div>
+                )}
 
                 {/* Validation Banner if Error */}
                 {validationError && (
@@ -1032,6 +1134,27 @@ Wait for my approval before proceeding to the next phase.`;
                       {/* View 1: Form Input */}
                       {brainstormView === 'form' && (
                         <div className="space-y-3">
+                          {/* Tim Notification Banner */}
+                          {latestSharedBrainstorm && (
+                            <div className="p-2.5 bg-[#3a1d08] border border-amber-500/70 rounded flex items-center justify-between text-xs gap-3 shadow-md">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Users className="w-4 h-4 text-amber-400 shrink-0" />
+                                <div className="truncate">
+                                  <span className="font-bold text-amber-200">Bahan dari Tim:</span>{' '}
+                                  <span className="text-amber-300 font-semibold">"{latestSharedBrainstorm.data?.gameName || 'Ide Game'}"</span>{' '}
+                                  <span className="text-[10.5px] text-amber-400/80">oleh {latestSharedBrainstorm.senderName}</span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleApplySharedData(latestSharedBrainstorm.data, 'brainstorm')}
+                                className="pixel-btn-gold text-[10px] px-2.5 py-1 font-bold whitespace-nowrap shrink-0 hover:scale-105 active:scale-95 transition-transform"
+                              >
+                                Terapkan ke Form Ini
+                              </button>
+                            </div>
+                          )}
+
                           <div className="pixel-box-inset p-3 bg-[#241105] text-[11px] text-amber-200/90 leading-relaxed flex items-center justify-between">
                             <div>
                               <strong>Scroll Brainstorming:</strong> Fokus pada konsep game, gameplay loop, dan fitur MVP. Prompt ini <strong>bebas dari kode dan setup database</strong>.
@@ -1132,10 +1255,24 @@ Wait for my approval before proceeding to the next phase.`;
                             </div>
                           </div>
 
-                          <div className="pt-2 flex justify-between items-center">
-                            <span className="text-[10px] text-amber-400/70">
-                              {isBrainstormValid ? '✓ Semua kolom terisi siap salin' : 'Isi semua kolom untuk membuat prompt'}
-                            </span>
+                          <div className="pt-2 flex flex-wrap justify-between items-center gap-2">
+                            <div className="flex items-center gap-2">
+                              {onSharePromptData && (
+                                <button
+                                  type="button"
+                                  onClick={handleShareBrainstorm}
+                                  className="pixel-btn-wood px-3 py-2 text-xs font-bold text-amber-200 flex items-center gap-1.5 hover:text-amber-100 border border-amber-600/50"
+                                  title="Kirim ide game ini ke seluruh teman sekelompok"
+                                >
+                                  <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                                  <span>Oper Ide Game ke Tim</span>
+                                </button>
+                              )}
+                              <span className="text-[10px] text-amber-400/70 hidden sm:inline">
+                                {isBrainstormValid ? '✓ Siap disalin atau dioper' : 'Isi semua kolom untuk membuat prompt'}
+                              </span>
+                            </div>
+
                             <button
                               onClick={() => {
                                 if (!isBrainstormValid) {
@@ -1190,13 +1327,26 @@ Wait for my approval before proceeding to the next phase.`;
                             {generateBrainstormPrompt()}
                           </div>
 
-                          <div className="pt-1 flex justify-between items-center">
-                            <button
-                              onClick={() => setBrainstormView('form')}
-                              className="pixel-btn-wood px-3 py-1.5 text-xs"
-                            >
-                              Edit Input Ide Game
-                            </button>
+                          <div className="pt-1 flex flex-wrap justify-between items-center gap-2">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setBrainstormView('form')}
+                                className="pixel-btn-wood px-3 py-1.5 text-xs"
+                              >
+                                Edit Input Ide Game
+                              </button>
+                              {onSharePromptData && (
+                                <button
+                                  type="button"
+                                  onClick={handleShareBrainstorm}
+                                  className="pixel-btn-wood px-3 py-1.5 text-xs font-bold text-amber-200 flex items-center gap-1.5 hover:text-amber-100 border border-amber-600/50"
+                                  title="Kirim ide game ini ke seluruh teman sekelompok"
+                                >
+                                  <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                                  <span>Oper ke Tim</span>
+                                </button>
+                              )}
+                            </div>
                             <button
                               onClick={handleCopyBrainstorm}
                               className="pixel-btn-gold px-5 py-2 font-bold text-xs flex items-center gap-2 shadow-xl"
@@ -1265,6 +1415,29 @@ Wait for my approval before proceeding to the next phase.`;
                       {/* View 1: Form Input */}
                       {mcpView === 'form' && (
                         <div className="space-y-3">
+                          {/* Tim Notification Banner for Supabase */}
+                          {latestSharedSupabase && (
+                            <div className="p-2.5 bg-[#122238] border border-sky-500/70 rounded flex items-center justify-between text-xs gap-3 shadow-md">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Database className="w-4 h-4 text-sky-400 shrink-0" />
+                                <div className="truncate">
+                                  <span className="font-bold text-sky-200">Kredensial Supabase Tim Tersedia:</span>{' '}
+                                  <span className="text-sky-300 font-mono text-[11px]">
+                                    {latestSharedSupabase.data?.supabaseProjectName || latestSharedSupabase.data?.supabaseRefId || 'Supabase Project'}
+                                  </span>{' '}
+                                  <span className="text-[10.5px] text-sky-400/80">oleh {latestSharedSupabase.senderName}</span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleApplySharedData(latestSharedSupabase.data, 'supabase')}
+                                className="pixel-btn-gold text-[10px] px-2.5 py-1 font-bold whitespace-nowrap shrink-0 hover:scale-105 active:scale-95 transition-transform"
+                              >
+                                Terapkan ke Form Ini
+                              </button>
+                            </div>
+                          )}
+
                           <div className="pixel-box-inset p-3 bg-[#1d1007] text-[11px] text-amber-200/90 leading-relaxed space-y-1">
                             <div>
                               <strong>Scroll MCP Server:</strong> Konfigurasi koneksi proyek ke Supabase dan MCP Server. Prompt ini <strong>khusus untuk integrasi teknis</strong>.
@@ -1343,10 +1516,24 @@ Wait for my approval before proceeding to the next phase.`;
                             </div>
                           </div>
 
-                          <div className="pt-2 flex justify-between items-center">
-                            <span className="text-[10px] text-amber-400/70">
-                              {isMcpValid ? '✓ Semua data Supabase terisi' : 'Isi semua data Supabase untuk membuat prompt'}
-                            </span>
+                          <div className="pt-2 flex flex-wrap justify-between items-center gap-2">
+                            <div className="flex items-center gap-2">
+                              {onSharePromptData && (
+                                <button
+                                  type="button"
+                                  onClick={handleShareSupabase}
+                                  className="pixel-btn-wood px-3 py-2 text-xs font-bold text-sky-200 flex items-center gap-1.5 hover:text-sky-100 border border-sky-600/50"
+                                  title="Kirim kredensial Supabase ini ke seluruh teman sekelompok"
+                                >
+                                  <Share2 className="w-3.5 h-3.5 text-sky-400" />
+                                  <span>Oper Kredensial ke Tim</span>
+                                </button>
+                              )}
+                              <span className="text-[10px] text-amber-400/70 hidden sm:inline">
+                                {isMcpValid ? '✓ Data Supabase terisi lengkap' : 'Isi semua data Supabase untuk membuat prompt'}
+                              </span>
+                            </div>
+
                             <button
                               onClick={() => {
                                 if (!isMcpValid) {
@@ -1401,13 +1588,26 @@ Wait for my approval before proceeding to the next phase.`;
                             {generateMcpPrompt()}
                           </div>
 
-                          <div className="pt-1 flex justify-between items-center">
-                            <button
-                              onClick={() => setMcpView('form')}
-                              className="pixel-btn-wood px-3 py-1.5 text-xs"
-                            >
-                              Edit Data Supabase
-                            </button>
+                          <div className="pt-1 flex flex-wrap justify-between items-center gap-2">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setMcpView('form')}
+                                className="pixel-btn-wood px-3 py-1.5 text-xs"
+                              >
+                                Edit Data Supabase
+                              </button>
+                              {onSharePromptData && (
+                                <button
+                                  type="button"
+                                  onClick={handleShareSupabase}
+                                  className="pixel-btn-wood px-3 py-1.5 text-xs font-bold text-sky-200 flex items-center gap-1.5 hover:text-sky-100 border border-sky-600/50"
+                                  title="Kirim kredensial Supabase ini ke seluruh teman sekelompok"
+                                >
+                                  <Share2 className="w-3.5 h-3.5 text-sky-400" />
+                                  <span>Oper ke Tim</span>
+                                </button>
+                              )}
+                            </div>
                             <button
                               onClick={handleCopyMcp}
                               className="pixel-btn-gold px-5 py-2 font-bold text-xs flex items-center gap-2 shadow-xl"
@@ -1418,6 +1618,25 @@ Wait for my approval before proceeding to the next phase.`;
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* ========================================================
+                      TAB 3: KOTAK BERBAGI TIM (Bahan Prompt Kelompok)
+                     ======================================================== */}
+                  {activeTab === 'vault' && (
+                    <div className="animate-in fade-in duration-150">
+                      <TeamPromptVault
+                        roomCode={roomCode}
+                        username={username}
+                        attendanceNo={attendanceNo}
+                        teamSharedPrompts={teamSharedPrompts}
+                        onSharePromptData={onSharePromptData}
+                        onDeleteSharedPrompt={onDeleteSharedPrompt}
+                        onApplyToForm={handleApplySharedData}
+                        currentFormData={formData}
+                        isEmbedded={true}
+                      />
                     </div>
                   )}
                 </div>
@@ -1438,5 +1657,9 @@ export default React.memo(QeebosNPC, (prev, next) => {
   if (prev.isTracked !== next.isTracked) return false;
   if (prev.x !== next.x || prev.y !== next.y) return false;
   if (prev.onOpenChange !== next.onOpenChange) return false;
+  if (prev.roomCode !== next.roomCode) return false;
+  if (prev.username !== next.username) return false;
+  if (prev.attendanceNo !== next.attendanceNo) return false;
+  if (prev.teamSharedPrompts !== next.teamSharedPrompts) return false;
   return true;
 });

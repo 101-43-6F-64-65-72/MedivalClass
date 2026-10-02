@@ -26,6 +26,7 @@ import { playScrollOpen } from '@/lib/soundEffects';
 import { usePresentation } from '@/hooks/usePresentation';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
+import TeamPromptVault from './TeamPromptVault';
 import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation, ShieldCheck, Sparkles, BookOpen, UserPlus, X, MapPin } from 'lucide-react';
 
 export default function VirtualRoom({ 
@@ -60,6 +61,7 @@ export default function VirtualRoom({
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [activeTrackedNpcId, setActiveTrackedNpcId] = useState(null);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [isTeamVaultOpen, setIsTeamVaultOpen] = useState(false);
   const [lowLatencyMode, setLowLatencyMode] = useState(false);
   // Admin name editing state
   const [isEditingAdminName, setIsEditingAdminName] = useState(false);
@@ -104,6 +106,7 @@ export default function VirtualRoom({
     isSamOpen || 
     isBookshelfModalOpen || 
     isSubmissionModalOpen ||
+    isTeamVaultOpen ||
     isDesignatedPresenter ||
     presentation.isForcedFullscreen; // Freeze movement when admin locks fullscreen focus
 
@@ -144,6 +147,9 @@ export default function VirtualRoom({
     remotePets,
     updatePet,
     pingMap,
+    teamSharedPrompts,
+    sharePromptData,
+    deleteSharedPrompt,
   } = useMultiplayer(
     localPlayer, 
     username, 
@@ -586,6 +592,12 @@ export default function VirtualRoom({
           localPlayer={localPlayer} 
           onOpenChange={setIsQeebosOpen} 
           isTracked={activeTrackedNpcId === 'npc-qeebos'}
+          roomCode={roomCode}
+          username={currentUsername || username}
+          attendanceNo={attendanceNo}
+          teamSharedPrompts={teamSharedPrompts}
+          onSharePromptData={sharePromptData}
+          onDeleteSharedPrompt={deleteSharedPrompt}
         />
 
         {/* NPC Imanuel (Rendered on west aisle facing right, showcases AI Game example) */}
@@ -760,6 +772,19 @@ export default function VirtualRoom({
             >
               <Navigation className="w-3 h-3 text-amber-400" />
               <span>NPC</span>
+            </button>
+            <button
+              onClick={() => setIsTeamVaultOpen(true)}
+              title="Buka Bahan Prompt Tim (Supabase & Ide Game)"
+              className="pixel-btn-wood text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 relative"
+            >
+              <Users className="w-3 h-3 text-amber-400" />
+              <span>Bahan Tim</span>
+              {teamSharedPrompts?.length > 0 && (
+                <span className="bg-amber-400 text-amber-950 text-[9px] px-1 py-0.1 rounded-full font-black">
+                  {teamSharedPrompts.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setIsHudCollapsed(false)}
@@ -945,6 +970,19 @@ export default function VirtualRoom({
                 >
                   <Navigation className="w-3 h-3 text-amber-400" />
                   <span>Lacak NPC</span>
+                </button>
+                <button
+                  onClick={() => setIsTeamVaultOpen(true)}
+                  title="Buka Bahan Prompt Tim (Supabase & Ide Game)"
+                  className="pixel-btn-wood text-[10px] px-2 py-0.5 text-amber-200 flex items-center gap-1 font-bold relative"
+                >
+                  <Users className="w-3 h-3 text-amber-400" />
+                  <span>Bahan Tim</span>
+                  {teamSharedPrompts?.length > 0 && (
+                    <span className="bg-amber-400 text-amber-950 text-[9px] px-1 py-0.1 rounded-full font-black">
+                      {teamSharedPrompts.length}
+                    </span>
+                  )}
                 </button>
               </div>
 
@@ -1221,6 +1259,20 @@ export default function VirtualRoom({
       <DevTodoWidget
         onDirectToSam={() => setActiveTrackedNpcId('npc-sam')}
       />
+
+      {/* Standalone Team Shared Prompt Vault Modal */}
+      {isTeamVaultOpen && (
+        <TeamPromptVault
+          roomCode={roomCode}
+          username={currentUsername || username}
+          attendanceNo={attendanceNo}
+          teamSharedPrompts={teamSharedPrompts}
+          onSharePromptData={sharePromptData}
+          onDeleteSharedPrompt={deleteSharedPrompt}
+          isEmbedded={false}
+          onClose={() => setIsTeamVaultOpen(false)}
+        />
+      )}
 
     </div>
   );
