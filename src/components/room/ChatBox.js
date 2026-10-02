@@ -258,7 +258,7 @@ export default function ChatBox({ messages = [], onSendMessage, currentRoomCode 
                 return (
                   <div key={msg.id} className="flex flex-col gap-0.5 animate-in fade-in duration-100">
                     <div className="flex items-center gap-1.5 text-[10px]">
-                      <span className="font-bold text-amber-300 truncate max-w-[130px]">
+                      <span className={`font-bold truncate max-w-[130px] ${msg.isAdmin ? 'text-red-400 font-extrabold' : 'text-amber-300'}`}>
                         {msg.senderName}
                         {msg.attendanceNo ? ` #${msg.attendanceNo}` : ''}
                       </span>

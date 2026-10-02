@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import VirtualRoom from '@/components/room/VirtualRoom';
 import { AVAILABLE_CLASSES, DEFAULT_ACTIVE_CLASS, getStudentsByClass } from '@/lib/studentsData';
 import { supabase } from '@/lib/supabaseClient';
@@ -58,9 +58,12 @@ export default function Home() {
   // Room / Lobby state
   const [roomCode, setRoomCode] = useState('');
   const [createdRoomName, setCreatedRoomName] = useState('Kelompok 1');
+  const [selectedGroup, setSelectedGroup] = useState(1);
+  const [groupNameInput, setGroupNameInput] = useState('Kelompok 1');
   const [inputCode, setInputCode] = useState('');
   const [joinError, setJoinError] = useState('');
   const [isCreator, setIsCreator] = useState(false);
+  const [showManualCodeInput, setShowManualCodeInput] = useState(false);
 
   // Room Join Confirmation States
   const [joinStatus, setJoinStatus] = useState(null); // null | 'WAITING' | 'ACCEPTED' | 'REJECTED'
@@ -72,6 +75,68 @@ export default function Home() {
   // Active Group Names in Universe (Prevents duplicate room names)
   const [activeGroupNames, setActiveGroupNames] = useState(new Set());
   const [createRoomError, setCreateRoomError] = useState('');
+
+  // Helper to map presence to group slot 1-9
+  const getPlayerGroupSlot = (p) => {
+    if (!p) return null;
+    if (p.groupNumber && Number(p.groupNumber) >= 1 && Number(p.groupNumber) <= 9) {
+      return Number(p.groupNumber);
+    }
+    const cleanCode = (p.roomCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const codeMatch = cleanCode.match(/^KEL(?:OMPOK)?([1-9])$/i);
+    if (codeMatch) return Number(codeMatch[1]);
+
+    const nameMatch = (p.roomName || '').match(/kelompok\s*([1-9])(\b|[^0-9])/i);
+    if (nameMatch) return Number(nameMatch[1]);
+    return null;
+  };
+
+  // Dynamic 1-9 groups status data calculated from shared universe presences
+  const groupsData = useMemo(() => {
+    const allPresences = Array.from(activePresenceMap.values());
+    const list = [];
+    for (let n = 1; n <= 9; n++) {
+      const members = allPresences.filter(
+        (p) => !p.isAdmin && getPlayerGroupSlot(p) === n
+      );
+      const count = members.length;
+      const exists = count > 0;
+      const isFull = count >= 4;
+      const hostPlayer = members.find((p) => p.isCreator) || members[0] || null;
+      const roomName = hostPlayer?.roomName || members[0]?.roomName || `Kelompok ${n}`;
+      const roomCode = hostPlayer?.roomCode || `KEL${n}`;
+      list.push({
+        slot: n,
+        label: `Kelompok ${n}`,
+        exists,
+        isFull,
+        count,
+        max: 4,
+        roomName,
+        roomCode,
+        hostPlayer,
+        hostName: hostPlayer?.fullName || hostPlayer?.username || 'Ketua Kelompok',
+        members,
+      });
+    }
+    return list;
+  }, [activePresenceMap]);
+
+  // Current selected group object
+  const currentSelectedGroupData =
+    groupsData.find((g) => g.slot === selectedGroup) || groupsData[0] || {
+      slot: 1,
+      label: 'Kelompok 1',
+      exists: false,
+      isFull: false,
+      count: 0,
+      max: 4,
+      roomName: 'Kelompok 1',
+      roomCode: 'KEL1',
+      hostPlayer: null,
+      hostName: 'Ketua Kelompok',
+      members: [],
+    };
 
   // Listen to active rooms in shared universe to prevent duplicate room names & handle join responses
   useEffect(() => {
@@ -107,7 +172,7 @@ export default function Home() {
         if (payload.status === 'ACCEPTED') {
           setJoinStatus('ACCEPTED');
           setIsCreator(false);
-          saveStudentSession(payload.roomCode, payload.roomName, false);
+          saveStudentSession(payload.roomCode, payload.roomName, false, selectedGroup);
           setTimeout(() => {
             setRoomCode(payload.roomCode);
             setCreatedRoomName(payload.roomName);
@@ -129,18 +194,35 @@ export default function Home() {
       supabase.removeChannel(channel);
       lobbyChannelRef.current = null;
     };
+  }, [step, selectedGroup]);
+
+  // Default to first available slot when entering LOBBY
+  useEffect(() => {
+    if (step === 'LOBBY' && groupsData.length > 0) {
+      const firstAvailable = groupsData.find((g) => !g.exists);
+      if (firstAvailable) {
+        setSelectedGroup(firstAvailable.slot);
+        setGroupNameInput(`Kelompok ${firstAvailable.slot}`);
+      } else {
+        setSelectedGroup(1);
+        setGroupNameInput(groupsData[0]?.roomName || 'Kelompok 1');
+      }
+    }
   }, [step]);
 
-  // Propose next available unique default room name
+  // Keep groupNameInput in sync when selectedGroup changes or slot data refreshes
   useEffect(() => {
-    if (step === 'LOBBY') {
-      let idx = 1;
-      while (activeGroupNames.has(`kelompok ${idx}`)) {
-        idx++;
+    if (step === 'LOBBY' && groupsData.length > 0) {
+      const current = groupsData.find((g) => g.slot === selectedGroup);
+      if (current) {
+        if (current.exists) {
+          setGroupNameInput(current.roomName);
+        } else if (!groupNameInput || groupNameInput.startsWith('Kelompok ')) {
+          setGroupNameInput(`Kelompok ${current.slot}`);
+        }
       }
-      setCreatedRoomName(`Kelompok ${idx}`);
     }
-  }, [step, activeGroupNames]);
+  }, [selectedGroup, groupsData, step]);
 
   const isFormValid = 
     fullName.trim() !== '' && 
@@ -172,6 +254,7 @@ export default function Home() {
           if (session.activeClass) setActiveClass(session.activeClass);
           setRoomCode(session.roomCode);
           setCreatedRoomName(session.createdRoomName || 'Kelompok 1');
+          if (session.groupNumber) setSelectedGroup(Number(session.groupNumber));
           if (session.isCreator) setIsCreator(true);
           setStep('GAME');
         }
@@ -181,7 +264,7 @@ export default function Home() {
     }
   }, []);
 
-  const saveStudentSession = (targetRoomCode, targetRoomName, creatorFlag = false) => {
+  const saveStudentSession = (targetRoomCode, targetRoomName, creatorFlag = false, groupSlot = 1) => {
     try {
       const session = {
         fullName,
@@ -192,6 +275,7 @@ export default function Home() {
         activeClass,
         roomCode: targetRoomCode,
         createdRoomName: targetRoomName,
+        groupNumber: groupSlot,
         isCreator: !!creatorFlag,
         step: 'GAME',
         savedAt: Date.now(),
@@ -200,10 +284,15 @@ export default function Home() {
     } catch (e) {}
   };
 
-  const handleCreateRoom = () => {
-    const clean = createdRoomName.trim();
+  const handleCreateGroupRoom = (slot, customName) => {
+    const clean = (customName || `Kelompok ${slot}`).trim();
     if (!clean) {
       setCreateRoomError('Nama kelompok tidak boleh kosong!');
+      return;
+    }
+    const current = groupsData.find((g) => g.slot === slot);
+    if (current && current.exists) {
+      setCreateRoomError(`Kelompok ${slot} sudah dibuat! Silakan pilih slot kelompok lain.`);
       return;
     }
     if (activeGroupNames.has(clean.toLowerCase())) {
@@ -211,39 +300,24 @@ export default function Home() {
       return;
     }
     setCreateRoomError('');
-    const newCode = generateRoomCode();
+    const newCode = `KEL${slot}`;
     setRoomCode(newCode);
+    setCreatedRoomName(clean);
+    setSelectedGroup(slot);
     setIsCreator(true);
-    saveStudentSession(newCode, clean, true);
+    saveStudentSession(newCode, clean, true, slot);
     setStep('GAME');
   };
 
-  const handleJoinRoom = (e) => {
-    e.preventDefault();
-    const clean = inputCode.trim().toUpperCase();
-    if (!clean) {
-      setJoinError('Masukkan Kode Team terlebih dahulu!');
+  const handleJoinSelectedGroup = (groupData) => {
+    if (!groupData) return;
+    if (groupData.isFull) {
+      setJoinError(`Kelompok ${groupData.slot} sudah penuh (4/4 peserta).`);
       return;
     }
-    if (clean.length < 4) {
-      setJoinError('Kode Team minimal 4 karakter!');
-      return;
-    }
-
-    // Find if the room is active in the shared universe
-    const allPresences = Array.from(activePresenceMap.values());
-    const targetPlayers = allPresences.filter(
-      (p) => p.roomCode && p.roomCode.trim().toUpperCase() === clean
-    );
-
-    if (targetPlayers.length === 0) {
-      setJoinError(`Kode Team "${clean}" tidak ditemukan atau pembuat kelompok sedang offline!`);
-      return;
-    }
-
-    // Find host/creator player in the group
-    const hostPlayer = targetPlayers.find((p) => p.isCreator) || targetPlayers[0];
-    const hostName = hostPlayer.fullName || hostPlayer.username || 'Ketua Kelompok';
+    const targetRoomCode = groupData.roomCode;
+    const hostPlayer = groupData.hostPlayer;
+    const hostName = groupData.hostName;
 
     const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     currentRequestIdRef.current = requestId;
@@ -257,7 +331,75 @@ export default function Home() {
         event: 'join-room-request',
         payload: {
           requestId,
-          roomCode: clean,
+          roomCode: targetRoomCode,
+          applicant: {
+            username,
+            fullName,
+            attendanceNo,
+            studentClass: activeClass,
+            characterIndex,
+            color,
+          },
+        },
+      });
+    }
+
+    // Timeout: if no response after 35 seconds
+    setTimeout(() => {
+      if (currentRequestIdRef.current === requestId) {
+        setJoinStatus((prev) => {
+          if (prev === 'WAITING') {
+            setJoinError(`Pembuat kelompok (${hostName}) belum merespons. Silakan hubungi langsung atau coba lagi.`);
+            return null;
+          }
+          return prev;
+        });
+      }
+    }, 35000);
+  };
+
+  const handleJoinRoom = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const clean = inputCode.trim().toUpperCase();
+    if (!clean) {
+      setJoinError('Masukkan Kode Kelompok terlebih dahulu!');
+      return;
+    }
+    if (clean.length < 4) {
+      setJoinError('Kode Kelompok minimal 4 karakter!');
+      return;
+    }
+
+    // Find if the room is active in the shared universe
+    const allPresences = Array.from(activePresenceMap.values());
+    const targetPlayers = allPresences.filter(
+      (p) => (p.roomCode && p.roomCode.trim().toUpperCase() === clean) ||
+             (getPlayerGroupSlot(p) && `KEL${getPlayerGroupSlot(p)}` === clean)
+    );
+
+    if (targetPlayers.length === 0) {
+      setJoinError(`Kode Kelompok "${clean}" tidak ditemukan atau pembuat kelompok sedang offline!`);
+      return;
+    }
+
+    // Find host/creator player in the group
+    const hostPlayer = targetPlayers.find((p) => p.isCreator) || targetPlayers[0];
+    const hostName = hostPlayer.fullName || hostPlayer.username || 'Ketua Kelompok';
+    const targetCode = hostPlayer.roomCode || clean;
+
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    currentRequestIdRef.current = requestId;
+    setWaitingHostName(hostName);
+    setJoinStatus('WAITING');
+    setJoinError('');
+
+    if (lobbyChannelRef.current) {
+      lobbyChannelRef.current.send({
+        type: 'broadcast',
+        event: 'join-room-request',
+        payload: {
+          requestId,
+          roomCode: targetCode,
           applicant: {
             username,
             fullName,
@@ -544,11 +686,11 @@ export default function Home() {
     );
   }
 
-  // STEP 2: IN-GAME LOBBY MENU (Buat Room vs Join Kode Team)
+  // STEP 2: IN-GAME LOBBY MENU (Dropdown Kelompok 1-9 & Form Nama Kelompok)
   if (step === 'LOBBY') {
     return (
       <main className="w-full h-full min-h-screen flex items-center justify-center bg-[#0d0703] text-amber-100 p-4">
-        <div className="max-w-md w-full pixel-panel-wood p-6 sm:p-7 space-y-5 select-none">
+        <div className="max-w-md w-full pixel-panel-wood p-5 sm:p-7 space-y-4 select-none">
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <img
@@ -560,146 +702,288 @@ export default function Home() {
             </div>
             <div className="pixel-box-inset px-3 py-1 inline-block mt-1">
               <span className="text-xs text-amber-200">
-                Siswa: <strong className="text-amber-300 font-bold">#{attendanceNo} {username}</strong>
+                Siswa: <strong className="text-amber-300 font-bold">#{attendanceNo} {username}</strong> ({activeClass})
               </span>
             </div>
           </div>
 
-          <div className="space-y-4">
-            {/* Opsi 1: Buat Room Baru */}
-            <div className="pixel-box-inset p-3.5 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <img
-                  src="/assets/fantasy_pixelart_ui/icons/gold_castle.png"
-                  alt="Host"
-                  className="w-4 h-4 image-pixelated"
-                />
-                <h3 className="font-bold text-xs text-amber-300 uppercase tracking-wider">Buat Kelompok Baru (Host)</h3>
+          <div className="space-y-3.5">
+            {/* Box Utama Pemilihan / Pembuatan Kelompok 1-9 */}
+            <div className="pixel-box-inset p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <img
+                    src="/assets/fantasy_pixelart_ui/icons/gold_castle.png"
+                    alt="Team"
+                    className="w-4 h-4 image-pixelated"
+                  />
+                  <h3 className="font-bold text-xs text-amber-300 uppercase tracking-wider">
+                    Daftar Kelompok (1 - 9)
+                  </h3>
+                </div>
+                <span className="text-[10px] text-amber-400 font-mono">
+                  Maks 4 Pemain/Kelompok
+                </span>
               </div>
-              <p className="text-[11px] text-amber-200/70">Tentukan nama kelompok dan dapatkan Kode Kelompok acak.</p>
 
+              {/* 1. Dropdown Kelompok 1-9 */}
               <div>
-                <label className="block text-[10px] font-bold text-amber-300/80 mb-1 uppercase">
-                  Nama Kelompok / Tim
+                <label className="block text-[10px] font-bold text-amber-300/80 mb-1.5 uppercase tracking-wider">
+                  Pilih Kelompok (1 - 9)
                 </label>
-                <input
-                  type="text"
-                  value={createdRoomName}
+                <select
+                  value={selectedGroup}
                   onChange={(e) => {
-                    setCreatedRoomName(e.target.value);
+                    const slot = Number(e.target.value);
+                    setSelectedGroup(slot);
+                    const grp = groupsData.find((g) => g.slot === slot);
+                    if (grp) {
+                      if (grp.exists) {
+                        setGroupNameInput(grp.roomName);
+                      } else {
+                        setGroupNameInput(`Kelompok ${slot}`);
+                      }
+                    }
                     setCreateRoomError('');
+                    setJoinError('');
                   }}
-                  placeholder="Contoh: Kelompok Alpha / Tim 1"
-                  className="w-full pixel-box-inset px-3 py-1.5 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
-                />
-                {createRoomError && (
-                  <p className="text-[11px] text-red-400 font-bold mt-1 leading-snug">{createRoomError}</p>
-                )}
+                  className="w-full pixel-box-inset px-3 py-2 text-xs font-bold text-amber-200 bg-[#1f0d03] focus:outline-none focus:border-amber-400 cursor-pointer"
+                >
+                  {groupsData.map((g) => {
+                    const isInactive = g.exists;
+                    return (
+                      <option
+                        key={g.slot}
+                        value={g.slot}
+                        className={
+                          isInactive
+                            ? 'text-amber-600/70 bg-[#140802] font-normal'
+                            : 'text-amber-200 bg-[#261205] font-bold'
+                        }
+                      >
+                        {isInactive
+                          ? `[SUDAH ADA] Kelompok ${g.slot} - ${g.roomName} [${g.count}/4]`
+                          : `[TERSEDIA] Kelompok ${g.slot} [0/4]`}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
-              <button
-                onClick={handleCreateRoom}
-                className="w-full py-2.5 pixel-btn-gold text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
-              >
-                <span>Buat & Masuk Kelompok</span>
-                <img
-                  src="/assets/fantasy_pixelart_ui/icons/gold_star.png"
-                  alt="Star"
-                  className="w-3.5 h-3.5 image-pixelated"
-                />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-0.5 bg-[#5a3012]"></div>
-              <img
-                src="/assets/fantasy_pixelart_ui/icons/gold_sword.png"
-                alt="Divider"
-                className="w-3.5 h-3.5 image-pixelated opacity-70"
-              />
-              <span className="text-[10px] text-amber-300 uppercase font-bold tracking-widest">ATAU</span>
-              <img
-                src="/assets/fantasy_pixelart_ui/icons/gold_sword.png"
-                alt="Divider"
-                className="w-3.5 h-3.5 image-pixelated opacity-70 rotate-180"
-              />
-              <div className="flex-1 h-0.5 bg-[#5a3012]"></div>
-            </div>
-
-            {/* Opsi 2: Join via Kode Team */}
-            <div className="pixel-box-inset p-3.5 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <img
-                  src="/assets/fantasy_pixelart_ui/icons/gold_flag.png"
-                  alt="Join"
-                  className="w-4 h-4 image-pixelated"
-                />
-                <h3 className="font-bold text-xs text-amber-300 uppercase tracking-wider">Masuk via Kode Kelompok</h3>
-              </div>
-
-              {joinStatus === 'WAITING' ? (
-                <div className="p-3 bg-[#180a03] border border-amber-600/70 rounded text-center space-y-2 animate-in fade-in">
-                  <div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-200">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
-                    <span>Menunggu Konfirmasi Ketua Kelompok...</span>
-                  </div>
-                  <p className="text-[11px] text-amber-300/80">
-                    Permintaan telah dikirim ke <strong>{waitingHostName}</strong>. Mohon tunggu ketua menyetujui izin masuk Anda.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setJoinStatus(null);
-                      currentRequestIdRef.current = null;
-                    }}
-                    className="pixel-btn-silver text-[10px] px-3 py-1 font-bold text-amber-200"
-                  >
-                    Batalkan Permintaan
-                  </button>
-                </div>
-              ) : joinStatus === 'ACCEPTED' ? (
-                <div className="p-3 bg-emerald-950/80 border border-emerald-500 rounded text-center space-y-1 animate-in zoom-in-95">
-                  <div className="text-xs font-bold text-emerald-300">
-                    Izin Diterima!
-                  </div>
-                  <p className="text-[10px] text-emerald-200">
-                    Memasuki ruang kelas bersama kelompok...
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <p className="text-[11px] text-amber-200/70">Masukkan 6 karakter Kode Kelompok yang dibagikan ketua atau temanmu.</p>
-                  
-                  <form onSubmit={handleJoinRoom} className="space-y-2.5">
-                    <input
-                      type="text"
-                      value={inputCode}
-                      onChange={(e) => {
-                        setInputCode(e.target.value.toUpperCase());
+              {/* 2. Visual 9-slot quick selector grid */}
+              <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                {groupsData.map((g) => {
+                  const isSelected = selectedGroup === g.slot;
+                  const isInactive = g.exists;
+                  return (
+                    <button
+                      key={g.slot}
+                      type="button"
+                      onClick={() => {
+                        setSelectedGroup(g.slot);
+                        if (g.exists) {
+                          setGroupNameInput(g.roomName);
+                        } else {
+                          setGroupNameInput(`Kelompok ${g.slot}`);
+                        }
+                        setCreateRoomError('');
                         setJoinError('');
                       }}
-                      placeholder="Contoh: MCDV12"
-                      maxLength={10}
-                      className="w-full pixel-box-inset px-4 py-2 text-center text-base font-mono font-black tracking-widest text-amber-300 placeholder-amber-800/60 uppercase focus:outline-none focus:border-amber-400"
-                    />
-                    
+                      className={`p-2 rounded text-left transition-all ${
+                        isSelected
+                          ? 'pixel-box-inset border-2 border-amber-400 bg-[#2f1708] ring-1 ring-amber-400/40'
+                          : isInactive
+                          ? 'pixel-box-inset border border-amber-900/40 bg-[#120702] opacity-75 hover:opacity-100'
+                          : 'pixel-box-inset border border-amber-600/50 bg-[#1c0d05] hover:border-amber-400'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[11px] font-bold">
+                        <span className={isSelected ? 'text-amber-300' : isInactive ? 'text-amber-500/70' : 'text-amber-200'}>
+                          Kelompok {g.slot}
+                        </span>
+                        <span
+                          className={`font-mono text-[9px] px-1 py-0.2 rounded ${
+                            g.isFull
+                              ? 'bg-red-950/80 text-red-300 border border-red-800/60'
+                              : isInactive
+                              ? 'bg-[#180903] text-amber-500/80 border border-amber-800/40'
+                              : 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/50'
+                          }`}
+                        >
+                          [{g.count}/4]
+                        </span>
+                      </div>
+                      <div className="text-[9px] truncate mt-0.5 text-amber-400/60 font-medium">
+                        {isInactive ? g.roomName : 'Tersedia'}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* 3. Form Input Nama Kelompok & Status */}
+              <div className="pt-1 space-y-2.5">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[10px] font-bold text-amber-300/80 uppercase tracking-wider">
+                      Nama Kelompok / Tim
+                    </label>
+                    <span
+                      className={`text-[9.5px] font-mono px-1.5 py-0.5 rounded ${
+                        currentSelectedGroupData.exists
+                          ? 'bg-[#180903] text-amber-500/80 border border-amber-900/60'
+                          : 'bg-emerald-950/60 text-emerald-300 border border-emerald-800/60'
+                      }`}
+                    >
+                      {currentSelectedGroupData.exists
+                        ? `[SUDAH ADA: ${currentSelectedGroupData.count}/4]`
+                        : `[TERSEDIA: 0/4]`}
+                    </span>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={currentSelectedGroupData.exists ? currentSelectedGroupData.roomName : groupNameInput}
+                    disabled={currentSelectedGroupData.exists}
+                    onChange={(e) => {
+                      setGroupNameInput(e.target.value);
+                      setCreateRoomError('');
+                    }}
+                    placeholder={`Contoh: Kelompok ${selectedGroup} - Tim Alpha`}
+                    className={`w-full pixel-box-inset px-3 py-2 text-xs transition-colors ${
+                      currentSelectedGroupData.exists
+                        ? 'bg-[#120702] text-amber-500/70 border-amber-900/60 cursor-not-allowed select-none opacity-75'
+                        : 'bg-[#1c0d05] text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400'
+                    }`}
+                  />
+
+                  {currentSelectedGroupData.exists ? (
+                    <p className="text-[10px] text-amber-500/80 mt-1 leading-snug">
+                      [INFO] Kelompok {selectedGroup} sudah dibuat oleh {currentSelectedGroupData.hostName} ({currentSelectedGroupData.count}/4 pemain). Nama kelompok dikunci.
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-amber-400/70 mt-1 leading-snug">
+                      [INFO] Slot Kelompok {selectedGroup} belum dibuat. Anda akan menjadi pembuat kelompok (Host).
+                    </p>
+                  )}
+
+                  {createRoomError && (
+                    <p className="text-[11px] text-red-400 font-bold mt-1 leading-snug">{createRoomError}</p>
+                  )}
+                </div>
+
+                {/* Status Join Waiting / Accepted / Error */}
+                {joinStatus === 'WAITING' ? (
+                  <div className="p-3 bg-[#180a03] border border-amber-600/70 rounded text-center space-y-2 animate-in fade-in">
+                    <div className="flex items-center justify-center gap-2 text-xs font-bold text-amber-200">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+                      <span>Menunggu Konfirmasi Ketua Kelompok...</span>
+                    </div>
+                    <p className="text-[11px] text-amber-300/80">
+                      Permintaan telah dikirim ke <strong>{waitingHostName}</strong>. Mohon tunggu ketua menyetujui izin masuk Anda.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setJoinStatus(null);
+                        currentRequestIdRef.current = null;
+                      }}
+                      className="pixel-btn-silver text-[10px] px-3 py-1 font-bold text-amber-200"
+                    >
+                      Batalkan Permintaan
+                    </button>
+                  </div>
+                ) : joinStatus === 'ACCEPTED' ? (
+                  <div className="p-3 bg-emerald-950/80 border border-emerald-500 rounded text-center space-y-1 animate-in zoom-in-95">
+                    <div className="text-xs font-bold text-emerald-300">
+                      Izin Diterima!
+                    </div>
+                    <p className="text-[10px] text-emerald-200">
+                      Memasuki ruang kelas bersama kelompok...
+                    </p>
+                  </div>
+                ) : (
+                  <>
                     {joinError && (
                       <p className="text-xs text-red-400 font-bold text-center leading-snug">{joinError}</p>
                     )}
 
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 pixel-btn-wood text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
-                    >
-                      <span>Minta Izin Bergabung</span>
-                      <img
-                        src="/assets/fantasy_pixelart_ui/icons/gold_right.png"
-                        alt="Join"
-                        className="w-3.5 h-3.5 image-pixelated"
-                      />
-                    </button>
-                  </form>
-                </>
+                    {currentSelectedGroupData.exists ? (
+                      currentSelectedGroupData.isFull ? (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full py-2.5 pixel-btn-silver text-xs font-bold uppercase tracking-wider opacity-50 cursor-not-allowed text-stone-400 flex items-center justify-center gap-1.5"
+                        >
+                          <span>Kelompok {selectedGroup} Penuh [4/4]</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleJoinSelectedGroup(currentSelectedGroupData)}
+                          className="w-full py-2.5 pixel-btn-wood text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                        >
+                          <span>Gabung Kelompok {selectedGroup} [{currentSelectedGroupData.count}/4]</span>
+                          <img
+                            src="/assets/fantasy_pixelart_ui/icons/gold_right.png"
+                            alt="Join"
+                            className="w-3.5 h-3.5 image-pixelated"
+                          />
+                        </button>
+                      )
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCreateGroupRoom(currentSelectedGroupData.slot, groupNameInput)}
+                        className="w-full py-2.5 pixel-btn-gold text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5"
+                      >
+                        <span>Buat Kelompok {selectedGroup} (Host)</span>
+                        <img
+                          src="/assets/fantasy_pixelart_ui/icons/gold_star.png"
+                          alt="Star"
+                          className="w-3.5 h-3.5 image-pixelated"
+                        />
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Opsi Tambahan: Masuk via Kode Manual */}
+            <div className="pixel-box-inset p-3 space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowManualCodeInput((prev) => !prev)}
+                className="w-full text-left text-[11px] font-bold text-amber-300/80 hover:text-amber-200 flex items-center justify-between"
+              >
+                <span>Atau Masuk via Kode Kelompok Manual</span>
+                <span className="font-mono text-xs">{showManualCodeInput ? '[-]' : '[+]'}</span>
+              </button>
+
+              {showManualCodeInput && (
+                <form onSubmit={handleJoinRoom} className="space-y-2 pt-1 animate-in fade-in">
+                  <p className="text-[10px] text-amber-200/70">
+                    Masukkan kode tim khusus (misal: KEL1 atau MCDV12).
+                  </p>
+                  <input
+                    type="text"
+                    value={inputCode}
+                    onChange={(e) => {
+                      setInputCode(e.target.value.toUpperCase());
+                      setJoinError('');
+                    }}
+                    placeholder="Contoh: KEL1"
+                    maxLength={10}
+                    className="w-full pixel-box-inset px-3 py-1.5 text-center text-sm font-mono font-black tracking-widest text-amber-300 placeholder-amber-800/60 uppercase focus:outline-none focus:border-amber-400"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full py-2 pixel-btn-wood text-xs font-bold uppercase tracking-wider"
+                  >
+                    Minta Izin via Kode
+                  </button>
+                </form>
               )}
             </div>
           </div>
@@ -729,7 +1013,8 @@ export default function Home() {
         studentClass={activeClass}
         username={username}
         roomCode={roomCode}
-        initialRoomName={createdRoomName || 'Kelompok 1'}
+        initialRoomName={createdRoomName || `Kelompok ${selectedGroup}`}
+        groupNumber={selectedGroup}
         characterIndex={characterIndex}
         color={color} 
         isAdmin={false}

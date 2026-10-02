@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { MAP_OBJECTS, DECORATIVE_ASSETS, ROOM_WIDTH, ROOM_HEIGHT } from '@/lib/constants';
 import GameObject from './GameObject';
 import RoomSprite from './RoomSprite';
@@ -22,10 +22,11 @@ import NetworkMonitor from './NetworkMonitor';
 import AnnouncementOverlay from './AnnouncementOverlay';
 import StudentPresenterModal from './StudentPresenterModal';
 import DevTodoWidget from './DevTodoWidget';
+import { playScrollOpen } from '@/lib/soundEffects';
 import { usePresentation } from '@/hooks/usePresentation';
 import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
-import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation, ShieldCheck, Sparkles, BookOpen, UserPlus, X } from 'lucide-react';
+import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation, ShieldCheck, Sparkles, BookOpen, UserPlus, X, MapPin } from 'lucide-react';
 
 export default function VirtualRoom({ 
   username, 
@@ -34,6 +35,7 @@ export default function VirtualRoom({
   studentClass = 'XI PPLG-B',
   roomCode, 
   initialRoomName, 
+  groupNumber = null,
   characterIndex = 1, 
   color, 
   isAdmin = false, 
@@ -52,13 +54,16 @@ export default function VirtualRoom({
   const [isKrisnaOpen, setIsKrisnaOpen] = useState(false);
   const [isDzakihOpen, setIsDzakihOpen] = useState(false);
   const [isSamOpen, setIsSamOpen] = useState(false);
-  const [isHudCollapsed, setIsHudCollapsed] = useState(false);
+  const [isHudCollapsed, setIsHudCollapsed] = useState(true); // Default mini bar agar layar tidak penuh
   const [localPetBreed, setLocalPetBreed] = useState(null);
   const [showPetModal, setShowPetModal] = useState(false);
   const [isTrackerOpen, setIsTrackerOpen] = useState(false);
   const [activeTrackedNpcId, setActiveTrackedNpcId] = useState(null);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [lowLatencyMode, setLowLatencyMode] = useState(false);
+  // Admin name editing state
+  const [isEditingAdminName, setIsEditingAdminName] = useState(false);
+  const [adminNameInput, setAdminNameInput] = useState('');
   const [allDevDone, setAllDevDone] = useState(() => {
     try {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('virtual_dev_todos') : null;
@@ -114,6 +119,9 @@ export default function VirtualRoom({
     myGroupCount,
     roomName, 
     updateRoomName,
+    currentUsername,
+    currentFullName,
+    updatePlayerName,
     gameStarted,
     hasAdminOnline,
     startGame,
@@ -140,7 +148,7 @@ export default function VirtualRoom({
     localPlayer, 
     username, 
     color, 
-    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, characterIndex, isAdmin, isCreator }
+    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, groupNumber, characterIndex, isAdmin, isCreator }
   );
 
   // In Low Latency Mode, only render players from the same group (reduces realtime overhead)
@@ -208,19 +216,72 @@ export default function VirtualRoom({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const handleSaveAdminName = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const clean = adminNameInput.trim();
+    if (!clean) {
+      setIsEditingAdminName(false);
+      return;
+    }
+    updatePlayerName(clean);
+    setIsEditingAdminName(false);
+  };
+
+  // Bookshelf coordinates on East and West sides
+  const EAST_BOOKSHELVES = useMemo(() => [
+    { id: 'shelf-e1', x: 1635, y: 150, centerY: 215 },
+    { id: 'shelf-e2', x: 1635, y: 310, centerY: 375 },
+    { id: 'shelf-e3', x: 1635, y: 560, centerY: 625 },
+  ], []);
+
+  const WEST_BOOKSHELVES = useMemo(() => [
+    { id: 'shelf-w1', x: 45, y: 150, centerY: 215 },
+    { id: 'shelf-w2', x: 45, y: 310, centerY: 375 },
+    { id: 'shelf-w3', x: 45, y: 560, centerY: 625 },
+  ], []);
+
+  // Dynamically find bookshelf closest to player Y
+  const nearestEastShelf = useMemo(() => {
+    if (!localPlayer) return EAST_BOOKSHELVES[0];
+    let closest = EAST_BOOKSHELVES[0];
+    let minDist = Infinity;
+    for (const s of EAST_BOOKSHELVES) {
+      const dist = Math.abs(localPlayer.y - s.centerY);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = s;
+      }
+    }
+    return closest;
+  }, [localPlayer?.y, EAST_BOOKSHELVES]);
+
+  const nearestWestShelf = useMemo(() => {
+    if (!localPlayer) return WEST_BOOKSHELVES[0];
+    let closest = WEST_BOOKSHELVES[0];
+    let minDist = Infinity;
+    for (const s of WEST_BOOKSHELVES) {
+      const dist = Math.abs(localPlayer.y - s.centerY);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = s;
+      }
+    }
+    return closest;
+  }, [localPlayer?.y, WEST_BOOKSHELVES]);
+
   // Proximity to West Bookshelves (XI PPLG-A)
   const isNearWestShelf = Boolean(
     localPlayer &&
     localPlayer.x <= 230 &&
-    localPlayer.y >= 120 &&
+    localPlayer.y >= 100 &&
     localPlayer.y <= 750
   );
 
   // Proximity to East Bookshelves (XI PPLG-B)
   const isNearEastShelf = Boolean(
     localPlayer &&
-    localPlayer.x >= 1520 &&
-    localPlayer.y >= 120 &&
+    localPlayer.x >= 1500 &&
+    localPlayer.y >= 100 &&
     localPlayer.y <= 750
   );
 
@@ -247,6 +308,47 @@ export default function VirtualRoom({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isNearWestShelf, isNearEastShelf, isModalBlocking]);
+
+  // Target position for classroom-wide theatrical spotlight cutout
+  const spotlightPos = useMemo(() => {
+    if (!spotlightPlayer) return null;
+    const isMe = 
+      (spotlightPlayer.id && spotlightPlayer.id === myId) || 
+      (attendanceNo && String(spotlightPlayer.attendanceNo) === String(attendanceNo)) ||
+      (username && spotlightPlayer.username && spotlightPlayer.username.toLowerCase() === username.toLowerCase());
+    if (isMe) {
+      return { x: localPlayer.x, y: localPlayer.y };
+    }
+    const found = remotePlayers.find(p => 
+      p.id === spotlightPlayer.id || 
+      (p.attendanceNo && String(p.attendanceNo) === String(spotlightPlayer.attendanceNo)) ||
+      (p.username && spotlightPlayer.username && p.username.toLowerCase() === spotlightPlayer.username.toLowerCase())
+    );
+    if (found) {
+      return { x: found.x, y: found.y };
+    }
+    return null;
+  }, [spotlightPlayer, myId, attendanceNo, username, localPlayer.x, localPlayer.y, remotePlayers]);
+
+  // Relative distance and compass direction to spotlighted player
+  const spotlightNav = useMemo(() => {
+    if (!spotlightPos || !localPlayer) return null;
+    const dx = spotlightPos.x - localPlayer.x;
+    const dy = spotlightPos.y - localPlayer.y;
+    const distancePx = Math.hypot(dx, dy);
+    const distanceMeters = Math.max(1, Math.round(distancePx / 32));
+    const angleDeg = Math.round((Math.atan2(dy, dx) * 180) / Math.PI);
+    return { distanceMeters, angleDeg, isClose: distanceMeters <= 2 };
+  }, [spotlightPos, localPlayer?.x, localPlayer?.y]);
+
+  // Audio chime when spotlight is activated
+  const prevSpotlightRef = useRef(null);
+  useEffect(() => {
+    if (spotlightPlayer && !prevSpotlightRef.current) {
+      playScrollOpen();
+    }
+    prevSpotlightRef.current = spotlightPlayer;
+  }, [spotlightPlayer]);
 
   // Compute camera position clamped within classroom boundaries
   const maxCamX = Math.max(0, ROOM_WIDTH - viewport.w / zoom);
@@ -326,7 +428,7 @@ export default function VirtualRoom({
         {/* Bookshelf Identity Signs at Side of Bookshelves (Clearly Visible in Aisle) */}
         <div 
           className="absolute z-30 pointer-events-none select-none"
-          style={{ left: '180px', top: '210px' }}
+          style={{ left: '180px', top: '160px' }}
         >
           <div className="pixel-panel-gold px-2.5 py-1 text-[10px] font-black text-amber-950 uppercase tracking-wider shadow-lg border border-amber-900 flex items-center gap-1.5 whitespace-nowrap">
             <BookOpen className="w-3 h-3 text-amber-900" />
@@ -336,7 +438,7 @@ export default function VirtualRoom({
 
         <div 
           className="absolute z-30 pointer-events-none select-none"
-          style={{ left: '1620px', top: '210px', transform: 'translate(-100%, 0)' }}
+          style={{ left: '1620px', top: '160px', transform: 'translate(-100%, 0)' }}
         >
           <div className="pixel-panel-gold px-2.5 py-1 text-[10px] font-black text-amber-950 uppercase tracking-wider shadow-lg border border-amber-900 flex items-center gap-1.5 whitespace-nowrap">
             <BookOpen className="w-3 h-3 text-amber-900" />
@@ -344,35 +446,49 @@ export default function VirtualRoom({
           </div>
         </div>
 
-        {/* Proximity Interaction Prompts at Side of Bookshelves [R] */}
+        {/* Dynamic Proximity Interaction Prompts at the closest Bookshelf to Player [R] */}
         {isNearWestShelf && !isModalBlocking && (
           <div 
-            className="absolute z-40 pointer-events-auto cursor-pointer animate-bounce-short"
-            style={{ left: '180px', top: '250px' }}
+            className="absolute pointer-events-auto cursor-pointer select-none"
+            style={{ 
+              left: '180px', 
+              top: `${nearestWestShelf.centerY}px`, 
+              transform: 'translate(0, -50%)',
+              zIndex: 999 
+            }}
             onClick={() => {
               setSelectedBookshelfClass('XI PPLG-A');
               setIsBookshelfModalOpen(true);
             }}
           >
-            <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 whitespace-nowrap">
-              <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2">R</span>
-              <span className="text-[11px] font-bold text-amber-200">Tekan R untuk Buka Rak Buku XI PPLG-A</span>
+            <div className="animate-bounce-short">
+              <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 whitespace-nowrap">
+                <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2">R</span>
+                <span className="text-[11px] font-bold text-amber-200">Tekan R untuk Buka Rak Buku XI PPLG-A</span>
+              </div>
             </div>
           </div>
         )}
 
         {isNearEastShelf && !isModalBlocking && (
           <div 
-            className="absolute z-40 pointer-events-auto cursor-pointer animate-bounce-short"
-            style={{ left: '1620px', top: '250px', transform: 'translate(-100%, 0)' }}
+            className="absolute pointer-events-auto cursor-pointer select-none"
+            style={{ 
+              left: '1615px', 
+              top: `${nearestEastShelf.centerY}px`, 
+              transform: 'translate(-100%, -50%)',
+              zIndex: 999 
+            }}
             onClick={() => {
               setSelectedBookshelfClass('XI PPLG-B');
               setIsBookshelfModalOpen(true);
             }}
           >
-            <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 whitespace-nowrap">
-              <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2">R</span>
-              <span className="text-[11px] font-bold text-amber-200">Tekan R untuk Buka Rak Buku XI PPLG-B</span>
+            <div className="animate-bounce-short">
+              <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 whitespace-nowrap">
+                <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2">R</span>
+                <span className="text-[11px] font-bold text-amber-200">Tekan R untuk Buka Rak Buku XI PPLG-B</span>
+              </div>
             </div>
           </div>
         )}
@@ -434,8 +550,8 @@ export default function VirtualRoom({
               y={localPlayer.y} 
               direction={localPlayer.direction}
               isMoving={localPlayer.isMoving}
-              username={username}
-              fullName={fullName}
+              username={currentUsername || username}
+              fullName={currentFullName || fullName}
               attendanceNo={attendanceNo}
               characterIndex={characterIndex}
               isAdmin={isAdmin}
@@ -530,23 +646,42 @@ export default function VirtualRoom({
         />
       )}
       
-      {/* Top Spotlight Announcement Banner */}
+      {/* Top Player Location Indicator Banner */}
       {spotlightPlayer && !isPresentationActive && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-40 pixel-panel-wood px-4 py-1.5 flex items-center gap-2 shadow-2xl animate-in fade-in slide-in-from-top-3 duration-200">
-          <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
-          <span className="text-xs font-bold text-amber-200">
-            SOROTAN KELAS: <span className="text-white underline">{spotlightPlayer.username || spotlightPlayer.fullName}</span> {spotlightPlayer.attendanceNo ? `(#${spotlightPlayer.attendanceNo})` : ''}
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 pixel-panel-gold px-3.5 py-1.5 flex items-center gap-2 shadow-2xl border border-amber-900 animate-in fade-in slide-in-from-top-3 duration-200">
+          <MapPin className="w-3.5 h-3.5 text-amber-950 fill-amber-950 shrink-0" />
+          <span className="text-[11px] font-black text-amber-950 uppercase tracking-wide">
+            Lokasi Siswa:
           </span>
-          <span className="text-[10px] font-mono pixel-btn-gold text-amber-950 px-1.5 py-0.2 font-bold pointer-events-none">
+          <span className="text-[11px] font-black text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded border border-amber-400">
+            {spotlightPlayer.username || spotlightPlayer.fullName} {spotlightPlayer.attendanceNo ? `(#${spotlightPlayer.attendanceNo})` : ''}
+          </span>
+          {spotlightNav && !spotlightNav.isClose && (
+            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-950/20 rounded text-[10px] font-mono font-bold text-amber-950">
+              <span 
+                className="inline-block transition-transform duration-100 font-bold" 
+                style={{ transform: `rotate(${spotlightNav.angleDeg}deg)` }}
+              >
+                ➔
+              </span>
+              <span>{spotlightNav.distanceMeters}m</span>
+            </div>
+          )}
+          {spotlightNav?.isClose && (
+            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-200/80 px-1.5 py-0.2 rounded border border-emerald-400">
+              Dekat Anda
+            </span>
+          )}
+          <span className="text-[9px] font-mono pixel-btn-wood text-amber-200 px-1.5 py-0.2 font-bold pointer-events-none">
             {spotlightPlayer.roomCode}
           </span>
           {isAdmin && (
             <button
               onClick={() => setSpotlight(null)}
               className="pixel-btn-wood text-[9px] px-1.5 py-0.5 text-amber-300 ml-1 hover:text-white"
-              title="Matikan Sorotan"
+              title="Tutup Petunjuk Lokasi"
             >
-              Hapus
+              Tutup
             </button>
           )}
         </div>
@@ -567,6 +702,40 @@ export default function VirtualRoom({
             <span className="font-mono text-[10px] text-amber-950 font-bold pixel-btn-gold px-1.5 py-0.2 pointer-events-none">
               {roomCode}
             </span>
+
+            {/* Admin Red Name Display & Quick Edit in Mini HUD */}
+            {isAdmin && (
+              !isEditingAdminName ? (
+                <div className="flex items-center gap-1">
+                  <span className="text-red-400 font-bold text-xs truncate max-w-[100px]" title={currentUsername || username}>
+                    {currentUsername || username}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setAdminNameInput(currentUsername || username);
+                      setIsEditingAdminName(true);
+                    }}
+                    title="Ubah Nama Admin"
+                    className="pixel-btn-wood p-0.5 text-red-300 hover:text-red-100 shrink-0"
+                  >
+                    <Edit2 className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveAdminName} className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={adminNameInput}
+                    onChange={(e) => setAdminNameInput(e.target.value)}
+                    autoFocus
+                    className="pixel-box-inset px-1.5 py-0.5 text-xs font-bold text-red-400 bg-[#120702] border border-red-700 focus:outline-none w-20"
+                  />
+                  <button type="submit" className="pixel-btn-gold text-[9px] px-1 py-0.2 font-bold">OK</button>
+                  <button type="button" onClick={() => setIsEditingAdminName(false)} className="pixel-btn-silver text-[9px] px-1 py-0.2">X</button>
+                </form>
+              )
+            )}
+
             {isAdmin && (
               <button
                 onClick={() => setIsAdminPanelOpen(true)}
@@ -585,11 +754,12 @@ export default function VirtualRoom({
               <span>Presentasi</span>
             </button>
             <button
-              onClick={() => setShowPetModal(true)}
-              title="Pilih Pet Kucing"
-              className="pixel-btn-wood text-[10px] px-2 py-0.5 font-bold"
+              onClick={() => setIsTrackerOpen(prev => !prev)}
+              title="Buka Pelacak Lokasi NPC"
+              className="pixel-btn-wood text-[10px] px-2 py-0.5 font-bold flex items-center gap-1"
             >
-              Pet
+              <Navigation className="w-3 h-3 text-amber-400" />
+              <span>NPC</span>
             </button>
             <button
               onClick={() => setIsHudCollapsed(false)}
@@ -703,16 +873,49 @@ export default function VirtualRoom({
                 <span className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></span>
                 {connected ? `${playerCount} Siswa` : 'Offline'}
               </span>
-              <span className="text-amber-200 font-mono text-[10px] flex items-center gap-1">
-                {isAdmin && (
-                  <img 
-                    src="/assets/fantasy_pixelart_ui/icons/gold_star.png" 
-                    alt="Admin" 
-                    className="w-3 h-3 image-rendering-pixelated" 
-                  />
+              <div className="flex items-center gap-1">
+                {isAdmin ? (
+                  !isEditingAdminName ? (
+                    <div className="flex items-center gap-1">
+                      <span className="text-red-400 font-bold font-mono text-[10px] flex items-center gap-1">
+                        <img 
+                          src="/assets/fantasy_pixelart_ui/icons/gold_star.png" 
+                          alt="Admin" 
+                          className="w-3 h-3 image-rendering-pixelated" 
+                        />
+                        <span>#{attendanceNo ? attendanceNo : '-'}</span>
+                        <span className="underline decoration-red-500/50">{currentUsername || username}</span>
+                      </span>
+                      <button
+                        onClick={() => {
+                          setAdminNameInput(currentUsername || username);
+                          setIsEditingAdminName(true);
+                        }}
+                        title="Ubah Nama Admin"
+                        className="pixel-btn-wood p-0.5 text-red-300 hover:text-red-100 ml-0.5"
+                      >
+                        <Edit2 className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveAdminName} className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={adminNameInput}
+                        onChange={(e) => setAdminNameInput(e.target.value)}
+                        autoFocus
+                        className="pixel-box-inset px-1.5 py-0.5 text-[10px] font-bold text-red-400 bg-[#120702] border border-red-700 focus:outline-none w-24"
+                      />
+                      <button type="submit" className="pixel-btn-gold text-[9px] px-1 py-0.2 font-bold">OK</button>
+                      <button type="button" onClick={() => setIsEditingAdminName(false)} className="pixel-btn-silver text-[9px] px-1 py-0.2">X</button>
+                    </form>
+                  )
+                ) : (
+                  <span className="text-amber-200 font-mono text-[10px]">
+                    #{attendanceNo ? attendanceNo : '-'} {username}
+                  </span>
                 )}
-                #{attendanceNo ? attendanceNo : '-'} {username}
-              </span>
+              </div>
             </div>
 
             {/* Controls hint, Presentation button, Pet button & Leave button */}

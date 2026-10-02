@@ -183,7 +183,6 @@ function QeebosNPC({
     ideDescription: '',
     targetPlayer: '',
     gameStyle: '',
-    targetDuration: '',
     developer: 'PEMULA',
     // Supabase MCP fields
     supabaseProjectName: '',
@@ -205,8 +204,7 @@ function QeebosNPC({
     formData.genre.trim() &&
     formData.ideDescription.trim() &&
     formData.targetPlayer.trim() &&
-    formData.gameStyle.trim() &&
-    formData.targetDuration.trim()
+    formData.gameStyle.trim()
   );
 
   const isMcpValid = Boolean(
@@ -242,9 +240,6 @@ ${formData.targetPlayer.trim() || '[ISI TARGET PEMAIN]'}
 
 Gaya Game:
 ${formData.gameStyle.trim() || '[PIXEL ART / CARTOON / RETRO / DLL]'}
-
-Target Waktu Pembuatan:
-${formData.targetDuration.trim() || '[ISI TARGET WAKTU]'}
 
 Developer:
 PEMULA
@@ -1129,23 +1124,7 @@ Wait for my approval before proceeding to the next phase.`;
 
                             <div>
                               <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                                6. Target Waktu Pembuatan <span className="text-red-400">*</span>
-                              </label>
-                              <input
-                                type="text"
-                                value={formData.targetDuration}
-                                onChange={(e) => handleChange('targetDuration', e.target.value)}
-                                placeholder="Contoh: 3 Hari / 1 Minggu"
-                                required
-                                className={`w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400 ${
-                                  validationError && !formData.targetDuration.trim() ? 'border-red-500 bg-red-950/30' : ''
-                                }`}
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-[11px] font-bold text-amber-300 mb-1">
-                                7. Tingkat Developer
+                                6. Tingkat Developer
                               </label>
                               <div className="pixel-box-inset px-3 py-2 text-xs text-amber-300 font-bold bg-[#1a0a03]">
                                 PEMULA (Otomatis)

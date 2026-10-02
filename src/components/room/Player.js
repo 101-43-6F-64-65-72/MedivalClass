@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { MapPin } from 'lucide-react';
 import { CLASSROOM_EMOTES } from './CircularEmoteMenu';
 
 /**
@@ -184,7 +185,7 @@ function Player(props) {
         left: `${posX}px`,
         top: `${posY}px`,
         transform: 'translate(-50%, -100%)', // Anchor at player's feet
-        zIndex: Math.floor(player.y) || 10,
+        zIndex: isSpotlighted ? 500 : (Math.floor(player.y) || 10),
         willChange: isLocalPlayer ? 'none' : 'left, top',
         transition: isLocalPlayer ? 'none' : 'left 0.06s linear, top 0.06s linear',
       }}
@@ -261,6 +262,34 @@ function Player(props) {
       )}
 
       {/* ========================================================
+          CLEAN WAYPOINT LOCATION BEACON
+         ======================================================== */}
+      {isSpotlighted && (
+        <>
+          {/* Animated Waypoint Location Marker Pointing Down to Player */}
+          <div className="absolute -top-11 left-1/2 -translate-x-1/2 flex flex-col items-center z-30 pointer-events-none animate-bounce-short whitespace-nowrap">
+            <div className="pixel-panel-gold px-2 py-0.5 text-[9px] font-black text-amber-950 flex items-center gap-1 shadow-lg border border-amber-900 tracking-wider">
+              <MapPin className="w-3 h-3 text-amber-950 fill-amber-950" />
+              <span>DI SINI</span>
+            </div>
+            {/* Downward triangle arrow */}
+            <div className="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-amber-900 -mt-[1px]" />
+          </div>
+
+          {/* Clean Sonar / Radar Pulse Ring at feet */}
+          <div 
+            className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 pointer-events-none z-0"
+            style={{ width: '48px', height: '18px' }}
+          >
+            {/* Inner target circle */}
+            <div className="absolute inset-0 rounded-full border-2 border-amber-400 bg-amber-400/20" />
+            {/* Expanding radar ping wave */}
+            <div className="absolute inset-0 rounded-full border border-amber-300 animate-ping opacity-75" />
+          </div>
+        </>
+      )}
+
+      {/* ========================================================
           2. CHARACTER SPRITE CONTAINER (48x48)
          ======================================================== */}
       <div
@@ -270,6 +299,7 @@ function Player(props) {
           height: '48px',
           imageRendering: 'pixelated',
           overflow: 'hidden',
+          filter: isSpotlighted ? 'drop-shadow(0 0 4px #f59e0b)' : 'none',
         }}
       >
         {isTinyRpg ? (
@@ -301,29 +331,6 @@ function Player(props) {
             }}
           />
         )}
-
-        {/* Visual Spotlight Beam and Glowing Aura when player is spotlighted */}
-        {isSpotlighted && (
-          <>
-            {/* Conical light beam from ceiling */}
-            <div 
-              className="absolute -top-32 left-1/2 -translate-x-1/2 w-32 h-36 pointer-events-none z-10"
-              style={{
-                background: 'linear-gradient(180deg, rgba(250, 204, 21, 0) 0%, rgba(250, 204, 21, 0.25) 50%, rgba(250, 204, 21, 0.5) 100%)',
-                clipPath: 'polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%)',
-              }}
-            />
-            {/* Pulsing golden halo at feet */}
-            <div 
-              className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-14 h-6 rounded-full pointer-events-none animate-pulse"
-              style={{
-                background: 'radial-gradient(ellipse at center, rgba(250, 204, 21, 0.8) 0%, rgba(250, 204, 21, 0.1) 75%)',
-                border: '1.5px solid rgba(250, 204, 21, 0.9)',
-                boxShadow: '0 0 16px rgba(250, 204, 21, 0.85)',
-              }}
-            />
-          </>
-        )}
       </div>
 
       {/* Shadow at feet */}
@@ -340,23 +347,28 @@ function Player(props) {
           className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-medium backdrop-blur-md shadow-md transition-all"
           style={{
             backgroundColor: isSpotlighted ? 'rgba(69, 26, 3, 0.92)' : 'rgba(15, 23, 42, 0.85)',
-            color: '#f8fafc',
+            color: player.isAdmin ? '#f87171' : '#f8fafc',
             border: isSpotlighted
               ? '1.5px solid #fbbf24'
+              : player.isAdmin
+              ? '1.5px solid rgba(239, 68, 68, 0.85)'
               : isSameRoom 
               ? '1px solid rgba(16, 185, 129, 0.65)' 
               : '1px solid rgba(255, 255, 255, 0.15)',
             boxShadow: isSpotlighted
               ? '0 0 14px rgba(251, 191, 36, 0.6)'
+              : player.isAdmin
+              ? '0 0 10px rgba(239, 68, 68, 0.45)'
               : isSameRoom 
               ? '0 2px 8px rgba(16, 185, 129, 0.18)' 
               : '0 2px 6px rgba(0, 0, 0, 0.35)',
           }}
         >
-          {/* Spotlight Star Badge */}
+          {/* Spotlight Location Tag */}
           {isSpotlighted && (
-            <span className="text-[8px] bg-amber-400 text-amber-950 font-black px-1.5 py-0.2 rounded font-mono uppercase tracking-wider animate-pulse">
-              SPOTLIGHT
+            <span className="text-[8px] bg-amber-400 text-amber-950 font-black px-1.5 py-0.2 rounded font-mono uppercase tracking-wider flex items-center gap-0.5">
+              <MapPin className="w-2.5 h-2.5 fill-amber-950 inline" />
+              <span>LOKASI</span>
             </span>
           )}
 
@@ -384,8 +396,8 @@ function Player(props) {
             </span>
           )}
 
-          {/* Player name */}
-          <span className="font-semibold tracking-tight text-slate-100">
+          {/* Player name (Red for Admin) */}
+          <span className={`font-semibold tracking-tight ${player.isAdmin ? 'text-red-400 font-bold drop-shadow' : 'text-slate-100'}`}>
             {player.username}
           </span>
 

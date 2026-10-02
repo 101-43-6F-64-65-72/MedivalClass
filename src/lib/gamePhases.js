@@ -89,19 +89,19 @@ export const PLAYER_ROLES = {
 
 export const ROLE_DESCRIPTIONS = {
   [PLAYER_ROLES.LEADER]: {
-    name: '👨‍💼 Koordinator/Leader',
+    name: 'Koordinator/Leader',
     description: 'Memimpin diskusi, memastikan progress, koordinasikan semua'
   },
   [PLAYER_ROLES.DESIGNER]: {
-    name: '🎨 Desainer/Creative',
+    name: 'Desainer/Creative',
     description: 'Visi artistik, visual direction, estetika game'
   },
   [PLAYER_ROLES.MECHANIC]: {
-    name: '⚙️ Mekanik/Developer',
+    name: 'Mekanik/Developer',
     description: 'Sistem game, implementasi teknis, gameplay loop'
   },
   [PLAYER_ROLES.NARRATIVE]: {
-    name: '📖 Naratif/Storyteller',
+    name: 'Naratif/Storyteller',
     description: 'Cerita, world-building, character development'
   },
 };
@@ -116,7 +116,6 @@ export function generateMasterPrompt(data = {}) {
 **Target User:** ${data.targetUser || 'General Players'}
 **Tujuan Game:** ${data.gameGoal || 'Selesaikan misi utama'}
 **Core Gameplay Loop:** ${data.coreGameplay || 'Eksplorasi, dialog, puzzle'}
-**Target Durasi:** ${data.targetDuration || '15-30 menit'}
 **Tingkat Kesulitan Dev:** ${data.devLevel || 'Beginner/Intermediate'}
 **Kondisi Target Device:** ${data.deviceCondition || 'Web Browser Desktop / Mobile'}
 `;

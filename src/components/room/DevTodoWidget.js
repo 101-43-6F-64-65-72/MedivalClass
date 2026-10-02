@@ -5,10 +5,10 @@ import { CheckSquare, Square, ChevronDown, ChevronUp, Navigation, X } from 'luci
 import { playSuccessChime, playChoiceClick } from '@/lib/soundEffects';
 
 const TODO_ITEMS = [
-  { id: 'dev1', label: 'DEV 1', desc: 'Buat proyek Next.js & hubungkan ke Supabase (Setup MCP)' },
-  { id: 'dev2', label: 'DEV 2', desc: 'Desain skema tabel dan aktifkan Realtime multiplayer' },
-  { id: 'dev3', label: 'DEV 3', desc: 'Implementasi core gameplay loop & UI in-game' },
-  { id: 'dev4', label: 'DEV 4', desc: 'Deploy ke Vercel, uji, dan setor link ke Rak Buku Sam' },
+  { id: 'dev1', label: 'DEV 1' },
+  { id: 'dev2', label: 'DEV 2' },
+  { id: 'dev3', label: 'DEV 3' },
+  { id: 'dev4', label: 'DEV 4' },
 ];
 
 const STORAGE_KEY = 'virtual_dev_todos';
@@ -123,27 +123,20 @@ export default function DevTodoWidget({ onDirectToSam }) {
               <button
                 key={item.id}
                 onClick={() => toggleItem(item.id)}
-                className="w-full flex items-start gap-2 text-left group/item"
+                className="w-full flex items-center gap-2 text-left group/item py-0.5"
               >
                 {checked[item.id] ? (
-                  <CheckSquare className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <CheckSquare className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 ) : (
-                  <Square className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5 group-hover/item:text-amber-400 transition-colors" />
+                  <Square className="w-3.5 h-3.5 text-amber-600 shrink-0 group-hover/item:text-amber-400 transition-colors" />
                 )}
                 <div className="flex-1 min-w-0">
                   <div
-                    className={`text-[10px] font-bold ${
+                    className={`text-[10.5px] font-bold ${
                       checked[item.id] ? 'text-emerald-400 line-through' : 'text-amber-200'
                     }`}
                   >
                     {item.label}
-                  </div>
-                  <div
-                    className={`text-[9px] leading-tight font-mono ${
-                      checked[item.id] ? 'text-emerald-600/70 line-through' : 'text-amber-600/80'
-                    }`}
-                  >
-                    {item.desc}
                   </div>
                 </div>
               </button>

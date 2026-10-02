@@ -9,6 +9,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     studentClass = 'XI PPLG-B',
     roomCode = 'LOBBY1', 
     roomName: initialRoomName = '', 
+    groupNumber = null,
     characterIndex = 1, 
     isAdmin = false,
     isCreator = false,
@@ -22,6 +23,12 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   const [playerCount, setPlayerCount] = useState(1);
   const [roomName, setRoomName] = useState(initialRoomName || 'Kelas Virtual');
   const [gameStarted, setGameStarted] = useState(true);
+  const [currentUsername, setCurrentUsername] = useState(username || 'Siswa');
+  const [currentFullName, setCurrentFullName] = useState(fullName || username || 'Siswa');
+  const currentUsernameRef = useRef(currentUsername);
+  currentUsernameRef.current = currentUsername;
+  const currentFullNameRef = useRef(currentFullName);
+  currentFullNameRef.current = currentFullName;
 
   // Pending room join requests awaiting host / creator approval
   const [pendingJoinRequests, setPendingJoinRequests] = useState([]);
@@ -120,6 +127,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
                   characterIndex: data.characterIndex || existing.characterIndex || 1,
                   isAdmin: !!data.isAdmin,
                   color: data.color || existing.color,
+                  groupNumber: data.groupNumber || existing.groupNumber || null,
                   roomCode: data.roomCode || existing.roomCode || cleanRoomCode,
                   roomName: data.roomName || existing.roomName,
                 });
@@ -133,6 +141,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
                   characterIndex: data.characterIndex || 1,
                   isAdmin: !!data.isAdmin,
                   color: data.color || '#3b82f6',
+                  groupNumber: data.groupNumber || null,
                   roomCode: data.roomCode || cleanRoomCode,
                   roomName: data.roomName || 'Kelas Virtual',
                   x: data.x != null ? data.x : 900,
@@ -155,6 +164,21 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
         setRemoteEmotes((prev) => {
           const next = { ...prev };
           delete next[key];
+          return next;
+        });
+      })
+      .on('broadcast', { event: 'player-name-update' }, ({ payload }) => {
+        if (!payload || !payload.id) return;
+        setPlayers((prev) => {
+          const next = new Map(prev);
+          const p = next.get(payload.id);
+          if (p) {
+            next.set(payload.id, {
+              ...p,
+              username: payload.username || p.username,
+              fullName: payload.fullName || p.fullName,
+            });
+          }
           return next;
         });
       })
@@ -294,13 +318,14 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
 
           await channel.track({
             id: myIdRef.current,
-            username,
-            fullName,
+            username: currentUsernameRef.current,
+            fullName: currentFullNameRef.current,
             attendanceNo,
             studentClass: studentClass || activeClass,
             characterIndex,
             isAdmin,
             isCreator: !!isCreator,
+            groupNumber: groupNumber || (cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i) ? Number(cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i)[1]) : null),
             gameStarted,
             color,
             roomCode: cleanRoomCode,
@@ -349,9 +374,10 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     const msg = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       senderId: myIdRef.current,
-      senderName: username,
+      senderName: currentUsernameRef.current || username,
       attendanceNo,
       senderRoomCode: cleanRoomCode,
+      isAdmin: Boolean(isAdmin),
       text: text.trim(),
       isTeamOnly,
       timestamp: Date.now(),
@@ -531,6 +557,59 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     }
   };
 
+  const updatePlayerName = (newName) => {
+    const clean = (newName || '').trim();
+    if (!clean) return;
+    setCurrentUsername(clean);
+    setCurrentFullName(clean);
+
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const currentState = localPlayerStateRef.current;
+      channelRef.current.track({
+        id: myIdRef.current,
+        username: clean,
+        fullName: clean,
+        attendanceNo,
+        studentClass: studentClass || activeClass,
+        characterIndex,
+        isAdmin,
+        isCreator: !!isCreator,
+        groupNumber: groupNumber || (cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i) ? Number(cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i)[1]) : null),
+        gameStarted,
+        color,
+        roomCode: cleanRoomCode,
+        roomName,
+        x: currentState.x,
+        y: currentState.y,
+        direction: currentState.direction,
+        isMoving: currentState.isMoving,
+      });
+
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'player-name-update',
+        payload: { id: myIdRef.current, username: clean, fullName: clean },
+      });
+    }
+
+    try {
+      const saved = localStorage.getItem('virtual_student_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        parsed.username = clean;
+        parsed.fullName = clean;
+        localStorage.setItem('virtual_student_session', JSON.stringify(parsed));
+      }
+      const adminSaved = localStorage.getItem('virtual_admin_session');
+      if (adminSaved) {
+        const parsed = JSON.parse(adminSaved);
+        parsed.username = clean;
+        parsed.fullName = clean;
+        localStorage.setItem('virtual_admin_session', JSON.stringify(parsed));
+      }
+    } catch (_) {}
+  };
+
   // Broadcast movement with deadband and frame throttling
   useEffect(() => {
     if (!channelRef.current || !process.env.NEXT_PUBLIC_SUPABASE_URL) return;
@@ -675,6 +754,9 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     myGroupCount,
     roomName,
     updateRoomName,
+    currentUsername,
+    currentFullName,
+    updatePlayerName,
     gameStarted,
     hasAdminOnline,
     startGame,

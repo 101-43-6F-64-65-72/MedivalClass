@@ -23,7 +23,6 @@ export default function ChatbotWidget({ gameStarted = false }) {
     targetUser: '',
     gameGoal: '',
     coreGameplay: '',
-    targetDuration: '',
     devLevel: '',
     deviceCondition: '',
   });
@@ -38,7 +37,6 @@ export default function ChatbotWidget({ gameStarted = false }) {
     formData.targetUser.trim() &&
     formData.gameGoal.trim() &&
     formData.coreGameplay.trim() &&
-    formData.targetDuration.trim() &&
     formData.devLevel.trim() &&
     formData.deviceCondition.trim();
 
@@ -57,7 +55,6 @@ Platform: WEB
 Target pengguna: ${formData.targetUser || '[TARGET_PENGGUNA]'}
 Tujuan game: ${formData.gameGoal || '[TUJUAN_GAME]'}
 Core gameplay: ${formData.coreGameplay || '[CORE_GAMEPLAY]'}
-Target durasi pengerjaan: ${formData.targetDuration || '[TARGET_DURASI]'}
 Level kemampuan developer: ${formData.devLevel || '[LEVEL_DEV]'}
 Kondisi perangkat: ${formData.deviceCondition || '[KONDISI_PERANGKAT]'}
 
@@ -256,18 +253,7 @@ Sekarang mulai dari PHASE 0 — GAME CONCEPT. Analisis ide game saya terlebih da
                   </div>
 
                   <div>
-                    <label className="block text-amber-300 font-medium mb-1">6. Target Durasi Pengerjaan</label>
-                    <input
-                      type="text"
-                      value={formData.targetDuration}
-                      onChange={(e) => handleChange('targetDuration', e.target.value)}
-                      placeholder="Contoh: 3 Hari / 1 Minggu"
-                      className="w-full pixel-box-inset px-3 py-1.5 text-amber-100 placeholder-amber-700/60 focus:outline-none focus:border-amber-400"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-amber-300 font-medium mb-1">7. Level Kemampuan Developer</label>
+                    <label className="block text-amber-300 font-medium mb-1">6. Level Kemampuan Developer</label>
                     <input
                       type="text"
                       value={formData.devLevel}
@@ -278,7 +264,7 @@ Sekarang mulai dari PHASE 0 — GAME CONCEPT. Analisis ide game saya terlebih da
                   </div>
 
                   <div>
-                    <label className="block text-amber-300 font-medium mb-1">8. Kondisi Perangkat</label>
+                    <label className="block text-amber-300 font-medium mb-1">7. Kondisi Perangkat</label>
                     <input
                       type="text"
                       value={formData.deviceCondition}
@@ -389,7 +375,7 @@ Sekarang mulai dari PHASE 0 — GAME CONCEPT. Analisis ide game saya terlebih da
                 </div>
 
                 <div className="bg-[#241107] p-3 border border-[#6f3d17] text-[11px] text-amber-200/90 leading-relaxed text-center">
-                  ✅ <strong>Master Prompt telah berhasil disalin ke clipboard!</strong> Sekarang mulailah berdiskusi dengan tim Anda dan gunakan prompt tersebut untuk memandu AI Agent.
+                  [BERHASIL] <strong>Master Prompt telah berhasil disalin ke clipboard!</strong> Sekarang mulailah berdiskusi dengan tim Anda dan gunakan prompt tersebut untuk memandu AI Agent.
                 </div>
 
                 <button
