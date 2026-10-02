@@ -57,8 +57,8 @@ export const CLASSROOM_NPCS = [
   {
     id: 'npc-dzakih',
     name: 'Dzakih',
-    role: 'Setting Pet Kucing',
-    desc: 'Adopsi, pilih jenis kucing, atau lepas hewan peliharaan',
+    role: 'Pet Companion',
+    desc: 'Pilih jenis kucing peliharaan kelas untuk menemanimu berkeliling',
     location: 'Meja Siswa Baris Kedua',
     x: 1250,
     y: 955,

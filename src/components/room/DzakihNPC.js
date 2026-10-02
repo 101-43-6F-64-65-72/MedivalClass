@@ -40,6 +40,15 @@ function DzakihNPC({
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
+  // Ambient cats idle animation ticker around Dzakih
+  const [ambientCatFrame, setAmbientCatFrame] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAmbientCatFrame((prev) => (prev + 1) % 7);
+    }, 150);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -244,8 +253,92 @@ function DzakihNPC({
           </div>
         )}
 
+        {/* ========================================================
+            AMBIENT CATS SURROUNDING DZAKIH (PET MASTER ASSISTANTS)
+           ======================================================== */}
+        {/* Cat 1: Mochi (Tabby) - Sitting on Left */}
+        <div 
+          className="absolute -left-7 bottom-0 pointer-events-none flex flex-col items-center select-none z-10"
+          title="Mochi si Kucing Tabby"
+        >
+          <span className="text-[7.5px] font-bold bg-[#140802]/90 text-amber-200 px-1 py-0.2 rounded border border-amber-700/60 shadow -mb-1 z-10">
+            Mochi
+          </span>
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              backgroundImage: "url('/assets/AllCatsDemo/AllCatsDemo/Classical/IdleCat.png')",
+              backgroundPosition: `-${ambientCatFrame * 32}px 0px`,
+              backgroundSize: '224px 32px',
+              backgroundRepeat: 'no-repeat',
+              imageRendering: 'pixelated',
+            }}
+          />
+          <div className="w-5 h-1.5 bg-black/45 rounded-full blur-[1px] -mt-1.5" />
+        </div>
+
+        {/* Cat 2: Snowy (White Cat) - Sitting on Right */}
+        <div 
+          className="absolute -right-7 bottom-1 pointer-events-none flex flex-col items-center select-none z-10"
+          title="Snowy si Kucing Putih"
+        >
+          <span className="text-[7.5px] font-bold bg-[#140802]/90 text-amber-200 px-1 py-0.2 rounded border border-amber-700/60 shadow -mb-1 z-10">
+            Snowy
+          </span>
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              backgroundImage: "url('/assets/AllCatsDemo/AllCatsDemo/White/IdleCatttt.png')",
+              backgroundPosition: `-${((ambientCatFrame + 3) % 7) * 32}px 0px`,
+              backgroundSize: '224px 32px',
+              backgroundRepeat: 'no-repeat',
+              imageRendering: 'pixelated',
+              transform: 'scaleX(-1)',
+            }}
+          />
+          <div className="w-5 h-1.5 bg-black/45 rounded-full blur-[1px] -mt-1.5" />
+        </div>
+
+        {/* Cat 3: Kuro (Black Cat) - Resting in Front */}
+        <div 
+          className="absolute left-6 -bottom-3 pointer-events-none flex flex-col items-center select-none z-20"
+          title="Kuro si Kucing Hitam"
+        >
+          <span className="text-[7.5px] font-bold bg-[#140802]/90 text-amber-200 px-1 py-0.2 rounded border border-amber-700/60 shadow -mb-1 z-10">
+            Kuro
+          </span>
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              backgroundImage: "url('/assets/AllCatsDemo/AllCatsDemo/BlackCat/IdleCatb.png')",
+              backgroundPosition: `-${((ambientCatFrame + 5) % 7) * 32}px 0px`,
+              backgroundSize: '224px 32px',
+              backgroundRepeat: 'no-repeat',
+              imageRendering: 'pixelated',
+            }}
+          />
+          <div className="w-5 h-1.5 bg-black/45 rounded-full blur-[1px] -mt-1.5" />
+        </div>
+
+        {/* Cat Milk / Water Dish */}
+        <div 
+          className="absolute -left-2 -bottom-2 pointer-events-none z-20"
+          title="Mangkuk Kucing"
+        >
+          <div 
+            className="w-3.5 h-2 rounded-full border border-amber-600/80"
+            style={{
+              background: 'radial-gradient(circle, #fef08a 0%, #b45309 85%)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.6)',
+            }}
+          />
+        </div>
+
         {/* Dzakih Character Avatar (Using authentic OwnAssets/dzakih/dzakih.png) */}
-        <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end">
+        <div className="absolute bottom-1 left-0 right-0 flex flex-col items-center justify-end z-10">
           <img
             src="/assets/OwnAssets/dzakih/dzakih.png"
             alt="Dzakih"
@@ -400,10 +493,10 @@ function DzakihNPC({
                             >
                               <div className="flex items-center gap-2">
                                 <span className="text-[#a0521e] group-hover:translate-x-1 transition-transform font-mono">▶</span>
-                                <span>Pilih / Atur Kucing Peliharaan (Pet)</span>
+                                <span>Pilih / Ganti Kucing Peliharaan</span>
                               </div>
                               <span className="text-[10px] text-[#733814] font-semibold bg-[#f5cb85] px-2 py-0.5 rounded border border-[#b87c42]">
-                                {localPetBreed ? 'Ganti Pet' : 'Adopsi Pet'}
+                                {localPetBreed ? 'Ganti Pet' : 'Pilih Pet'}
                               </span>
                             </button>
 
