@@ -866,7 +866,7 @@ export default function BookshelfModal({
            ======================================================== */}
         <div className="pt-2 mt-2 border-t border-[#5c3416] flex items-center justify-between text-[10px] text-amber-400/70 shrink-0">
           <span>Tab Aktif: <strong>{currentTabObj.label}</strong></span>
-          <span>{shelfGames.length} Buku Karya Terkoleksi</span>
+          <span>{processedSubmissions.length} Buku Karya Terkoleksi</span>
         </div>
       </div>
     </div>
