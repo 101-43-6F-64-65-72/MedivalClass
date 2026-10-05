@@ -13,7 +13,12 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     characterIndex = 1, 
     isAdmin = false,
     isCreator = false,
-    onRoomFull 
+    serverId = null,
+    sessionId = null,
+    myPlayerId = null,
+    onRoomFull,
+    onKicked,
+    onJoinRequestReceived,
   } = options;
 
   const cleanRoomCode = (roomCode || 'LOBBY1').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -85,7 +90,10 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
   const [masterPromptData, setMasterPromptData] = useState(null);
 
   const channelRef = useRef(null);
-  const myIdRef = useRef(`player-${Math.random().toString(36).substring(2, 9)}`);
+  const myIdRef = useRef(myPlayerId || (typeof window !== 'undefined' ? sessionStorage.getItem('virtual_player_id') : null) || `player-${Math.random().toString(36).substring(2, 9)}`);
+  if (myPlayerId && myIdRef.current !== myPlayerId) {
+    myIdRef.current = myPlayerId;
+  }
   
   // Throttle broadcast & RAF batching
   const lastBroadcastRef = useRef(0);
@@ -104,8 +112,12 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       return;
     }
 
-    // Shared Universe Channel: All groups inhabit the same classroom world
-    const channel = supabase.channel('classroom:shared_universe', {
+    // Channel name is namespaced by server so parallel servers are isolated
+    const channelName = serverId
+      ? `classroom:server:${serverId}`
+      : 'classroom:shared_universe';
+
+    const channel = supabase.channel(channelName, {
       config: {
         broadcast: { ack: false, self: false },
         presence: { key: myIdRef.current },
@@ -134,11 +146,38 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
 
         setPlayers((prev) => {
           const next = new Map();
+          const seenAttendance = new Set();
+          const seenUsernames = new Set();
+
           for (const [key, presenceData] of Object.entries(newState)) {
             if (key === myIdRef.current) continue; // Skip self
 
             if (presenceData && presenceData.length > 0) {
               const data = presenceData[0];
+
+              // Skip diri sendiri jika attendanceNo sama atau id sama (mencegah bug kembar 2 diri sendiri)
+              if (!isAdmin && attendanceNo && String(data.attendanceNo) === String(attendanceNo)) {
+                continue;
+              }
+              if (!isAdmin && (data.id === myIdRef.current || (myPlayerId && data.id === myPlayerId))) {
+                continue;
+              }
+
+              // Deduplikasi: hanya izinkan 1 siswa per nomor absen / username (kecuali admin)
+              if (!data.isAdmin) {
+                const attKey = data.attendanceNo ? String(data.attendanceNo).trim() : null;
+                if (attKey && seenAttendance.has(attKey)) {
+                  continue; // Lewati duplikat ghost
+                }
+                if (attKey) seenAttendance.add(attKey);
+
+                const uKey = (data.username || '').toLowerCase().trim();
+                if (uKey && seenUsernames.has(uKey)) {
+                  continue; // Lewati duplikat ghost
+                }
+                if (uKey) seenUsernames.add(uKey);
+              }
+
               const existing = prev.get(key);
 
               if (existing) {
@@ -337,8 +376,26 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
           return next;
         });
       })
+      .on('broadcast', { event: 'member-kicked' }, ({ payload }) => {
+        if (!payload) return;
+        // If this player was kicked, call onKicked callback
+        const ownId = myPlayerId || myIdRef.current;
+        if (payload.kickedPlayerId === ownId && typeof onKicked === 'function') {
+          onKicked();
+        }
+      })
+      .on('broadcast', { event: 'join-room-request' }, ({ payload }) => {
+        if (!payload || !payload.sessionId) return;
+        if (sessionId && payload.sessionId === sessionId) {
+          if (typeof onJoinRequestReceived === 'function') {
+            onJoinRequestReceived(payload);
+          }
+        }
+      })
       .on('broadcast', { event: 'movement' }, ({ payload }) => {
         if (!payload || payload.id === myIdRef.current) return;
+        if (!isAdmin && attendanceNo && String(payload.attendanceNo) === String(attendanceNo)) return;
+        if (!isAdmin && myPlayerId && payload.id === myPlayerId) return;
 
         // Buffer incoming updates per player ID to prevent high-frequency state churn
         pendingMovementUpdatesRef.current.set(payload.id, payload);
@@ -381,6 +438,7 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           const currentState = localPlayerStateRef.current;
+          const gSlot = groupNumber || (cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i) ? Number(cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i)[1]) : null);
 
           await channel.track({
             id: myIdRef.current,
@@ -392,7 +450,10 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
             isAdmin,
             aura: isAdmin ? adminAuraRef.current : null,
             isCreator: !!isCreator,
-            groupNumber: groupNumber || (cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i) ? Number(cleanRoomCode.match(/^KEL(?:OMPOK)?([1-9])$/i)[1]) : null),
+            groupNumber: gSlot,
+            groupSlot: gSlot,
+            serverId: serverId || null,
+            sessionId: sessionId || null,
             gameStarted,
             color,
             roomCode: cleanRoomCode,
@@ -411,11 +472,14 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
         movementRafRef.current = null;
       }
       pendingMovementUpdatesRef.current.clear();
+      try {
+        channel.untrack();
+      } catch (_) {}
       channel.unsubscribe();
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [username, color, cleanRoomCode, fullName, attendanceNo, isAdmin]);
+  }, [username, color, cleanRoomCode, fullName, attendanceNo, isAdmin, serverId]);
 
   // Synchronize Group Dev Checklist progress from Supabase
   useEffect(() => {
@@ -1105,5 +1169,15 @@ export function useMultiplayer(localPlayerState, username, color, options = {}) 
     toggleGroupDevTodo,
     completedGroups,
     isMyGroupDevCompleted: completedGroups.has(cleanRoomCode),
+    // Generic broadcast sender
+    broadcastMessage: (event, payload) => {
+      if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event,
+          payload,
+        });
+      }
+    },
   };
 }

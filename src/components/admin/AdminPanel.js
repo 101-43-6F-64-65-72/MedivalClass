@@ -33,10 +33,28 @@ import {
   Send,
   BookOpen,
   Image as ImageIcon,
-  Presentation as PresentationIcon
+  Presentation as PresentationIcon,
+  Server,
+  Plus,
+  Trash2,
+  Edit3,
+  ToggleLeft,
+  ToggleRight,
+  RefreshCw
 } from 'lucide-react';
 import { usePresentation } from '@/hooks/usePresentation';
 import { getGameSubmissions } from '@/lib/gameSubmissionsService';
+import { 
+  fetchAllServers, 
+  createServer, 
+  updateServer, 
+  deleteServer,
+  fetchAllGroupSessions,
+  updateGroupSession,
+  deleteGroupSession,
+  removeMemberFromSession,
+  upsertGroupSession
+} from '@/lib/serverService';
 
 export default function AdminPanel({
   isOpen,
@@ -52,10 +70,214 @@ export default function AdminPanel({
   isAdmin = true,
   adminAura = null,
   onOpenAuraModal = null,
+  serverId = null,
 }) {
-  const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'slide' | 'broadcast' | 'classes'
+  const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'students' | 'slide' | 'broadcast' | 'classes' | 'servers'
   const [searchQuery, setSearchQuery] = useState('');
   const adminScreenVideoRef = useRef(null);
+
+  // Server Management states in Admin Panel
+  const [serverList, setServerList] = useState([]);
+  const [loadingServers, setLoadingServers] = useState(false);
+  const [showServerForm, setShowServerForm] = useState(false);
+  const [editingServer, setEditingServer] = useState(null);
+  const [serverFormName, setServerFormName] = useState('');
+  const [serverFormDesc, setServerFormDesc] = useState('');
+  const [serverFormMode, setServerFormMode] = useState('class');
+  const [serverFormClass, setServerFormClass] = useState(activeClass || 'XI PPLG-B');
+  const [serverFormUsePin, setServerFormUsePin] = useState(false);
+  const [serverFormPin, setServerFormPin] = useState('');
+  const [serverFormError, setServerFormError] = useState('');
+  const [serverFormLoading, setServerFormLoading] = useState(false);
+
+  const loadServerList = async () => {
+    setLoadingServers(true);
+    const data = await fetchAllServers();
+    setServerList(data);
+    setLoadingServers(false);
+  };
+
+  // Group Management states in Admin Panel
+  const [dbGroupList, setDbGroupList] = useState([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [selectedGroupServerId, setSelectedGroupServerId] = useState(serverId || null);
+  const [editingGroup, setEditingGroup] = useState(null);
+  const [groupFormName, setGroupFormName] = useState('');
+  const [groupFormSlot, setGroupFormSlot] = useState(1);
+  const [groupFormOwnerName, setGroupFormOwnerName] = useState('');
+  const [groupFormError, setGroupFormError] = useState('');
+  const [groupFormLoading, setGroupFormLoading] = useState(false);
+
+  // Modal Buat Kelompok Baru oleh Admin
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [newGroupSlot, setNewGroupSlot] = useState(1);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupOwnerName, setNewGroupOwnerName] = useState('');
+  const [createGroupError, setCreateGroupError] = useState('');
+  const [createGroupLoading, setCreateGroupLoading] = useState(false);
+
+  const loadDbGroupList = async () => {
+    setLoadingGroups(true);
+    const data = await fetchAllGroupSessions(selectedGroupServerId || serverId || null);
+    setDbGroupList(data);
+    setLoadingGroups(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'groups' && isOpen) {
+      loadDbGroupList();
+      if (serverList.length === 0) {
+        fetchAllServers().then((srvs) => setServerList(srvs));
+      }
+    }
+  }, [activeTab, isOpen, selectedGroupServerId, serverId]);
+
+  const handleOpenEditGroup = (grp) => {
+    setEditingGroup(grp);
+    setGroupFormName(grp.roomName || grp.room_name || `Kelompok ${grp.slot}`);
+    setGroupFormSlot(grp.slot || 1);
+    setGroupFormOwnerName(grp.ownerName || grp.owner_name || '');
+    setGroupFormError('');
+  };
+
+  const handleSaveEditGroup = async (e) => {
+    if (e) e.preventDefault();
+    if (!editingGroup) return;
+    if (!groupFormName.trim()) {
+      setGroupFormError('Nama kelompok tidak boleh kosong.');
+      return;
+    }
+    setGroupFormLoading(true);
+    setGroupFormError('');
+    const slotNum = Number(groupFormSlot);
+    const res = await updateGroupSession(editingGroup.id, {
+      room_name: groupFormName.trim() || `Kelompok ${slotNum}`,
+      slot: slotNum,
+      room_code: `KEL${slotNum}`,
+      owner_name: groupFormOwnerName.trim() || editingGroup.ownerName || editingGroup.owner_name,
+    });
+    if (res.ok) {
+      setEditingGroup(null);
+      await loadDbGroupList();
+    } else {
+      setGroupFormError(res.error || 'Gagal mengubah data kelompok.');
+    }
+    setGroupFormLoading(false);
+  };
+
+  const handleDeleteGroup = async (grp) => {
+    const groupName = grp.roomName || grp.room_name || `Kelompok ${grp.slot}`;
+    if (!confirm(`Hapus "${groupName}"? Seluruh anggota di dalamnya akan dikeluarkan dan slot kelompok ini akan menjadi kosong.`)) {
+      return;
+    }
+    const res = await deleteGroupSession(grp.id);
+    if (res.ok) {
+      await loadDbGroupList();
+    } else {
+      alert(res.error || 'Gagal menghapus kelompok.');
+    }
+  };
+
+  const handleKickMemberFromGroup = async (grpId, member) => {
+    const memberName = member.fullName || member.username || 'siswa';
+    if (!confirm(`Keluarkan ${memberName} dari kelompok ini?`)) return;
+    const res = await removeMemberFromSession(grpId, member.id || member.playerId);
+    if (res.ok) {
+      await loadDbGroupList();
+    } else {
+      alert(res.error || 'Gagal mengeluarkan anggota.');
+    }
+  };
+
+  const handleCreateGroupSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const targetServerId = selectedGroupServerId || serverId || (serverList[0]?.id) || null;
+    if (!targetServerId) {
+      setCreateGroupError('Server belum dipilih atau belum ada server aktif.');
+      return;
+    }
+    const slotNum = Number(newGroupSlot);
+    const cleanName = (newGroupName.trim() || `Kelompok ${slotNum}`);
+    setCreateGroupLoading(true);
+    setCreateGroupError('');
+    const res = await upsertGroupSession({
+      serverId: targetServerId,
+      slot: slotNum,
+      roomCode: `KEL${slotNum}`,
+      roomName: cleanName,
+      ownerId: `admin-${Date.now()}`,
+      ownerName: newGroupOwnerName.trim() || 'Admin (Pengajar)',
+    });
+    if (res.ok) {
+      setShowCreateGroupModal(false);
+      setNewGroupName('');
+      setNewGroupOwnerName('');
+      await loadDbGroupList();
+    } else {
+      setCreateGroupError(res.error || 'Gagal membuat kelompok.');
+    }
+    setCreateGroupLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'servers' && isOpen) {
+      loadServerList();
+    }
+  }, [activeTab, isOpen]);
+
+  const handleServerFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!serverFormName.trim()) {
+      setServerFormError('Nama server wajib diisi!');
+      return;
+    }
+    setServerFormLoading(true);
+    setServerFormError('');
+    if (serverFormUsePin && !serverFormPin.trim()) {
+      setServerFormError('PIN server wajib diisi jika opsi PIN diaktifkan!');
+      setServerFormLoading(false);
+      return;
+    }
+    const payload = {
+      name: serverFormName.trim(),
+      description: serverFormDesc.trim(),
+      mode: serverFormMode,
+      active_class: serverFormMode === 'class' ? serverFormClass : null,
+      pin: serverFormUsePin && serverFormPin.trim() ? serverFormPin.trim() : null,
+    };
+
+    let result;
+    if (editingServer) {
+      result = await updateServer(editingServer.id, payload);
+    } else {
+      result = await createServer(payload);
+    }
+    setServerFormLoading(false);
+
+    if (result.ok) {
+      setShowServerForm(false);
+      setEditingServer(null);
+      setServerFormName('');
+      setServerFormDesc('');
+      setServerFormMode('class');
+      setServerFormUsePin(false);
+      setServerFormPin('');
+      loadServerList();
+    } else {
+      setServerFormError(result.error || 'Gagal menyimpan server.');
+    }
+  };
+
+  const handleToggleServerActive = async (srv) => {
+    await updateServer(srv.id, { is_active: !srv.is_active });
+    loadServerList();
+  };
+
+  const handleDeleteServer = async (srv) => {
+    if (!confirm(`Hapus/nonaktifkan server "${srv.name}"?`)) return;
+    await deleteServer(srv.id);
+    loadServerList();
+  };
 
   const resolvedIsAdmin = Boolean(isAdmin ?? localPlayerInfo?.isAdmin ?? true);
 
@@ -97,7 +319,68 @@ export default function AdminPanel({
     activeAnnouncement,
     sendBroadcastAnnouncement,
     clearAnnouncement,
+    // Bookshelf Target Configuration
+    bookshelfConfig,
+    updateBookshelfConfig,
   } = presentation;
+
+  const INITIAL_6_SHELVES = useMemo(() => ({
+    'shelf-w1': { id: 'shelf-w1', num: 1, name: 'Rak 1 (Barat Atas)', targetClass: 'XI PPLG-A', label: 'Server XI PPLG A' },
+    'shelf-w2': { id: 'shelf-w2', num: 2, name: 'Rak 2 (Barat Tengah)', targetClass: 'XI PPLG-A', label: 'Server XI PPLG A' },
+    'shelf-w3': { id: 'shelf-w3', num: 3, name: 'Rak 3 (Barat Bawah)', targetClass: 'ALL', label: 'Semua Server' },
+    'shelf-e1': { id: 'shelf-e1', num: 4, name: 'Rak 4 (Timur Atas)', targetClass: 'XI PPLG-B', label: 'Server XI PPLG B' },
+    'shelf-e2': { id: 'shelf-e2', num: 5, name: 'Rak 5 (Timur Tengah)', targetClass: 'XI PPLG-B', label: 'Server XI PPLG B' },
+    'shelf-e3': { id: 'shelf-e3', num: 6, name: 'Rak 6 (Timur Bawah)', targetClass: 'ALL', label: 'Semua Server' },
+  }), []);
+
+  const [sixShelves, setSixShelves] = useState(() => ({
+    ...INITIAL_6_SHELVES,
+    ...(bookshelfConfig?.shelves || {}),
+  }));
+  const [bookshelfConfigSavedNotice, setBookshelfConfigSavedNotice] = useState('');
+
+  // Sync state if presentation.bookshelfConfig updates
+  useEffect(() => {
+    if (bookshelfConfig?.shelves) {
+      setSixShelves(prev => ({
+        ...INITIAL_6_SHELVES,
+        ...bookshelfConfig.shelves,
+      }));
+    }
+  }, [bookshelfConfig, INITIAL_6_SHELVES]);
+
+  const handleUpdateShelfTarget = (shelfId, targetClass) => {
+    const srv = serverList.find(s => s.active_class === targetClass || s.name === targetClass);
+    const label = targetClass === 'ALL'
+      ? 'Semua Server'
+      : (srv?.name || `Kelas ${targetClass}`);
+
+    setSixShelves(prev => ({
+      ...prev,
+      [shelfId]: {
+        ...(prev[shelfId] || INITIAL_6_SHELVES[shelfId]),
+        id: shelfId,
+        targetClass,
+        label,
+      }
+    }));
+  };
+
+  const handleSaveAll6Shelves = (e) => {
+    if (e) e.preventDefault();
+    if (!updateBookshelfConfig) return;
+
+    updateBookshelfConfig({
+      shelves: sixShelves,
+      westClass: sixShelves['shelf-w1']?.targetClass || 'XI PPLG-A',
+      westLabel: sixShelves['shelf-w1']?.label || 'Server XI PPLG A',
+      eastClass: sixShelves['shelf-e1']?.targetClass || 'XI PPLG-B',
+      eastLabel: sixShelves['shelf-e1']?.label || 'Server XI PPLG B',
+    });
+
+    setBookshelfConfigSavedNotice('Konfigurasi 6 rak buku berhasil disimpan dan disiarkan');
+    setTimeout(() => setBookshelfConfigSavedNotice(''), 3500);
+  };
 
   const [inputUrl, setInputUrl] = useState('');
   const [inputLiveCode, setInputLiveCode] = useState('');
@@ -238,22 +521,124 @@ export default function AdminPanel({
     return list;
   }, [players, localPlayerInfo, activeClass]);
 
-  // Aggregate active groups & their members
+  // Aggregate active groups (from DB sessions + online players)
   const activeGroups = useMemo(() => {
-    const groupsMap = new Map();
+    const list = [];
+    const processedCodes = new Set();
+
+    // 1. Prioritaskan kelompok dari database
+    dbGroupList.forEach((dbGrp) => {
+      const code = (dbGrp.room_code || `KEL${dbGrp.slot}`).trim().toUpperCase();
+      processedCodes.add(code);
+
+      const dbMembers = (dbGrp.group_members || []).filter((m) => m.status !== 'kicked');
+      const onlineMembers = allOnlinePlayers.filter(
+        (p) => !p.isAdmin && (p.roomCode || '').trim().toUpperCase() === code
+      );
+
+      const mergedMembers = [];
+      const seenKeys = new Set();
+
+      dbMembers.forEach((dbm) => {
+        const onlineMatch = onlineMembers.find(
+          (op) =>
+            (op.id && op.id === dbm.player_id) ||
+            (op.attendanceNo && String(op.attendanceNo).trim() === String(dbm.attendance_no).trim()) ||
+            (op.username && op.username.toLowerCase().trim() === (dbm.username || '').toLowerCase().trim())
+        );
+
+        const key = dbm.attendance_no ? `att_${dbm.attendance_no}` : (dbm.player_id || dbm.id);
+        seenKeys.add(key);
+
+        mergedMembers.push({
+          id: dbm.player_id || dbm.id,
+          playerId: dbm.player_id,
+          dbId: dbm.id,
+          fullName: dbm.full_name,
+          username: dbm.username,
+          attendanceNo: dbm.attendance_no,
+          studentClass: dbm.student_class,
+          characterIndex: dbm.character_index,
+          isOwner: Boolean(
+            dbGrp.owner_id === dbm.player_id ||
+            (dbGrp.owner_name && dbm.full_name && dbGrp.owner_name.toLowerCase().trim() === dbm.full_name.toLowerCase().trim())
+          ),
+          isOnline: Boolean(onlineMatch),
+          onlineData: onlineMatch || null,
+        });
+      });
+
+      // Tambahkan siswa online yang belum ada di dbMembers
+      onlineMembers.forEach((op) => {
+        const key = op.attendanceNo ? `att_${op.attendanceNo}` : op.id;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          mergedMembers.push({
+            id: op.id,
+            playerId: op.id,
+            dbId: null,
+            fullName: op.fullName,
+            username: op.username,
+            attendanceNo: op.attendanceNo,
+            studentClass: op.studentClass,
+            characterIndex: op.characterIndex,
+            isOwner: false,
+            isOnline: true,
+            onlineData: op,
+          });
+        }
+      });
+
+      list.push({
+        id: dbGrp.id,
+        isFromDb: true,
+        slot: dbGrp.slot,
+        roomCode: code,
+        roomName: dbGrp.room_name || `Kelompok ${dbGrp.slot}`,
+        ownerId: dbGrp.owner_id,
+        ownerName: dbGrp.owner_name,
+        isActive: dbGrp.is_active,
+        members: mergedMembers,
+      });
+    });
+
+    // 2. Tambahkan room kelompok online yang belum ada di database
     allOnlinePlayers.forEach((p) => {
       const code = (p.roomCode || 'LOBBY1').trim().toUpperCase();
-      if (!groupsMap.has(code)) {
-        groupsMap.set(code, {
+      if (!processedCodes.has(code) && code !== 'ADMIN' && code !== 'ADMIN_ROOM') {
+        processedCodes.add(code);
+        const members = allOnlinePlayers
+          .filter((op) => (op.roomCode || '').trim().toUpperCase() === code)
+          .map((op) => ({
+            id: op.id,
+            playerId: op.id,
+            dbId: null,
+            fullName: op.fullName,
+            username: op.username,
+            attendanceNo: op.attendanceNo,
+            studentClass: op.studentClass,
+            characterIndex: op.characterIndex,
+            isOwner: false,
+            isOnline: true,
+            onlineData: op,
+          }));
+
+        list.push({
+          id: null,
+          isFromDb: false,
+          slot: code.match(/KEL(?:OMPOK)?([1-9])/i) ? Number(code.match(/KEL(?:OMPOK)?([1-9])/i)[1]) : null,
           roomCode: code,
           roomName: p.roomName || `Kelompok ${code}`,
-          members: [],
+          ownerId: null,
+          ownerName: '',
+          isActive: true,
+          members,
         });
       }
-      groupsMap.get(code).members.push(p);
     });
-    return Array.from(groupsMap.values());
-  }, [allOnlinePlayers]);
+
+    return list.sort((a, b) => (a.slot || 99) - (b.slot || 99));
+  }, [dbGroupList, allOnlinePlayers]);
 
   // Get master student list for the currently active class only
   const classStudents = useMemo(() => {
@@ -458,6 +843,18 @@ export default function AdminPanel({
             <Sliders className="w-3.5 h-3.5" />
             <span>Pilih Kelas Aktif</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('servers')}
+            className={`px-3 py-1.5 text-xs font-bold rounded-t flex items-center gap-1.5 transition-all whitespace-nowrap ${
+              activeTab === 'servers'
+                ? 'pixel-btn-gold text-amber-950 font-black'
+                : 'text-amber-300/80 hover:text-amber-100 hover:bg-amber-950/40'
+            }`}
+          >
+            <Server className="w-3.5 h-3.5 text-amber-400" />
+            <span>Atur Server</span>
+          </button>
         </div>
 
         {/* Body Content */}
@@ -468,27 +865,77 @@ export default function AdminPanel({
              ======================================================== */}
           {activeTab === 'groups' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              {/* Header stats & Action buttons */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[#5c3416] pb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-amber-200">Daftar Kelompok yang Sedang Aktif</h3>
+                  <h3 className="text-sm font-bold text-amber-200">Manajemen Kelompok (Admin)</h3>
                   <p className="text-[11px] text-amber-400/70">
-                    Siswa terbagi dalam beberapa room kode kelompok di dalam kelas virtual.
+                    Edit nama, slot, ketua, keluarkan siswa, atau hapus kelompok yang ada di server.
                   </p>
                 </div>
-                <div className="pixel-box-inset px-2.5 py-1 text-xs text-amber-300 font-mono">
-                  {allOnlinePlayers.length} Siswa Terhubung
+                <div className="flex items-center gap-2 flex-wrap">
+                  {serverList.length > 1 && (
+                    <select
+                      value={selectedGroupServerId || ''}
+                      onChange={(e) => setSelectedGroupServerId(e.target.value || null)}
+                      className="pixel-box-inset px-2.5 py-1 text-xs text-amber-200 bg-[#1f0d03] focus:outline-none"
+                    >
+                      <option value="">Semua Server</option>
+                      {serverList.map((srv) => (
+                        <option key={srv.id} value={srv.id}>{srv.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  <button
+                    onClick={() => {
+                      setNewGroupSlot(1);
+                      setNewGroupName('');
+                      setNewGroupOwnerName('');
+                      setCreateGroupError('');
+                      setShowCreateGroupModal(true);
+                    }}
+                    className="pixel-btn-gold px-2.5 py-1 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 text-amber-950 shadow"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Buat Kelompok</span>
+                  </button>
+                  <button
+                    onClick={loadDbGroupList}
+                    className="pixel-btn-silver px-2.5 py-1 text-xs text-amber-300 hover:text-white flex items-center gap-1"
+                    title="Muat Ulang Data Kelompok"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingGroups ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
                 </div>
               </div>
 
-              {activeGroups.length === 0 ? (
-                <div className="pixel-box-inset p-8 text-center text-amber-400/60 text-xs">
-                  Belum ada kelompok atau siswa yang terhubung ke kelas saat ini.
+              {loadingGroups ? (
+                <div className="pixel-box-inset p-8 text-center text-amber-400 text-xs">
+                  Memuat data kelompok...
+                </div>
+              ) : activeGroups.length === 0 ? (
+                <div className="pixel-box-inset p-8 text-center text-amber-400/60 text-xs space-y-2">
+                  <p>Belum ada kelompok yang terdaftar atau aktif saat ini.</p>
+                  <button
+                    onClick={() => {
+                      setNewGroupSlot(1);
+                      setNewGroupName('Kelompok 1');
+                      setNewGroupOwnerName('');
+                      setCreateGroupError('');
+                      setShowCreateGroupModal(true);
+                    }}
+                    className="pixel-btn-gold px-3 py-1.5 text-xs text-amber-950 font-bold uppercase inline-flex items-center gap-1.5 mt-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Buat Kelompok Pertama</span>
+                  </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   {activeGroups.map((group) => {
                     return (
-                      <div key={group.roomCode} className="pixel-box-inset p-3.5 flex flex-col justify-between">
+                      <div key={group.id || group.roomCode} className="pixel-box-inset p-3.5 flex flex-col justify-between border hover:border-amber-500/70 transition-all">
                         <div>
                           {/* Group Header */}
                           <div className="flex items-center justify-between border-b border-[#5c3416] pb-2 mb-2.5">
@@ -499,174 +946,395 @@ export default function AdminPanel({
                                 className="w-4 h-4 image-rendering-pixelated shrink-0" 
                               />
                               <div className="truncate">
-                                <h4 className="text-xs font-bold text-amber-200 truncate">
-                                  {group.roomName}
-                                </h4>
-                                <span className="text-[10px] font-mono text-amber-400/80">
-                                  Kode Team: <strong className="text-amber-300 font-bold">{group.roomCode}</strong>
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <h4 className="text-xs font-bold text-amber-200 truncate">
+                                    {group.roomName}
+                                  </h4>
+                                  {group.slot && (
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded font-mono bg-amber-950 text-amber-300 border border-amber-700/60">
+                                      Slot {group.slot}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[10px] text-amber-400/80 font-mono mt-0.5">
+                                  <span>Kode: <strong className="text-amber-300">{group.roomCode}</strong></span>
+                                  {group.ownerName && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="truncate">Ketua: <strong className="text-amber-200">{group.ownerName}</strong></span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                            <span className="pixel-btn-wood text-[10px] px-2 py-0.5 font-bold font-mono shrink-0">
-                              {group.members.length} Anggota
-                            </span>
+
+                            {/* Group Header Action Buttons */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="pixel-btn-wood text-[10px] px-1.5 py-0.5 font-bold font-mono">
+                                {group.members.length}/4
+                              </span>
+                              {group.id && (
+                                <>
+                                  <button
+                                    onClick={() => handleOpenEditGroup(group)}
+                                    className="pixel-btn-wood text-[10px] p-1 text-amber-300 hover:text-white"
+                                    title="Edit Nama / Slot / Ketua Kelompok"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteGroup(group)}
+                                    className="pixel-btn-wood text-[10px] p-1 text-red-400 hover:text-red-100 hover:bg-red-950/80"
+                                    title="Hapus Kelompok (Kosongkan Slot & Anggota)"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
 
                           {/* Member List */}
-                          <div className="space-y-1.5">
-                            {group.members.map((member) => {
-                              const isSpotlighted = spotlightPlayer && (spotlightPlayer.id === member.id);
-                              const sub = findSubmissionForStudent(member);
-                              const isCurrentPresenter = designatedPresenter && (
-                                designatedPresenter.id === member.id ||
-                                (member.attendanceNo && designatedPresenter.attendanceNo === String(member.attendanceNo)) ||
-                                (designatedPresenter.username && designatedPresenter.username === (member.username || member.fullName))
-                              );
+                          {group.members.length === 0 ? (
+                            <div className="p-3 text-center text-[11px] text-amber-500/60 italic bg-black/20 rounded">
+                              Belum ada anggota terdaftar. Slot kelompok tersedia.
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {group.members.map((member) => {
+                                const isSpotlighted = spotlightPlayer && (spotlightPlayer.id === member.id);
+                                const sub = findSubmissionForStudent(member);
+                                const isCurrentPresenter = designatedPresenter && (
+                                  designatedPresenter.id === member.id ||
+                                  (member.attendanceNo && designatedPresenter.attendanceNo === String(member.attendanceNo)) ||
+                                  (designatedPresenter.username && designatedPresenter.username === (member.username || member.fullName))
+                                );
 
-                              return (
-                                <div
-                                  key={member.id}
-                                  className={`flex items-center justify-between p-1.5 rounded transition-all ${
-                                    isCurrentPresenter
-                                      ? 'bg-amber-950/80 border border-amber-400 ring-1 ring-amber-400'
-                                      : isSpotlighted 
-                                      ? 'bg-amber-900/60 border border-amber-400 ring-1 ring-amber-400' 
-                                      : 'bg-black/40 hover:bg-black/60'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                                    {/* Ping badge */}
-                                    {pingMap[member.id] != null && (
-                                      <span className={`text-[9px] font-mono font-bold px-1 rounded shrink-0 ${
-                                        pingMap[member.id] < 100
-                                          ? 'text-emerald-400 bg-emerald-950/60'
-                                          : pingMap[member.id] < 300
-                                          ? 'text-amber-400 bg-amber-950/60'
-                                          : 'text-red-400 bg-red-950/60'
-                                      }`}>
-                                        {pingMap[member.id]}ms
-                                      </span>
-                                    )}
-                                    <span className="text-[10px] font-mono text-amber-300 font-bold shrink-0">
-                                      #{member.attendanceNo || '-'}
-                                    </span>
-                                    <div className="flex flex-col min-w-0">
-                                      <div className="flex items-center gap-1.5 truncate">
-                                        <span className="text-xs font-bold text-slate-100 truncate">
-                                          {member.fullName || member.username || 'Siswa'}
+                                return (
+                                  <div
+                                    key={member.id || member.playerId}
+                                    className={`flex items-center justify-between p-1.5 rounded transition-all ${
+                                      isCurrentPresenter
+                                        ? 'bg-amber-950/80 border border-amber-400 ring-1 ring-amber-400'
+                                        : isSpotlighted 
+                                        ? 'bg-amber-900/60 border border-amber-400 ring-1 ring-amber-400' 
+                                        : 'bg-black/40 hover:bg-black/60'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span 
+                                        className={`w-2 h-2 rounded-full shrink-0 ${member.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-stone-600'}`} 
+                                        title={member.isOnline ? 'Online di Game' : 'Offline'}
+                                      />
+                                      {pingMap[member.id] != null && (
+                                        <span className={`text-[9px] font-mono font-bold px-1 rounded shrink-0 ${
+                                          pingMap[member.id] < 100
+                                            ? 'text-emerald-400 bg-emerald-950/60'
+                                            : pingMap[member.id] < 300
+                                            ? 'text-amber-400 bg-amber-950/60'
+                                            : 'text-red-400 bg-red-950/60'
+                                        }`}>
+                                          {pingMap[member.id]}ms
                                         </span>
-                                        {member.username && member.fullName && member.username !== member.fullName && (
-                                          <span className="text-[10px] text-amber-400/70 font-mono">
-                                            (@{member.username})
+                                      )}
+                                      <span className="text-[10px] font-mono text-amber-300 font-bold shrink-0">
+                                        #{member.attendanceNo || '-'}
+                                      </span>
+                                      <div className="flex flex-col min-w-0">
+                                        <div className="flex items-center gap-1.5 truncate">
+                                          <span className="text-xs font-bold text-slate-100 truncate">
+                                            {member.fullName || member.username || 'Siswa'}
                                           </span>
-                                        )}
-                                        {member.isAdmin && (
-                                          <span className="text-[8px] bg-amber-950 text-amber-400 px-1 rounded font-bold border border-amber-800">
-                                            Admin
-                                          </span>
-                                        )}
-                                        {isCurrentPresenter && (
-                                          <span className="text-[8px] bg-amber-400 text-amber-950 px-1 rounded font-black border border-amber-300 animate-pulse">
-                                            Presenter
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div className="flex items-center gap-2 text-[9px] font-mono">
-                                        {member.studentClass && (
-                                          <span className="text-amber-400/60">
-                                            Kelas: {member.studentClass}
-                                          </span>
-                                        )}
-                                        {sub ? (
-                                          <span className="text-emerald-400 font-bold flex items-center gap-0.5">
-                                            <BookOpen className="w-2.5 h-2.5 text-emerald-400" />
-                                            <span>Rak: {sub.platform || 'Siap'}</span>
-                                          </span>
-                                        ) : (
-                                          <span className="text-amber-700/80">
-                                            Rak: Belum Setor
-                                          </span>
-                                        )}
+                                          {member.isOwner && (
+                                            <span className="text-[8px] bg-amber-900/90 text-amber-300 px-1 rounded font-bold border border-amber-600/60">
+                                              Ketua
+                                            </span>
+                                          )}
+                                          {member.isAdmin && (
+                                            <span className="text-[8px] bg-amber-950 text-amber-400 px-1 rounded font-bold border border-amber-800">
+                                              Admin
+                                            </span>
+                                          )}
+                                          {isCurrentPresenter && (
+                                            <span className="text-[8px] bg-amber-400 text-amber-950 px-1 rounded font-black border border-amber-300 animate-pulse">
+                                              Presenter
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[9px] font-mono">
+                                          {member.studentClass && (
+                                            <span className="text-amber-400/60">
+                                              Kelas: {member.studentClass}
+                                            </span>
+                                          )}
+                                          {sub ? (
+                                            <span className="text-emerald-400 font-bold flex items-center gap-0.5">
+                                              <BookOpen className="w-2.5 h-2.5 text-emerald-400" />
+                                              <span>Rak: {sub.platform || 'Siap'}</span>
+                                            </span>
+                                          ) : (
+                                            <span className="text-amber-700/80">
+                                              Rak: Belum Setor
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
 
-                                  <div className="flex items-center gap-1 shrink-0 ml-2">
-                                    {/* Designate Presenter Button */}
-                                    {isCurrentPresenter ? (
-                                      <button
-                                        onClick={handleRevokeStudentPresenter}
-                                        className="pixel-btn-silver text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 text-red-300 hover:text-white"
-                                        title="Cabut Akses Presenter Siswa Ini"
-                                      >
-                                        <X className="w-3 h-3" />
-                                        <span>Lepas Pres.</span>
-                                      </button>
-                                    ) : (
-                                      <button
-                                        onClick={() => handleAssignStudentPresenter({
-                                          ...member,
-                                          roomCode: group.roomCode,
-                                        })}
-                                        className={`text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 ${
-                                          sub 
-                                            ? 'pixel-btn-gold text-amber-950 shadow-sm' 
-                                            : 'pixel-btn-wood text-amber-400/80 hover:text-amber-200'
-                                        }`}
-                                        title={sub 
-                                          ? `Tunjuk ${member.fullName || member.username} sebagai presenter (${sub.platform || 'Game'} siap)`
-                                          : 'Siswa belum menyetor karya di rak buku. Tetap klik untuk memeriksa.'
-                                        }
-                                      >
-                                        <PresentationIcon className="w-3 h-3 text-amber-500" />
-                                        <span>Presenter</span>
-                                      </button>
-                                    )}
-
-                                    {/* Spotlight Button */}
-                                    <button
-                                      onClick={() => {
-                                        if (isSpotlighted) {
-                                          onSetSpotlight(null);
-                                        } else {
-                                          onSetSpotlight({
-                                            id: member.id,
-                                            username: member.username,
-                                            fullName: member.fullName,
-                                            attendanceNo: member.attendanceNo,
-                                            roomCode: group.roomCode,
-                                          });
-                                        }
-                                      }}
-                                      className={`text-[9px] px-2 py-0.5 font-bold flex items-center gap-1 ${
-                                        isSpotlighted 
-                                          ? 'pixel-btn-wood text-amber-300' 
-                                          : 'pixel-btn-wood text-amber-200'
-                                      }`}
-                                      title={isSpotlighted ? 'Matikan Sorotan' : 'Sorot Siswa Ini'}
-                                    >
-                                      {isSpotlighted ? (
-                                        <>
-                                          <EyeOff className="w-3 h-3" />
-                                          <span>Unspot</span>
-                                        </>
+                                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                                      {/* Designate Presenter Button */}
+                                      {isCurrentPresenter ? (
+                                        <button
+                                          onClick={handleRevokeStudentPresenter}
+                                          className="pixel-btn-silver text-[9px] px-1.5 py-0.5 font-bold flex items-center gap-1 text-red-300 hover:text-white"
+                                          title="Cabut Akses Presenter Siswa Ini"
+                                        >
+                                          <X className="w-3 h-3" />
+                                          <span>Lepas</span>
+                                        </button>
                                       ) : (
-                                        <>
-                                          <Eye className="w-3 h-3" />
-                                          <span>Spot</span>
-                                        </>
+                                        <button
+                                          onClick={() => handleAssignStudentPresenter({
+                                            ...member,
+                                            roomCode: group.roomCode,
+                                          })}
+                                          className={`text-[9px] px-1.5 py-0.5 font-bold flex items-center gap-1 ${
+                                            sub 
+                                              ? 'pixel-btn-gold text-amber-950 shadow-sm' 
+                                              : 'pixel-btn-wood text-amber-400/80 hover:text-amber-200'
+                                          }`}
+                                          title="Tunjuk sebagai presenter"
+                                        >
+                                          <PresentationIcon className="w-3 h-3 text-amber-500" />
+                                          <span>Pres</span>
+                                        </button>
                                       )}
-                                    </button>
+
+                                      {/* Spotlight Button */}
+                                      <button
+                                        onClick={() => {
+                                          if (isSpotlighted) {
+                                            onSetSpotlight(null);
+                                          } else {
+                                            onSetSpotlight({
+                                              id: member.id,
+                                              username: member.username,
+                                              fullName: member.fullName,
+                                              attendanceNo: member.attendanceNo,
+                                              roomCode: group.roomCode,
+                                            });
+                                          }
+                                        }}
+                                        className={`text-[9px] px-1.5 py-0.5 font-bold flex items-center gap-1 ${
+                                          isSpotlighted 
+                                            ? 'pixel-btn-wood text-amber-300' 
+                                            : 'pixel-btn-wood text-amber-200'
+                                        }`}
+                                        title={isSpotlighted ? 'Matikan Sorotan' : 'Sorot Siswa Ini'}
+                                      >
+                                        {isSpotlighted ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                      </button>
+
+                                      {/* Kick Member from Group Button (Admin) */}
+                                      {group.id && (
+                                        <button
+                                          onClick={() => handleKickMemberFromGroup(group.id, member)}
+                                          className="pixel-btn-wood text-[9px] px-1.5 py-0.5 text-red-400 hover:text-red-100 hover:bg-red-950/80"
+                                          title={`Keluarkan ${member.fullName || member.username} dari kelompok`}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Modal Edit Kelompok */}
+              {editingGroup && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                  <div className="max-w-sm w-full pixel-panel-wood p-5 space-y-3.5 border-2 border-amber-500/80">
+                    <div className="flex items-center justify-between border-b border-[#5c3416] pb-2">
+                      <div className="flex items-center gap-2">
+                        <Edit3 className="w-4 h-4 text-amber-400" />
+                        <h4 className="text-sm font-bold text-amber-200">Edit Kelompok</h4>
+                      </div>
+                      <button
+                        onClick={() => setEditingGroup(null)}
+                        className="text-amber-400 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSaveEditGroup} className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-1">
+                          Slot Kelompok (1-9)
+                        </label>
+                        <select
+                          value={groupFormSlot}
+                          onChange={(e) => {
+                            setGroupFormSlot(Number(e.target.value));
+                            if (!groupFormName || groupFormName.startsWith('Kelompok ')) {
+                              setGroupFormName(`Kelompok ${e.target.value}`);
+                            }
+                          }}
+                          className="w-full pixel-box-inset px-3 py-1.5 text-xs text-amber-200 bg-[#1c0d05] focus:outline-none"
+                        >
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                            <option key={num} value={num}>Slot {num} (KEL{num})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-1">
+                          Nama Kelompok
+                        </label>
+                        <input
+                          type="text"
+                          value={groupFormName}
+                          onChange={(e) => setGroupFormName(e.target.value)}
+                          placeholder="Contoh: Kelompok 1 - Tim Garuda"
+                          className="w-full pixel-box-inset px-3 py-1.5 text-xs text-amber-200 bg-[#1c0d05] focus:outline-none"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-1">
+                          Nama Ketua / Owner
+                        </label>
+                        <input
+                          type="text"
+                          value={groupFormOwnerName}
+                          onChange={(e) => setGroupFormOwnerName(e.target.value)}
+                          placeholder="Nama Ketua Kelompok"
+                          className="w-full pixel-box-inset px-3 py-1.5 text-xs text-amber-200 bg-[#1c0d05] focus:outline-none"
+                        />
+                      </div>
+
+                      {groupFormError && (
+                        <p className="text-[11px] text-red-400 font-bold">{groupFormError}</p>
+                      )}
+
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingGroup(null)}
+                          className="flex-1 pixel-btn-silver py-1.5 text-xs font-bold uppercase"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={groupFormLoading}
+                          className="flex-1 pixel-btn-gold py-1.5 text-xs font-bold uppercase text-amber-950 disabled:opacity-50"
+                        >
+                          {groupFormLoading ? 'Menyimpan...' : 'Simpan'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Buat Kelompok Baru oleh Admin */}
+              {showCreateGroupModal && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                  <div className="max-w-sm w-full pixel-panel-wood p-5 space-y-3.5 border-2 border-amber-500/80">
+                    <div className="flex items-center justify-between border-b border-[#5c3416] pb-2">
+                      <div className="flex items-center gap-2">
+                        <Plus className="w-4 h-4 text-amber-400" />
+                        <h4 className="text-sm font-bold text-amber-200">Buat Kelompok Baru</h4>
+                      </div>
+                      <button
+                        onClick={() => setShowCreateGroupModal(false)}
+                        className="text-amber-400 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleCreateGroupSubmit} className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-1">
+                          Slot Kelompok
+                        </label>
+                        <select
+                          value={newGroupSlot}
+                          onChange={(e) => {
+                            setNewGroupSlot(Number(e.target.value));
+                            if (!newGroupName || newGroupName.startsWith('Kelompok ')) {
+                              setNewGroupName(`Kelompok ${e.target.value}`);
+                            }
+                          }}
+                          className="w-full pixel-box-inset px-3 py-1.5 text-xs text-amber-200 bg-[#1c0d05] focus:outline-none"
+                        >
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                            <option key={num} value={num}>Slot {num} (KEL{num})</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-1">
+                          Nama Kelompok
+                        </label>
+                        <input
+                          type="text"
+                          value={newGroupName}
+                          onChange={(e) => setNewGroupName(e.target.value)}
+                          placeholder={`Kelompok ${newGroupSlot}`}
+                          className="w-full pixel-box-inset px-3 py-1.5 text-xs text-amber-200 bg-[#1c0d05] focus:outline-none"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-1">
+                          Nama Ketua / Owner (Opsional)
+                        </label>
+                        <input
+                          type="text"
+                          value={newGroupOwnerName}
+                          onChange={(e) => setNewGroupOwnerName(e.target.value)}
+                          placeholder="Admin / Pengajar"
+                          className="w-full pixel-box-inset px-3 py-1.5 text-xs text-amber-200 bg-[#1c0d05] focus:outline-none"
+                        />
+                      </div>
+
+                      {createGroupError && (
+                        <p className="text-[11px] text-red-400 font-bold">{createGroupError}</p>
+                      )}
+
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowCreateGroupModal(false)}
+                          className="flex-1 pixel-btn-silver py-1.5 text-xs font-bold uppercase"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={createGroupLoading}
+                          className="flex-1 pixel-btn-gold py-1.5 text-xs font-bold uppercase text-amber-950 disabled:opacity-50"
+                        >
+                          {createGroupLoading ? 'Membuat...' : 'Buat Kelompok'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               )}
             </div>
@@ -1486,6 +2154,475 @@ export default function AdminPanel({
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* ========================================================
+              TAB 6: ATUR SERVER (CRUD SERVER VIRTUAL & MODE)
+             ======================================================== */}
+          {activeTab === 'servers' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-amber-200 flex items-center gap-2">
+                    <Server className="w-4 h-4 text-amber-400" />
+                    <span>Daftar Server Virtual ({serverList.length})</span>
+                  </h3>
+                  <p className="text-[11px] text-amber-400/70">
+                    Kelola server aktif dan mode profil siswa (Kelas Terdaftar atau Mode Bebas).
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={loadServerList}
+                    disabled={loadingServers}
+                    className="pixel-btn-silver py-1 px-2.5 text-[10px] flex items-center gap-1"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loadingServers ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingServer(null);
+                      setServerFormName('');
+                      setServerFormDesc('');
+                      setServerFormMode('class');
+                      setServerFormClass(activeClass || 'XI PPLG-B');
+                      setServerFormUsePin(false);
+                      setServerFormPin('');
+                      setServerFormError('');
+                      setShowServerForm(true);
+                    }}
+                    className="pixel-btn-gold py-1 px-3 text-[10px] flex items-center gap-1 font-bold"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Buat Server Baru</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* ========================================================
+                  KARTU PENGATURAN TARGET 6 RAK BUKU PERPUSTAKAAN
+                 ======================================================== */}
+              <div className="pixel-panel-wood p-4 border-2 border-amber-600/70 bg-[#170a03] space-y-3">
+                <div className="flex items-center justify-between border-b border-[#5c3416] pb-2 flex-wrap gap-2">
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black text-amber-200 uppercase flex items-center gap-1.5">
+                      <BookOpen className="w-4 h-4 text-amber-400" />
+                      <span>Pengaturan Target 6 Rak Buku Perpustakaan</span>
+                    </h4>
+                    <p className="text-[10px] text-amber-400/80">
+                      Tentukan server / kelas yang ditampilkan pada masing-masing rak buku (Rak 1 s/d Rak 6).
+                    </p>
+                  </div>
+                  {bookshelfConfigSavedNotice && (
+                    <span className="text-[11px] text-emerald-400 font-bold animate-in fade-in flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{bookshelfConfigSavedNotice}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {/* KOLOM KIRI: SISI BARAT (RAK 1, 2, 3) */}
+                  <div className="space-y-2">
+                    <div className="text-[11px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-amber-900/60 pb-1">
+                      <Layers className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Sisi Barat (Kiri Kelas) - Rak 1, 2, 3</span>
+                    </div>
+
+                    {[
+                      { id: 'shelf-w1', num: 1, name: 'Rak 1 (Barat Atas)' },
+                      { id: 'shelf-w2', num: 2, name: 'Rak 2 (Barat Tengah)' },
+                      { id: 'shelf-w3', num: 3, name: 'Rak 3 (Barat Bawah)' },
+                    ].map((shelf) => {
+                      const currentCfg = sixShelves[shelf.id] || INITIAL_6_SHELVES[shelf.id];
+                      return (
+                        <div key={shelf.id} className="pixel-box-inset p-2.5 bg-[#110602] border border-[#5c3416] space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-amber-200">
+                              {shelf.name}
+                            </span>
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-950/80 text-amber-300 border border-amber-700/50">
+                              Aktif: {currentCfg.label || currentCfg.targetClass}
+                            </span>
+                          </div>
+                          <select
+                            value={currentCfg.targetClass || 'XI PPLG-A'}
+                            onChange={(e) => handleUpdateShelfTarget(shelf.id, e.target.value)}
+                            className="w-full pixel-box-inset px-2.5 py-1.5 text-xs text-amber-100 bg-[#1f0d03] focus:outline-none border border-amber-700/60"
+                          >
+                            <optgroup label="Server Virtual Aktif">
+                              {serverList.map((srv) => (
+                                <option key={srv.id} value={srv.active_class || srv.name}>
+                                  {srv.name} ({srv.active_class || 'Mode Bebas'})
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Pilihan Kelas Standar">
+                              {AVAILABLE_CLASSES.map((cls) => (
+                                <option key={cls} value={cls}>Kelas {cls}</option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Lainnya">
+                              <option value="ALL">Semua Server / Semua Kelas</option>
+                            </optgroup>
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* KOLOM KANAN: SISI TIMUR (RAK 4, 5, 6) */}
+                  <div className="space-y-2">
+                    <div className="text-[11px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-amber-900/60 pb-1">
+                      <Layers className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Sisi Timur (Kanan Kelas) - Rak 4, 5, 6</span>
+                    </div>
+
+                    {[
+                      { id: 'shelf-e1', num: 4, name: 'Rak 4 (Timur Atas)' },
+                      { id: 'shelf-e2', num: 5, name: 'Rak 5 (Timur Tengah)' },
+                      { id: 'shelf-e3', num: 6, name: 'Rak 6 (Timur Bawah)' },
+                    ].map((shelf) => {
+                      const currentCfg = sixShelves[shelf.id] || INITIAL_6_SHELVES[shelf.id];
+                      return (
+                        <div key={shelf.id} className="pixel-box-inset p-2.5 bg-[#110602] border border-[#5c3416] space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-amber-200">
+                              {shelf.name}
+                            </span>
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-950/80 text-amber-300 border border-amber-700/50">
+                              Aktif: {currentCfg.label || currentCfg.targetClass}
+                            </span>
+                          </div>
+                          <select
+                            value={currentCfg.targetClass || 'XI PPLG-B'}
+                            onChange={(e) => handleUpdateShelfTarget(shelf.id, e.target.value)}
+                            className="w-full pixel-box-inset px-2.5 py-1.5 text-xs text-amber-100 bg-[#1f0d03] focus:outline-none border border-amber-700/60"
+                          >
+                            <optgroup label="Server Virtual Aktif">
+                              {serverList.map((srv) => (
+                                <option key={srv.id} value={srv.active_class || srv.name}>
+                                  {srv.name} ({srv.active_class || 'Mode Bebas'})
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Pilihan Kelas Standar">
+                              {AVAILABLE_CLASSES.map((cls) => (
+                                <option key={cls} value={cls}>Kelas {cls}</option>
+                              ))}
+                            </optgroup>
+                            <optgroup label="Lainnya">
+                              <option value="ALL">Semua Server / Semua Kelas</option>
+                            </optgroup>
+                          </select>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Preset & Action Buttons */}
+                <div className="flex items-center justify-between pt-2 border-t border-[#5c3416] flex-wrap gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSixShelves({
+                          'shelf-w1': { id: 'shelf-w1', num: 1, name: 'Rak 1 (Barat Atas)', targetClass: 'XI PPLG-A', label: 'Server XI PPLG A' },
+                          'shelf-w2': { id: 'shelf-w2', num: 2, name: 'Rak 2 (Barat Tengah)', targetClass: 'XI PPLG-A', label: 'Server XI PPLG A' },
+                          'shelf-w3': { id: 'shelf-w3', num: 3, name: 'Rak 3 (Barat Bawah)', targetClass: 'ALL', label: 'Semua Server' },
+                          'shelf-e1': { id: 'shelf-e1', num: 4, name: 'Rak 4 (Timur Atas)', targetClass: 'XI PPLG-B', label: 'Server XI PPLG B' },
+                          'shelf-e2': { id: 'shelf-e2', num: 5, name: 'Rak 5 (Timur Tengah)', targetClass: 'XI PPLG-B', label: 'Server XI PPLG B' },
+                          'shelf-e3': { id: 'shelf-e3', num: 6, name: 'Rak 6 (Timur Bawah)', targetClass: 'ALL', label: 'Semua Server' },
+                        });
+                      }}
+                      className="text-[10px] pixel-btn-wood px-2 py-1 text-amber-300 hover:text-white"
+                    >
+                      Preset Standar (Barat A, Timur B)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = {};
+                        ['shelf-w1', 'shelf-w2', 'shelf-w3', 'shelf-e1', 'shelf-e2', 'shelf-e3'].forEach((id) => {
+                          updated[id] = { ...(sixShelves[id] || INITIAL_6_SHELVES[id]), targetClass: 'ALL', label: 'Semua Server' };
+                        });
+                        setSixShelves(updated);
+                      }}
+                      className="text-[10px] pixel-btn-wood px-2 py-1 text-amber-300 hover:text-white"
+                    >
+                      Semua Rak: Semua Server
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSixShelves(prev => ({
+                          'shelf-w1': { ...prev['shelf-w1'], targetClass: prev['shelf-e1']?.targetClass, label: prev['shelf-e1']?.label },
+                          'shelf-w2': { ...prev['shelf-w2'], targetClass: prev['shelf-e2']?.targetClass, label: prev['shelf-e2']?.label },
+                          'shelf-w3': { ...prev['shelf-w3'], targetClass: prev['shelf-e3']?.targetClass, label: prev['shelf-e3']?.label },
+                          'shelf-e1': { ...prev['shelf-e1'], targetClass: prev['shelf-w1']?.targetClass, label: prev['shelf-w1']?.label },
+                          'shelf-e2': { ...prev['shelf-e2'], targetClass: prev['shelf-w2']?.targetClass, label: prev['shelf-w2']?.label },
+                          'shelf-e3': { ...prev['shelf-e3'], targetClass: prev['shelf-w3']?.targetClass, label: prev['shelf-w3']?.label },
+                        }));
+                      }}
+                      className="text-[10px] pixel-btn-wood px-2 py-1 text-amber-300 hover:text-white"
+                    >
+                      Tukar Barat &amp; Timur
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveAll6Shelves}
+                    className="pixel-btn-gold px-4 py-2 text-xs font-bold text-amber-950 flex items-center gap-1.5 hover:scale-102 transition-transform"
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Simpan &amp; Terapkan 6 Rak Buku</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Tambah/Edit Server */}
+              {showServerForm && (
+                <div className="pixel-panel-wood p-4 space-y-3 border-2 border-amber-500/80">
+                  <h4 className="text-xs font-bold text-amber-200 uppercase">
+                    {editingServer ? 'Edit Pengaturan Server' : 'Buat Server Baru'}
+                  </h4>
+                  <form onSubmit={handleServerFormSubmit} className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-amber-300 mb-1 uppercase">Nama Server *</label>
+                      <input
+                        type="text"
+                        value={serverFormName}
+                        onChange={(e) => setServerFormName(e.target.value)}
+                        placeholder="Contoh: Server Kelas X PPLG A"
+                        className="w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-amber-300 mb-1 uppercase">Deskripsi</label>
+                      <input
+                        type="text"
+                        value={serverFormDesc}
+                        onChange={(e) => setServerFormDesc(e.target.value)}
+                        placeholder="Keterangan singkat..."
+                        className="w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 placeholder-amber-700/60 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-amber-300 mb-1 uppercase">Mode Profil Siswa</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setServerFormMode('class')}
+                          className={`p-2 text-xs font-bold rounded border transition-all ${
+                            serverFormMode === 'class'
+                              ? 'border-amber-400 bg-amber-900/60 text-amber-200'
+                              : 'border-amber-800/40 text-amber-500 hover:border-amber-600'
+                          }`}
+                        >
+                          Kelas (Daftar Siswa)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setServerFormMode('free')}
+                          className={`p-2 text-xs font-bold rounded border transition-all ${
+                            serverFormMode === 'free'
+                              ? 'border-amber-400 bg-amber-900/60 text-amber-200'
+                              : 'border-amber-800/40 text-amber-500 hover:border-amber-600'
+                          }`}
+                        >
+                          Bebas (Input Manual)
+                        </button>
+                      </div>
+                    </div>
+
+                    {serverFormMode === 'class' && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-amber-300 mb-1 uppercase">Kelas Aktif</label>
+                        <select
+                          value={serverFormClass}
+                          onChange={(e) => setServerFormClass(e.target.value)}
+                          className="w-full pixel-box-inset px-3 py-2 text-xs text-amber-100 bg-[#1f0d03] focus:outline-none"
+                        >
+                          {AVAILABLE_CLASSES.map((cls) => (
+                            <option key={cls} value={cls}>{cls}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Opsi PIN Server */}
+                    <div>
+                      <label className="block text-[10px] font-bold text-amber-300 mb-1 uppercase">Keamanan Akses Siswa</label>
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <button
+                          type="button"
+                          onClick={() => { setServerFormUsePin(false); setServerFormPin(''); }}
+                          className={`p-2 text-xs font-bold rounded border transition-all flex items-center justify-center gap-1.5 ${
+                            !serverFormUsePin
+                              ? 'border-emerald-500 bg-emerald-950/60 text-emerald-300'
+                              : 'border-amber-800/40 text-amber-500 hover:border-amber-600'
+                          }`}
+                        >
+                          <Unlock className="w-3.5 h-3.5" />
+                          <span>Tanpa PIN</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setServerFormUsePin(true)}
+                          className={`p-2 text-xs font-bold rounded border transition-all flex items-center justify-center gap-1.5 ${
+                            serverFormUsePin
+                              ? 'border-amber-400 bg-amber-900/60 text-amber-200'
+                              : 'border-amber-800/40 text-amber-500 hover:border-amber-600'
+                          }`}
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Pakai PIN</span>
+                        </button>
+                      </div>
+                      {serverFormUsePin && (
+                        <div>
+                          <input
+                            type="text"
+                            maxLength={12}
+                            value={serverFormPin}
+                            onChange={(e) => setServerFormPin(e.target.value)}
+                            placeholder="Ketik PIN server (misal: 1234 atau KELASXI)"
+                            className="w-full pixel-box-inset px-3 py-2 text-xs font-mono tracking-wider text-amber-200 placeholder-amber-700/60 focus:outline-none"
+                          />
+                          <p className="text-[9px] text-amber-400/80 mt-1">
+                            Siswa wajib memasukkan PIN ini sebelum bisa memilih kelas/profil dan masuk ke server.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {serverFormError && <p className="text-[11px] text-red-400 font-bold">{serverFormError}</p>}
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="submit"
+                        disabled={serverFormLoading}
+                        className="flex-1 pixel-btn-gold py-2 text-xs font-bold uppercase"
+                      >
+                        {serverFormLoading ? 'Menyimpan...' : editingServer ? 'Simpan Perubahan' : 'Buat Server'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowServerForm(false); setEditingServer(null); }}
+                        className="pixel-btn-silver py-2 px-4 text-xs font-bold uppercase"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Daftar Server */}
+              {loadingServers ? (
+                <div className="text-center text-amber-500 text-xs py-8">Memuat daftar server...</div>
+              ) : serverList.length === 0 ? (
+                <div className="pixel-box-inset p-6 text-center space-y-2">
+                  <p className="text-amber-400 text-xs font-bold">Belum ada server virtual.</p>
+                  <p className="text-[10px] text-amber-500/70">Klik "Buat Server Baru" untuk menambahkan server.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {serverList.map((srv) => (
+                    <div
+                      key={srv.id}
+                      className={`pixel-box-inset p-3.5 flex items-center justify-between gap-3 bg-[#140802] ${
+                        !srv.is_active ? 'opacity-50' : ''
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`w-2 h-2 rounded-full shrink-0 ${srv.is_active ? 'bg-emerald-400 animate-pulse' : 'bg-stone-600'}`} />
+                          <span className="text-xs font-bold text-amber-200 truncate">{srv.name}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono border shrink-0 ${
+                            srv.mode === 'class'
+                              ? 'bg-blue-950/60 text-blue-300 border-blue-800/50'
+                              : 'bg-purple-950/60 text-purple-300 border-purple-800/50'
+                          }`}>
+                            {srv.mode === 'class' ? srv.active_class || 'Kelas' : 'Mode Bebas'}
+                          </span>
+                          {srv.pin ? (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono border shrink-0 bg-amber-950/70 text-amber-300 border-amber-600/60 flex items-center gap-1" title={`PIN: ${srv.pin}`}>
+                              <Lock className="w-2.5 h-2.5 text-amber-400" />
+                              <span>PIN: {srv.pin}</span>
+                            </span>
+                          ) : (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded font-mono border shrink-0 bg-stone-900/60 text-stone-400 border-stone-700/50 flex items-center gap-1">
+                              <Unlock className="w-2.5 h-2.5 text-stone-500" />
+                              <span>Tanpa PIN</span>
+                            </span>
+                          )}
+                        </div>
+                        {srv.description && (
+                          <div className="text-[10px] text-amber-400/70 mt-0.5">{srv.description}</div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleServerActive(srv)}
+                          className={`py-1 px-2 text-[10px] font-mono rounded border flex items-center gap-1 ${
+                            srv.is_active
+                              ? 'bg-emerald-950/40 text-emerald-300 border-emerald-700/50'
+                              : 'bg-stone-900 text-stone-400 border-stone-700'
+                          }`}
+                          title="Klik untuk mengaktifkan/menonaktifkan"
+                        >
+                          {srv.is_active ? (
+                            <>
+                              <ToggleRight className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>Aktif</span>
+                            </>
+                          ) : (
+                            <>
+                              <ToggleLeft className="w-3.5 h-3.5 text-stone-500" />
+                              <span>Mati</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingServer(srv);
+                            setServerFormName(srv.name);
+                            setServerFormDesc(srv.description || '');
+                            setServerFormMode(srv.mode || 'class');
+                            setServerFormClass(srv.active_class || 'XI PPLG-B');
+                            setServerFormUsePin(Boolean(srv.pin));
+                            setServerFormPin(srv.pin || '');
+                            setServerFormError('');
+                            setShowServerForm(true);
+                          }}
+                          className="pixel-btn-silver py-1 px-2 text-[10px]"
+                          title="Edit Server"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteServer(srv)}
+                          className="py-1 px-2 text-[10px] border border-red-900/60 text-red-400 hover:bg-red-950/40 rounded"
+                          title="Hapus Server"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

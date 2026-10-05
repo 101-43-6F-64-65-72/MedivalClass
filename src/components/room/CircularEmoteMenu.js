@@ -217,7 +217,7 @@ export default function CircularEmoteMenu({ onSendEmote }) {
                     handleTriggerEmote(item.id);
                     setIsOpen(false);
                   }}
-                  className={`absolute -translate-x-1/2 -translate-y-1/2 w-11 h-11 rounded-xl cursor-pointer flex items-center justify-center shadow-2xl transition-all duration-150 ${
+                  className={`absolute -translate-x-1/2 -translate-y-1/2 w-11 h-11 rounded-sm cursor-pointer flex items-center justify-center pixel-shadow transition-all duration-150 font-pixel ${
                     isHovered
                       ? 'scale-125 pixel-btn-gold z-20'
                       : 'scale-100 pixel-btn-wood z-10'
@@ -258,7 +258,7 @@ export default function CircularEmoteMenu({ onSendEmote }) {
             setIsOpen((prev) => !prev);
           }}
           title="Tahan tombol Q atau klik untuk membuka menu emoticon"
-          className="pixel-btn-wood flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold shadow-xl"
+          className="pixel-btn-wood flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold pixel-shadow font-pixel"
         >
           <span className="pixel-btn-gold text-amber-950 font-mono text-[9px] px-1 py-0.2 pointer-events-none">
             Q

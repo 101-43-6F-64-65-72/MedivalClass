@@ -64,10 +64,10 @@ export default function AdminAuraModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[999999] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 select-none">
-      <div className="w-full max-w-md pixel-panel-wood text-amber-100 flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-[999999] bg-black/80 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150 select-none font-pixel">
+      <div className="w-full max-w-md max-h-[90vh] pixel-panel-wood text-amber-100 flex flex-col overflow-hidden pixel-shadow-lg animate-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="p-3 bg-[#2b1305] border-b-2 border-[#54280b] flex items-center justify-between">
+        <div className="p-3 bg-[#2b1305] border-b-2 border-[#54280b] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 pixel-box-inset flex items-center justify-center bg-[#170802]">
               <Sparkles className="w-4 h-4 text-amber-400" />
@@ -86,8 +86,8 @@ export default function AdminAuraModal({
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-4 bg-[#1a0a03]/90 space-y-4 text-xs overflow-y-auto max-h-[75vh]">
+        {/* Modal Body with Strict Viewport Bounding */}
+        <div className="p-4 bg-[#1a0a03]/90 space-y-4 text-xs flex-1 min-h-0 overflow-y-auto pixel-scrollbar">
           {/* Live Character Preview Card */}
           <div className="pixel-box-inset p-3 bg-[#120501] flex flex-col items-center justify-center relative overflow-hidden">
             <span className="text-[10px] font-bold text-amber-400/70 mb-2 uppercase tracking-wider">

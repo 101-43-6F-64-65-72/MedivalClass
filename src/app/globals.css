@@ -1,47 +1,86 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #140802;
+  --foreground: #fef3c7;
+  --font-pixel: var(--font-pixelify, 'Pixelify Sans'), monospace, sans-serif;
+  --font-pixel-heading: var(--font-pixelify, 'Pixelify Sans'), cursive, sans-serif;
+  --font-pixel-retro: var(--font-pixelify, 'Pixelify Sans'), monospace;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-pixel);
+  --font-mono: var(--font-pixel);
   --animate-bounce-short: bounce-short 0.5s infinite;
   
   @keyframes bounce-short {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    50% { transform: translateY(-3px); }
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-pixel);
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
 }
 
 /* ===================================================
-   FANTASY PIXEL ART UI DESIGN SYSTEM
+   STARDEW VALLEY PIXEL ART DESIGN SYSTEM (ZERO GLOW)
    =================================================== */
 
+/* Solid Pixel Drop Shadows (Strictly No Gaussian Blurs or Glows) */
+.pixel-shadow-sm {
+  box-shadow: 2px 2px 0px #000000;
+}
+
+.pixel-shadow {
+  box-shadow: 3px 3px 0px #000000;
+}
+
+.pixel-shadow-lg {
+  box-shadow: 5px 5px 0px #000000;
+}
+
+.pixel-shadow-inset {
+  box-shadow: inset 2px 2px 0px #000000, inset -2px -2px 0px #3d1c06;
+}
+
+/* Stardew Dialogue Box (Warm Parchment Paper & Thick Beveled Wood Border) */
+.stardew-dialog-box {
+  background-color: #fbf0d9;
+  color: #2e1505;
+  border: 4px solid #3b1c09;
+  outline: 2px solid #1a0802;
+  box-shadow: 4px 4px 0px #000000;
+  image-rendering: pixelated;
+}
+
+/* Stardew Parchment Inset Container */
+.stardew-parchment {
+  background-color: #fbf0d9;
+  color: #2e1505;
+  border: 2px solid #8c531b;
+  box-shadow: inset 1px 1px 0px #ffffff, inset -1px -1px 0px #61360c;
+}
+
+/* Stardew Wood Panel Frame */
 .pixel-panel-wood {
   border-style: solid;
   border-width: 6px;
   border-image: url('/assets/fantasy_pixelart_ui/panels/wood_panel.png') 6 fill / 6px stretch;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.6));
+  box-shadow: 4px 4px 0px #000000;
 }
 
 .pixel-panel-gold {
@@ -50,7 +89,7 @@ body {
   border-image: url('/assets/fantasy_pixelart_ui/panels/gold_panel.png') 6 fill / 6px stretch;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.6));
+  box-shadow: 4px 4px 0px #000000;
 }
 
 .pixel-panel-silver {
@@ -59,9 +98,10 @@ body {
   border-image: url('/assets/fantasy_pixelart_ui/panels/silver_panel.png') 6 fill / 6px stretch;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.6));
+  box-shadow: 4px 4px 0px #000000;
 }
 
+/* Pixel Buttons (Wood, Gold, Green OK, Red Cancel) */
 .pixel-btn-wood {
   display: inline-flex;
   align-items: center;
@@ -72,19 +112,22 @@ body {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   color: #faebd7;
-  text-shadow: 0 1px 2px #261204;
+  text-shadow: 1px 1px 0px #1a0802;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.05s ease, filter 0.1s ease;
+  box-shadow: 2px 2px 0px #000000;
+  transition: transform 0.05s ease;
 }
 
 .pixel-btn-wood:hover {
-  filter: brightness(1.12);
+  filter: brightness(1.1);
+  transform: translateY(-1px);
 }
 
 .pixel-btn-wood:active {
   border-image: url('/assets/fantasy_pixelart_ui/buttons/wood_button_pressed.png') 5 fill / 5px stretch;
   transform: translateY(1px);
+  box-shadow: 1px 1px 0px #000000;
 }
 
 .pixel-btn-gold {
@@ -98,19 +141,22 @@ body {
   image-rendering: crisp-edges;
   color: #381a05;
   font-weight: bold;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.4);
   cursor: pointer;
   user-select: none;
-  transition: transform 0.05s ease, filter 0.1s ease;
+  box-shadow: 2px 2px 0px #000000;
+  transition: transform 0.05s ease;
 }
 
 .pixel-btn-gold:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 
 .pixel-btn-gold:active {
   border-image: url('/assets/fantasy_pixelart_ui/buttons/gold_button_pressed.png') 5 fill / 5px stretch;
   transform: translateY(1px);
+  box-shadow: 1px 1px 0px #000000;
 }
 
 .pixel-btn-silver {
@@ -126,11 +172,13 @@ body {
   font-weight: bold;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.05s ease, filter 0.1s ease;
+  box-shadow: 2px 2px 0px #000000;
+  transition: transform 0.05s ease;
 }
 
 .pixel-btn-silver:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 
 .pixel-btn-silver:active {
@@ -138,10 +186,57 @@ body {
   transform: translateY(1px);
 }
 
+/* Stardew Iconic OK (Green) and Cancel (Red) Buttons */
+.stardew-btn-ok {
+  background-color: #38761d;
+  color: #ffffff;
+  border: 2px solid #559e2b;
+  outline: 2px solid #143307;
+  box-shadow: 2px 2px 0px #000000;
+  image-rendering: pixelated;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.05s ease;
+}
+
+.stardew-btn-ok:hover {
+  background-color: #438f22;
+  transform: translateY(-1px);
+}
+
+.stardew-btn-ok:active {
+  transform: translateY(1px);
+  box-shadow: 1px 1px 0px #000000;
+}
+
+.stardew-btn-cancel {
+  background-color: #8f1d1d;
+  color: #ffffff;
+  border: 2px solid #b83232;
+  outline: 2px solid #3d0707;
+  box-shadow: 2px 2px 0px #000000;
+  image-rendering: pixelated;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.05s ease;
+}
+
+.stardew-btn-cancel:hover {
+  background-color: #a82424;
+  transform: translateY(-1px);
+}
+
+.stardew-btn-cancel:active {
+  transform: translateY(1px);
+  box-shadow: 1px 1px 0px #000000;
+}
+
 .pixel-box-inset {
-  background-color: #1c0d05;
-  border: 2px solid #5a3012;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7);
+  background-color: #1a0c04;
+  border: 2px solid #4a230c;
+  box-shadow: inset 2px 2px 0px #0a0401, inset -1px -1px 0px #2e1406;
 }
 
 .image-pixelated {
@@ -150,10 +245,30 @@ body {
 }
 
 /* ===================================================
-   CUSTOM PIXEL RETRO SCROLLBAR
+   METICULOUS OVERFLOW & VIEWPORT BOUNDING
    =================================================== */
 
-/* Global custom scrollbar */
+/* Container pattern for modals: ensures modals never breach screen bounds */
+.modal-bounded-container {
+  height: 90vh;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Scroll body pattern: strictly contains scroll within body without leaking */
+.modal-bounded-body {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ===================================================
+   CUSTOM PIXEL RETRO SOLID SCROLLBAR (ZERO GLOW)
+   =================================================== */
+
 * {
   scrollbar-width: thin;
   scrollbar-color: #8c4315 #1a0a03;
@@ -165,30 +280,27 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #1a0a03;
-  border: 1px solid #4a210b;
+  background: #140802;
+  border: 1px solid #3d1b08;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #8c4315;
-  border: 1px solid #c98e52;
-  border-radius: 2px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+  background: #73340e;
+  border: 1px solid #ad561a;
+  border-radius: 0px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #ad541d;
-  border-color: #f7d59b;
+  background: #944415;
 }
 
 ::-webkit-scrollbar-corner {
-  background: #1a0a03;
+  background: #140802;
 }
 
-/* Explicit custom pixel scrollbar class */
 .pixel-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #8c4315 #1a0a03;
+  scrollbar-color: #73340e #140802;
 }
 
 .pixel-scrollbar::-webkit-scrollbar {
@@ -196,73 +308,11 @@ body {
 }
 
 .pixel-scrollbar::-webkit-scrollbar-track {
-  background: #1a0a03;
-  border: 1px solid #4a210b;
+  background: #140802;
+  border: 1px solid #3d1b08;
 }
 
 .pixel-scrollbar::-webkit-scrollbar-thumb {
-  background: #8c4315;
-  border: 1px solid #c98e52;
-  border-radius: 2px;
+  background: #73340e;
+  border: 1px solid #ad561a;
 }
-
-.pixel-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #ad541d;
-  border-color: #f7d59b;
-}
-
-/* ===================================================
-   ADMIN SUBTLE AURA ANIMATIONS
-   =================================================== */
-
-@keyframes auraPulseSubtle {
-  0%, 100% {
-    transform: scale(0.95);
-    opacity: 0.28;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 0.52;
-  }
-}
-
-@keyframes auraFloatLove {
-  0% {
-    transform: translate(0, 0) scale(0.5);
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.65;
-  }
-  80% {
-    opacity: 0.6;
-  }
-  100% {
-    transform: translate(var(--aura-dx, 0px), -36px) scale(0.95);
-    opacity: 0;
-  }
-}
-
-@keyframes auraSparkleTwinkle {
-  0%, 100% {
-    transform: scale(0.35) rotate(0deg);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1) rotate(45deg);
-    opacity: 0.8;
-  }
-}
-
-.animate-aura-pulse {
-  animation: auraPulseSubtle 3s ease-in-out infinite;
-}
-
-.animate-aura-love {
-  animation: auraFloatLove 2.8s ease-in-out infinite;
-}
-
-.animate-aura-sparkle {
-  animation: auraSparkleTwinkle 2.4s ease-in-out infinite;
-}
-

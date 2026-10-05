@@ -3,6 +3,23 @@ import { supabase } from '@/lib/supabaseClient';
 
 export const DEFAULT_WHITEBOARD_URL = 'https://www.canva.com/design/DAHWqHcG_Jw/4VfIFITHxeJqwMWPd1KeKA/view?embed';
 
+export const DEFAULT_BOOKSHELVES_MAP = {
+  'shelf-w1': { id: 'shelf-w1', num: 1, name: 'Rak 1 (Barat Atas)', targetClass: 'XI PPLG-A', label: 'Server XI PPLG A' },
+  'shelf-w2': { id: 'shelf-w2', num: 2, name: 'Rak 2 (Barat Tengah)', targetClass: 'XI PPLG-A', label: 'Server XI PPLG A' },
+  'shelf-w3': { id: 'shelf-w3', num: 3, name: 'Rak 3 (Barat Bawah)', targetClass: 'ALL', label: 'Semua Server' },
+  'shelf-e1': { id: 'shelf-e1', num: 4, name: 'Rak 4 (Timur Atas)', targetClass: 'XI PPLG-B', label: 'Server XI PPLG B' },
+  'shelf-e2': { id: 'shelf-e2', num: 5, name: 'Rak 5 (Timur Tengah)', targetClass: 'XI PPLG-B', label: 'Server XI PPLG B' },
+  'shelf-e3': { id: 'shelf-e3', num: 6, name: 'Rak 6 (Timur Bawah)', targetClass: 'ALL', label: 'Semua Server' },
+};
+
+export const DEFAULT_BOOKSHELF_CONFIG = {
+  shelves: DEFAULT_BOOKSHELVES_MAP,
+  westClass: 'XI PPLG-A',
+  westLabel: 'Server XI PPLG A',
+  eastClass: 'XI PPLG-B',
+  eastLabel: 'Server XI PPLG B',
+};
+
 export function formatWhiteboardUrl(inputUrl) {
   if (!inputUrl || typeof inputUrl !== 'string') return DEFAULT_WHITEBOARD_URL;
   let url = inputUrl.trim();
@@ -103,8 +120,34 @@ export function usePresentation(options = {}) {
   const [activeGameSubmission, setActiveGameSubmission] = useState(null);
   const activeGameSubmissionRef = useRef(null);
 
+  // Bookshelf Target Server configuration (Controlled by Admin, synced to all students)
+  const [bookshelfConfig, setBookshelfConfig] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('virtual_bookshelf_config');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return {
+            ...DEFAULT_BOOKSHELF_CONFIG,
+            ...parsed,
+            shelves: {
+              ...DEFAULT_BOOKSHELVES_MAP,
+              ...(parsed?.shelves || {}),
+            },
+          };
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_BOOKSHELF_CONFIG;
+  });
+  const bookshelfConfigRef = useRef(bookshelfConfig);
+
   // Admin Broadcast Announcements (Marquee Banner / Pop-up Bounce)
   const [activeAnnouncement, setActiveAnnouncement] = useState(null);
+
+  useEffect(() => {
+    bookshelfConfigRef.current = bookshelfConfig;
+  }, [bookshelfConfig]);
 
   useEffect(() => {
     currentSlideRef.current = currentSlide;
@@ -267,6 +310,13 @@ export function usePresentation(options = {}) {
         if (payload.code) {
           setLastNotification(`Sesi Canva Live aktif dengan Kode: ${payload.code}`);
         }
+      })
+      .on('broadcast', { event: 'bookshelf-config-update' }, ({ payload }) => {
+        if (!payload) return;
+        setBookshelfConfig(payload);
+        try {
+          localStorage.setItem('virtual_bookshelf_config', JSON.stringify(payload));
+        } catch (e) {}
       })
       .on('broadcast', { event: 'screenshare-started' }, async ({ payload }) => {
         if (!payload || payload.presenterId === myPeerIdRef.current) return;
@@ -699,6 +749,23 @@ export function usePresentation(options = {}) {
     setLastNotification(null);
   }, []);
 
+  const updateBookshelfConfig = useCallback((newConfig) => {
+    const merged = { ...bookshelfConfigRef.current, ...newConfig };
+    setBookshelfConfig(merged);
+    try {
+      localStorage.setItem('virtual_bookshelf_config', JSON.stringify(merged));
+    } catch (e) {}
+
+    if (channelRef.current && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'bookshelf-config-update',
+        payload: merged,
+      });
+    }
+    setLastNotification('Target tab rak buku berhasil disimpan dan disiarkan');
+  }, []);
+
   return {
     currentSlide,
     totalSlides,
@@ -733,5 +800,8 @@ export function usePresentation(options = {}) {
     activeAnnouncement,
     sendBroadcastAnnouncement,
     clearAnnouncement,
+    // Bookshelf Target Configuration
+    bookshelfConfig,
+    updateBookshelfConfig,
   };
 }

@@ -29,7 +29,7 @@ export async function getGameSubmissions(className = null) {
     console.warn('Gagal membaca game_submissions dari Supabase:', err);
   }
 
-  // Read local cache backup
+  // Read local cache backup & clean out any unwanted/invalid entries (e.g. roblox)
   let localData = [];
   try {
     if (typeof window !== 'undefined') {
@@ -37,7 +37,16 @@ export async function getGameSubmissions(className = null) {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          localData = className ? parsed.filter(item => item.student_class === className) : parsed;
+          // Permanently strip out roblox links from local cache
+          const cleaned = parsed.filter(item => 
+            !item.game_url?.toLowerCase().includes('roblox') &&
+            !item.category?.toLowerCase().includes('roblox') &&
+            !item.platform?.toLowerCase().includes('roblox')
+          );
+          if (cleaned.length !== parsed.length) {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleaned));
+          }
+          localData = className ? cleaned.filter(item => item.student_class === className) : cleaned;
         }
       }
     }
@@ -45,10 +54,25 @@ export async function getGameSubmissions(className = null) {
 
   // Merge unique items by id or game_url
   const map = new Map();
-  remoteData.forEach(item => map.set(item.id || item.game_url, item));
+  remoteData.forEach(item => {
+    // Exclude roblox
+    if (
+      !item.game_url?.toLowerCase().includes('roblox') &&
+      !item.category?.toLowerCase().includes('roblox') &&
+      !item.platform?.toLowerCase().includes('roblox')
+    ) {
+      map.set(item.id || item.game_url, item);
+    }
+  });
+
   localData.forEach(item => {
     const key = item.id || item.game_url;
-    if (!map.has(key)) {
+    if (
+      !map.has(key) &&
+      !item.game_url?.toLowerCase().includes('roblox') &&
+      !item.category?.toLowerCase().includes('roblox') &&
+      !item.platform?.toLowerCase().includes('roblox')
+    ) {
       map.set(key, item);
     }
   });

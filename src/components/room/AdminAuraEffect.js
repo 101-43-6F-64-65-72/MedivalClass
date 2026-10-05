@@ -18,26 +18,24 @@ export default function AdminAuraEffect({ aura }) {
       className="absolute inset-0 pointer-events-none z-0" 
       style={{ overflow: 'visible' }}
     >
-      {/* 1. Base Subtle Ground Halo Ring (Soft, gentle pulse) */}
+      {/* 1. Base Subtle Ground Halo Ring (Clean Pixel Outline, No Glow Blur) */}
       <div 
         className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full animate-aura-pulse"
         style={{
           width: '46px',
           height: '16px',
-          background: `radial-gradient(ellipse at center, ${color}2a 0%, ${color}0d 60%, transparent 80%)`,
-          boxShadow: `0 0 10px ${color}35, inset 0 0 8px ${color}25`,
-          border: `1px solid ${color}45`,
+          background: `radial-gradient(ellipse at center, ${color}22 0%, transparent 80%)`,
+          border: `1.5px solid ${color}`,
         }}
       />
 
-      {/* 2. Soft Ambient Back-Glow (Very subtle behind character torso) */}
+      {/* 2. Ambient Back Accent (Clean, No Gaussian Blur) */}
       <div 
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full animate-aura-pulse"
         style={{
-          width: '40px',
-          height: '42px',
-          background: `radial-gradient(circle, ${color}1c 0%, ${color}05 60%, transparent 80%)`,
-          filter: 'blur(3px)',
+          width: '38px',
+          height: '38px',
+          background: `radial-gradient(circle, ${color}18 0%, transparent 75%)`,
         }}
       />
 

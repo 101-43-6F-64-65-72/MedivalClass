@@ -252,11 +252,11 @@ function SamNPC({
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1.5 pointer-events-none" />
         </div>
 
-        {/* Golden Target Pulse Ring at Feet */}
+        {/* Golden Target Pulse Ring at Feet (Zero Glow, Pure Pixel Art) */}
         {isTracked && (
           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 pointer-events-none z-10 flex items-center justify-center">
             <div className="w-12 h-3.5 border-2 border-amber-400 rounded-full animate-ping opacity-75" />
-            <div className="absolute w-10 h-3 border-2 border-amber-300 rounded-full shadow-[0_0_12px_rgba(251,191,36,0.9)] animate-pulse" />
+            <div className="absolute w-10 h-3 border-2 border-amber-300 rounded-full pixel-shadow-sm animate-pulse" />
           </div>
         )}
       </div>
@@ -267,13 +267,13 @@ function SamNPC({
       {mounted && createPortal(
         <>
           {dialogStage && (
-            <div className="fixed inset-0 z-[999999] pointer-events-auto flex items-end justify-center pb-6 sm:pb-8 px-4 bg-black/40 backdrop-blur-[1px] animate-in fade-in duration-150">
+            <div className="fixed inset-0 z-[999999] pointer-events-auto flex items-end justify-center pb-4 sm:pb-8 px-3 sm:px-4 bg-black/60 animate-in fade-in duration-150 font-pixel">
               <div 
-                className="w-full max-w-[800px] select-none rounded shadow-2xl relative"
+                className="w-full max-w-[800px] select-none rounded relative max-h-[92vh] overflow-y-auto"
                 style={{
                   backgroundColor: '#733814',
                   border: '4px solid #4a210b',
-                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), inset 0 2px 4px #a05322',
+                  boxShadow: '4px 4px 0px #000000, inset 0 2px 0px #a05322',
                   padding: '8px',
                 }}
               >
@@ -281,7 +281,7 @@ function SamNPC({
                 <button
                   onClick={handleCloseAll}
                   title="Tutup Dialog (Esc)"
-                  className="absolute -top-3.5 -right-3.5 bg-[#54280b] hover:bg-[#733814] border-2 border-[#f7d59b] text-[#f7d59b] w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shadow-lg transition-transform hover:scale-110 active:scale-90 z-20"
+                  className="absolute -top-3.5 -right-3.5 bg-[#54280b] hover:bg-[#733814] border-2 border-[#f7d59b] text-[#f7d59b] w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs pixel-shadow transition-transform hover:scale-110 active:scale-90 z-20 font-pixel"
                 >
                   ✕
                 </button>
@@ -542,10 +542,10 @@ function SamNPC({
                         border: '2px solid #5a280b',
                       }}
                     >
-                      <div className="font-serif font-black text-sm sm:text-base tracking-wider text-[#3d1e08]">
+                      <div className="font-pixel font-black text-sm sm:text-base tracking-wider text-[#3d1e08]">
                         Sam
                       </div>
-                      <div className="text-[10px] text-[#733814] font-semibold">
+                      <div className="text-[10px] text-[#733814] font-bold font-pixel">
                         Penjaga Arsip Karya Game
                       </div>
                     </div>

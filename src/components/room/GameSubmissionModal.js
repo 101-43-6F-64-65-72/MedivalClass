@@ -118,13 +118,13 @@ export default function GameSubmissionModal({
   };
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-black/80 animate-in fade-in duration-200 font-pixel">
       <div 
-        className="w-full max-w-lg pixel-panel-wood p-5 sm:p-6 relative text-amber-100 shadow-2xl border-2 border-amber-600/80"
+        className="w-full max-w-lg max-h-[92vh] overflow-y-auto pixel-scrollbar pixel-panel-wood p-4 sm:p-6 relative text-amber-100 border-2 border-amber-600/80 pixel-shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Sam portrait */}
-        <div className="flex items-center justify-between border-b border-[#5c3416] pb-3 mb-4">
+        <div className="flex items-center justify-between border-b border-[#5c3416] pb-3 mb-3 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded bg-[#1c0c04] border border-amber-600/60 p-0.5 overflow-hidden shrink-0 flex items-center justify-center">
               <img

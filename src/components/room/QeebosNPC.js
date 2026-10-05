@@ -730,11 +730,11 @@ Wait for my approval before proceeding to the next phase.`;
           <div className="w-8 h-2.5 bg-black/60 rounded-full blur-[1px] -mt-1 pointer-events-none" />
         </div>
 
-        {/* Golden Target Pulse Ring at Feet */}
+        {/* Golden Target Pulse Ring at Feet (Zero Glow, Pure Pixel Art) */}
         {isTracked && (
           <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 pointer-events-none z-10 flex items-center justify-center">
             <div className="w-12 h-3.5 border-2 border-amber-400 rounded-full animate-ping opacity-75" />
-            <div className="absolute w-10 h-3 border-2 border-amber-300 rounded-full shadow-[0_0_12px_rgba(251,191,36,0.9)] animate-pulse" />
+            <div className="absolute w-10 h-3 border-2 border-amber-300 rounded-full pixel-shadow-sm animate-pulse" />
           </div>
         )}
       </div>
@@ -746,13 +746,13 @@ Wait for my approval before proceeding to the next phase.`;
         <>
           {/* A. STARDEW VALLEY DIALOGUE BOX */}
           {dialogStage && dialogStage !== 'form' && (
-            <div className="fixed inset-0 z-[999999] pointer-events-auto flex items-end justify-center pb-6 sm:pb-8 px-4 bg-black/40 backdrop-blur-[1px] animate-in fade-in duration-150">
+            <div className="fixed inset-0 z-[999999] pointer-events-auto flex items-end justify-center pb-4 sm:pb-8 px-3 sm:px-4 bg-black/60 animate-in fade-in duration-150 font-pixel">
               <div 
-                className="w-full max-w-[800px] select-none rounded shadow-2xl relative"
+                className="w-full max-w-[800px] select-none rounded relative max-h-[92vh] overflow-y-auto"
                 style={{
                   backgroundColor: '#733814',
                   border: '4px solid #4a210b',
-                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), inset 0 2px 4px #a05322',
+                  boxShadow: '4px 4px 0px #000000, inset 0 2px 0px #a05322',
                   padding: '8px',
                 }}
               >
@@ -760,7 +760,7 @@ Wait for my approval before proceeding to the next phase.`;
                 <button
                   onClick={handleCloseAll}
                   title="Tutup Dialog (Esc)"
-                  className="absolute -top-3.5 -right-3.5 bg-[#54280b] hover:bg-[#733814] border-2 border-[#f7d59b] text-[#f7d59b] w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shadow-lg transition-transform hover:scale-110 active:scale-90 z-20"
+                  className="absolute -top-3.5 -right-3.5 bg-[#54280b] hover:bg-[#733814] border-2 border-[#f7d59b] text-[#f7d59b] w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs pixel-shadow transition-transform hover:scale-110 active:scale-90 z-20 font-pixel"
                 >
                   ✕
                 </button>
@@ -946,10 +946,10 @@ Wait for my approval before proceeding to the next phase.`;
                         border: '2px solid #5a280b',
                       }}
                     >
-                      <div className="font-serif font-black text-sm sm:text-base tracking-wider text-[#3d1e08]">
+                      <div className="font-pixel font-black text-sm sm:text-base tracking-wider text-[#3d1e08]">
                         Qeebos
                       </div>
-                      <div className="text-[10px] text-[#733814] font-semibold">
+                      <div className="text-[10px] text-[#733814] font-bold font-pixel">
                         Scroll Prompt Master
                       </div>
                     </div>
@@ -963,10 +963,10 @@ Wait for my approval before proceeding to the next phase.`;
               B. FULL FORM MODAL (Separate Brainstorming & MCP Server)
              ======================================================== */}
           {dialogStage === 'form' && (
-            <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-[999999] flex items-center justify-center p-3 sm:p-6 select-none animate-in fade-in duration-150">
-              <div className="w-full max-w-3xl max-h-[90vh] pixel-panel-wood text-amber-100 flex flex-col overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="fixed inset-0 bg-black/80 z-[999999] flex items-center justify-center p-2 sm:p-4 select-none animate-in fade-in duration-150 font-pixel">
+              <div className="w-full max-w-3xl h-[90vh] max-h-[90vh] pixel-panel-wood text-amber-100 flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
                 {/* Modal Header */}
-                <div className="p-3.5 bg-[#2d1506] border-b-2 border-[#5a3012] flex items-center justify-between">
+                <div className="p-3 bg-[#2d1506] border-b-2 border-[#5a3012] flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 pixel-box-inset flex items-center justify-center bg-[#1a0a03] border border-amber-600/50">
                       <img
@@ -1007,7 +1007,7 @@ Wait for my approval before proceeding to the next phase.`;
                 </div>
 
                 {/* Primary Category Tabs: Brainstorm, MCP, and Team Shared Vault */}
-                <div className="flex items-center gap-2 p-2 bg-[#200e04] border-b border-[#5a3012] text-xs flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-2 p-2 bg-[#200e04] border-b border-[#5a3012] text-xs flex-wrap sm:flex-nowrap shrink-0">
                   <button
                     onClick={() => {
                       setValidationError('');
@@ -1077,8 +1077,8 @@ Wait for my approval before proceeding to the next phase.`;
                   </div>
                 )}
 
-                {/* Modal Body */}
-                <div className="flex-1 p-4 overflow-y-auto bg-[#170802]/90 space-y-4 text-xs">
+                {/* Modal Body with Strict Viewport Bounding */}
+                <div className="flex-1 min-h-0 p-4 overflow-y-auto bg-[#170802]/90 space-y-4 text-xs pixel-scrollbar">
                   {/* ========================================================
                       TAB 1: BRAINSTORMING GAME (Completely Independent)
                      ======================================================== */}

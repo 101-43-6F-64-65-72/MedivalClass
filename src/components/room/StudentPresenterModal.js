@@ -18,10 +18,10 @@ export default function StudentPresenterModal({
   const submission = designatedPresenter.submission;
 
   return createPortal(
-    <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
-      <div className="w-full max-w-xl pixel-panel-wood text-amber-100 overflow-hidden shadow-2xl border-2 border-amber-500 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[99999] bg-black/80 flex items-center justify-center p-3 sm:p-4 select-none animate-in fade-in duration-200 font-pixel">
+      <div className="w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden pixel-panel-wood text-amber-100 pixel-shadow-lg border-2 border-amber-500 animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-4 py-3 bg-[#2d1506] border-b-2 border-[#5a3012] flex items-center justify-between">
+        <div className="px-4 py-3 bg-[#2d1506] border-b-2 border-[#5a3012] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <Award className="w-5 h-5 text-amber-400 animate-pulse" />
             <div>
@@ -45,8 +45,8 @@ export default function StudentPresenterModal({
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-5 space-y-4">
+        {/* Content Body with Strict Viewport Bounding */}
+        <div className="p-4 sm:p-5 space-y-4 flex-1 min-h-0 overflow-y-auto pixel-scrollbar">
           <div className="bg-[#1b0d05] border border-amber-600/70 rounded p-3 text-xs space-y-2">
             <p className="text-amber-200 leading-relaxed">
               Halo <strong>{designatedPresenter.studentName}</strong>! Admin telah menunjuk Anda untuk mempresentasikan hasil karya game kelompok di depan kelas.

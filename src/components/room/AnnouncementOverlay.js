@@ -48,10 +48,9 @@ export default function AnnouncementOverlay({ announcement, onDismiss }) {
          ======================================================== */}
       {isBanner && (
         <div 
-          className={`fixed top-0 left-0 right-0 z-[999999] bg-[#241004]/95 text-amber-100 border-b-2 border-amber-600/90 shadow-2xl overflow-hidden select-none transition-all duration-200 ${
+          className={`fixed top-0 left-0 right-0 z-[999999] bg-[#241004] text-amber-100 border-b-2 border-amber-600/90 pixel-shadow overflow-hidden select-none transition-all duration-200 font-pixel ${
             isClosing ? 'opacity-0 -translate-y-full' : 'opacity-100 translate-y-0 animate-in slide-in-from-top duration-300'
           }`}
-          style={{ backdropFilter: 'blur(8px)' }}
         >
           <div className="flex items-center justify-between px-3 py-2 gap-3 relative">
             {/* Left badge */}
@@ -115,13 +114,13 @@ export default function AnnouncementOverlay({ announcement, onDismiss }) {
          ======================================================== */}
       {!isBanner && (
         <div 
-          className={`fixed inset-0 z-[999999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 select-none transition-all duration-200 ${
+          className={`fixed inset-0 z-[999999] bg-black/80 flex items-center justify-center p-3 sm:p-4 select-none transition-all duration-200 font-pixel ${
             isClosing ? 'opacity-0 scale-95' : 'opacity-100 scale-100 animate-in fade-in duration-200'
           }`}
         >
-          <div className="w-full max-w-lg pixel-panel-wood text-amber-100 overflow-hidden shadow-2xl border-2 border-amber-600 relative animate-popup-bounce">
+          <div className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden pixel-panel-wood text-amber-100 pixel-shadow-lg border-2 border-amber-600 relative animate-popup-bounce">
             {/* Modal Header */}
-            <div className="px-4 py-2.5 bg-[#2d1506] border-b-2 border-[#5a3012] flex items-center justify-between">
+            <div className="px-4 py-2.5 bg-[#2d1506] border-b-2 border-[#5a3012] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <Megaphone className="w-5 h-5 text-amber-400 animate-bounce" />
                 <div>

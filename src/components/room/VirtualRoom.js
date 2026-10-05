@@ -28,6 +28,9 @@ import { usePlayerControls } from '@/hooks/usePlayerControls';
 import { useMultiplayer } from '@/hooks/useMultiplayer';
 import TeamPromptVault from './TeamPromptVault';
 import AdminAuraModal from './AdminAuraModal';
+import OwnerGroupModal from './OwnerGroupModal';
+import { supabase } from '@/lib/supabaseClient';
+import { updateMemberStatus } from '@/lib/serverService';
 import { Copy, Check, Edit2, Users, School, ChevronDown, ChevronUp, Navigation, ShieldCheck, Sparkles, BookOpen, UserPlus, X, MapPin } from 'lucide-react';
 
 export default function VirtualRoom({ 
@@ -42,7 +45,11 @@ export default function VirtualRoom({
   color, 
   isAdmin = false, 
   isCreator = false,
-  onLeave 
+  serverId = null,
+  sessionId = null,
+  myPlayerId = null,
+  onLeave,
+  onKicked
 }) {
   const containerRef = useRef(null);
   const [viewport, setViewport] = useState({ w: 1200, h: 800 });
@@ -64,6 +71,9 @@ export default function VirtualRoom({
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isAdminAuraModalOpen, setIsAdminAuraModalOpen] = useState(false);
   const [isTeamVaultOpen, setIsTeamVaultOpen] = useState(false);
+  const [isOwnerModalOpen, setIsOwnerModalOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [lowLatencyMode, setLowLatencyMode] = useState(false);
   // Admin name editing state
   const [isEditingAdminName, setIsEditingAdminName] = useState(false);
@@ -81,6 +91,7 @@ export default function VirtualRoom({
   // Bookshelf and Game Submissions Modals state
   const [isBookshelfModalOpen, setIsBookshelfModalOpen] = useState(false);
   const [selectedBookshelfClass, setSelectedBookshelfClass] = useState('XI PPLG-B');
+  const [selectedBookshelfMeta, setSelectedBookshelfMeta] = useState(null);
   const [isSubmissionModalOpen, setIsSubmissionModalOpen] = useState(false);
 
   // Shared Presentation & Screen Sharing instance for both Whiteboard and Admin Panel
@@ -155,12 +166,87 @@ export default function VirtualRoom({
     toggleGroupDevTodo,
     completedGroups,
     isMyGroupDevCompleted,
+    broadcastMessage,
   } = useMultiplayer(
     localPlayer, 
     username, 
     color, 
-    { fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, groupNumber, characterIndex, isAdmin, isCreator }
+    { 
+      fullName, attendanceNo, studentClass, roomCode, roomName: initialRoomName, 
+      groupNumber, characterIndex, isAdmin, isCreator,
+      serverId, sessionId, myPlayerId,
+      onKicked: () => {
+        if (typeof onKicked === 'function') onKicked();
+        else if (onLeave) onLeave();
+      },
+      onJoinRequestReceived: () => {
+        setPendingCount((prev) => prev + 1);
+        try { playScrollOpen(); } catch (_) {}
+        loadPendingRequests();
+      },
+    }
   );
+
+  // Polling pending requests jika user adalah owner (isCreator)
+  const loadPendingRequests = useCallback(async () => {
+    if (!isCreator || !sessionId) return;
+    try {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('*')
+        .eq('session_id', sessionId)
+        .eq('status', 'pending')
+        .order('joined_at', { ascending: true });
+      if (!error && Array.isArray(data)) {
+        setPendingRequests(data);
+        setPendingCount(data.length);
+      }
+    } catch (_) {}
+  }, [isCreator, sessionId]);
+
+  useEffect(() => {
+    if (!isCreator || !sessionId) return;
+    loadPendingRequests();
+    const interval = setInterval(loadPendingRequests, 3500);
+    return () => clearInterval(interval);
+  }, [isCreator, sessionId, loadPendingRequests]);
+
+  const handleApproveMiniRequest = async (req) => {
+    try {
+      await updateMemberStatus(sessionId, req.player_id, 'approved');
+      if (typeof broadcastMessage === 'function') {
+        broadcastMessage('join-room-response', {
+          targetPlayerId: req.player_id,
+          status: 'ACCEPTED',
+          roomCode,
+          roomName: initialRoomName || `Kelompok ${groupNumber || ''}`,
+          sessionId,
+          hostName: fullName || username,
+        });
+      }
+      setPendingRequests((prev) => prev.filter((m) => m.player_id !== req.player_id));
+      setPendingCount((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.warn('Gagal approve member:', err);
+    }
+  };
+
+  const handleRejectMiniRequest = async (req) => {
+    try {
+      await updateMemberStatus(sessionId, req.player_id, 'kicked');
+      if (typeof broadcastMessage === 'function') {
+        broadcastMessage('join-room-response', {
+          targetPlayerId: req.player_id,
+          status: 'REJECTED',
+          reason: 'Permintaan ditolak oleh ketua kelompok.',
+        });
+      }
+      setPendingRequests((prev) => prev.filter((m) => m.player_id !== req.player_id));
+      setPendingCount((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.warn('Gagal reject member:', err);
+    }
+  };
 
   // Security guard: Prohibit non-admin students from entering the Admin Room
   useEffect(() => {
@@ -171,10 +257,43 @@ export default function VirtualRoom({
     }
   }, [roomCode, isAdmin, onLeave]);
 
-  // In Low Latency Mode, only render players from the same group (reduces realtime overhead)
-  const visibleRemotePlayers = lowLatencyMode
-    ? remotePlayers.filter((p) => (p.roomCode || '').toUpperCase() === (roomCode || '').toUpperCase())
-    : remotePlayers;
+  // Filter and deduplicate remote players: prevent twins and ghost clones
+  const visibleRemotePlayers = useMemo(() => {
+    const list = lowLatencyMode
+      ? remotePlayers.filter((p) => p.isAdmin || (p.roomCode || '').toUpperCase() === (roomCode || '').toUpperCase())
+      : remotePlayers;
+
+    const seenAtt = new Set();
+    const seenNames = new Set();
+    const result = [];
+
+    for (const p of list) {
+      if (!p) continue;
+      // Jangan render diri sendiri
+      if (!isAdmin) {
+        if (attendanceNo && String(p.attendanceNo).trim() === String(attendanceNo).trim()) continue;
+        if (myPlayerId && p.id === myPlayerId) continue;
+        if (p.username && username && p.username.toLowerCase().trim() === username.toLowerCase().trim()) continue;
+      }
+
+      // Deduplikasi ketat: hanya izinkan 1 karakter per nomor absen atau username
+      if (!p.isAdmin) {
+        const attKey = p.attendanceNo ? String(p.attendanceNo).trim() : null;
+        if (attKey) {
+          if (seenAtt.has(attKey)) continue;
+          seenAtt.add(attKey);
+        }
+        const uKey = (p.username || '').toLowerCase().trim();
+        if (uKey) {
+          if (seenNames.has(uKey)) continue;
+          seenNames.add(uKey);
+        }
+      }
+
+      result.push(p);
+    }
+    return result;
+  }, [remotePlayers, lowLatencyMode, roomCode, isAdmin, attendanceNo, myPlayerId, username]);
 
   const handleCopyCode = () => {
     if (roomCode) {
@@ -280,18 +399,43 @@ export default function VirtualRoom({
     setIsEditingAdminName(false);
   };
 
-  // Bookshelf coordinates on East and West sides
+  // Bookshelf coordinates on East and West sides (6 Bookshelves: 1-3 West, 4-6 East)
   const EAST_BOOKSHELVES = useMemo(() => [
-    { id: 'shelf-e1', x: 1635, y: 150, centerY: 215 },
-    { id: 'shelf-e2', x: 1635, y: 310, centerY: 375 },
-    { id: 'shelf-e3', x: 1635, y: 560, centerY: 625 },
+    { id: 'shelf-e1', x: 1635, y: 150, centerY: 215, num: 4, name: 'Rak 4 (Timur Atas)' },
+    { id: 'shelf-e2', x: 1635, y: 310, centerY: 375, num: 5, name: 'Rak 5 (Timur Tengah)' },
+    { id: 'shelf-e3', x: 1635, y: 560, centerY: 625, num: 6, name: 'Rak 6 (Timur Bawah)' },
   ], []);
 
   const WEST_BOOKSHELVES = useMemo(() => [
-    { id: 'shelf-w1', x: 45, y: 150, centerY: 215 },
-    { id: 'shelf-w2', x: 45, y: 310, centerY: 375 },
-    { id: 'shelf-w3', x: 45, y: 560, centerY: 625 },
+    { id: 'shelf-w1', x: 45, y: 150, centerY: 215, num: 1, name: 'Rak 1 (Barat Atas)' },
+    { id: 'shelf-w2', x: 45, y: 310, centerY: 375, num: 2, name: 'Rak 2 (Barat Tengah)' },
+    { id: 'shelf-w3', x: 45, y: 560, centerY: 625, num: 3, name: 'Rak 3 (Barat Bawah)' },
   ], []);
+
+  // Helper to resolve specific shelf target configuration (Rak 1 s/d 6)
+  const getShelfTarget = useCallback((shelf) => {
+    if (!shelf) return { targetClass: 'XI PPLG-B', label: 'Server XI PPLG B', num: 1, name: 'Rak 1' };
+    const configured = presentation.bookshelfConfig?.shelves?.[shelf.id];
+    if (configured) {
+      return {
+        targetClass: configured.targetClass || 'XI PPLG-B',
+        label: configured.label || configured.targetClass || 'Server',
+        num: shelf.num,
+        name: shelf.name,
+      };
+    }
+    const isWest = shelf.id.startsWith('shelf-w');
+    return {
+      targetClass: isWest 
+        ? (presentation.bookshelfConfig?.westClass || 'XI PPLG-A') 
+        : (presentation.bookshelfConfig?.eastClass || 'XI PPLG-B'),
+      label: isWest
+        ? (presentation.bookshelfConfig?.westLabel || 'Server XI PPLG A')
+        : (presentation.bookshelfConfig?.eastLabel || 'Server XI PPLG B'),
+      num: shelf.num,
+      name: shelf.name,
+    };
+  }, [presentation.bookshelfConfig]);
 
   // Dynamically find bookshelf closest to player Y
   const nearestEastShelf = useMemo(() => {
@@ -322,7 +466,7 @@ export default function VirtualRoom({
     return closest;
   }, [localPlayer?.y, WEST_BOOKSHELVES]);
 
-  // Proximity to West Bookshelves (XI PPLG-A)
+  // Proximity to West Bookshelves (Rak 1-3)
   const isNearWestShelf = Boolean(
     localPlayer &&
     localPlayer.x <= 230 &&
@@ -330,7 +474,7 @@ export default function VirtualRoom({
     localPlayer.y <= 750
   );
 
-  // Proximity to East Bookshelves (XI PPLG-B)
+  // Proximity to East Bookshelves (Rak 4-6)
   const isNearEastShelf = Boolean(
     localPlayer &&
     localPlayer.x >= 1500 &&
@@ -346,13 +490,17 @@ export default function VirtualRoom({
       if (isInput) return;
 
       if ((e.key === 'r' || e.key === 'R' || e.key === 'b' || e.key === 'B') && !isModalBlocking) {
-        if (isNearWestShelf) {
+        if (isNearWestShelf && nearestWestShelf) {
           e.preventDefault();
-          setSelectedBookshelfClass('XI PPLG-A');
+          const target = getShelfTarget(nearestWestShelf);
+          setSelectedBookshelfClass(target.targetClass);
+          setSelectedBookshelfMeta({ num: target.num, label: target.label, name: target.name });
           setIsBookshelfModalOpen(true);
-        } else if (isNearEastShelf) {
+        } else if (isNearEastShelf && nearestEastShelf) {
           e.preventDefault();
-          setSelectedBookshelfClass('XI PPLG-B');
+          const target = getShelfTarget(nearestEastShelf);
+          setSelectedBookshelfClass(target.targetClass);
+          setSelectedBookshelfMeta({ num: target.num, label: target.label, name: target.name });
           setIsBookshelfModalOpen(true);
         }
       }
@@ -360,7 +508,7 @@ export default function VirtualRoom({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isNearWestShelf, isNearEastShelf, isModalBlocking]);
+  }, [isNearWestShelf, isNearEastShelf, isModalBlocking, nearestWestShelf, nearestEastShelf, getShelfTarget]);
 
   // Target position for classroom-wide theatrical spotlight cutout
   const spotlightPos = useMemo(() => {
@@ -485,7 +633,7 @@ export default function VirtualRoom({
         >
           <div className="pixel-panel-gold px-2.5 py-1 text-[10px] font-black text-amber-950 uppercase tracking-wider shadow-lg border border-amber-900 flex items-center gap-1.5 whitespace-nowrap">
             <BookOpen className="w-3 h-3 text-amber-900" />
-            <span>Rak Buku XI PPLG-A</span>
+            <span>{presentation.bookshelfConfig?.westLabel || 'Rak Buku XI PPLG-A'}</span>
           </div>
         </div>
 
@@ -495,56 +643,68 @@ export default function VirtualRoom({
         >
           <div className="pixel-panel-gold px-2.5 py-1 text-[10px] font-black text-amber-950 uppercase tracking-wider shadow-lg border border-amber-900 flex items-center gap-1.5 whitespace-nowrap">
             <BookOpen className="w-3 h-3 text-amber-900" />
-            <span>Rak Buku XI PPLG-B</span>
+            <span>{presentation.bookshelfConfig?.eastLabel || 'Rak Buku XI PPLG-B'}</span>
           </div>
         </div>
 
         {/* Dynamic Proximity Interaction Prompts at the closest Bookshelf to Player [R] */}
-        {isNearWestShelf && !isModalBlocking && (
-          <div 
-            className="absolute pointer-events-auto cursor-pointer select-none"
-            style={{ 
-              left: '180px', 
-              top: `${nearestWestShelf.centerY}px`, 
-              transform: 'translate(0, -50%)',
-              zIndex: 999 
-            }}
-            onClick={() => {
-              setSelectedBookshelfClass('XI PPLG-A');
-              setIsBookshelfModalOpen(true);
-            }}
-          >
-            <div className="animate-bounce-short">
-              <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 whitespace-nowrap">
-                <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2">R</span>
-                <span className="text-[11px] font-bold text-amber-200">Tekan R untuk Buka Rak Buku XI PPLG-A</span>
+        {isNearWestShelf && !isModalBlocking && (() => {
+          const target = getShelfTarget(nearestWestShelf);
+          return (
+            <div 
+              className="absolute pointer-events-auto cursor-pointer select-none"
+              style={{ 
+                left: '180px', 
+                top: `${nearestWestShelf.centerY}px`, 
+                transform: 'translate(0, -50%)',
+                zIndex: 999 
+              }}
+              onClick={() => {
+                setSelectedBookshelfClass(target.targetClass);
+                setSelectedBookshelfMeta({ num: target.num, label: target.label, name: target.name });
+                setIsBookshelfModalOpen(true);
+              }}
+            >
+              <div className="animate-bounce-short">
+                <div className="pixel-panel-wood px-2 py-0.5 text-amber-100 flex items-center gap-1.5 pixel-shadow border border-amber-600/90 whitespace-nowrap text-[10px]">
+                  <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[9px] px-1 py-0.2">R</span>
+                  <span className="font-bold text-amber-200">
+                    Rak {nearestWestShelf.num}: {target.targetClass === 'ALL' ? 'Semua Server' : target.targetClass}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
-        {isNearEastShelf && !isModalBlocking && (
-          <div 
-            className="absolute pointer-events-auto cursor-pointer select-none"
-            style={{ 
-              left: '1615px', 
-              top: `${nearestEastShelf.centerY}px`, 
-              transform: 'translate(-100%, -50%)',
-              zIndex: 999 
-            }}
-            onClick={() => {
-              setSelectedBookshelfClass('XI PPLG-B');
-              setIsBookshelfModalOpen(true);
-            }}
-          >
-            <div className="animate-bounce-short">
-              <div className="pixel-panel-wood px-2.5 py-1 text-amber-100 flex items-center gap-1.5 shadow-2xl border border-amber-600 whitespace-nowrap">
-                <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[10px] px-1.5 py-0.2">R</span>
-                <span className="text-[11px] font-bold text-amber-200">Tekan R untuk Buka Rak Buku XI PPLG-B</span>
+        {isNearEastShelf && !isModalBlocking && (() => {
+          const target = getShelfTarget(nearestEastShelf);
+          return (
+            <div 
+              className="absolute pointer-events-auto cursor-pointer select-none"
+              style={{ 
+                left: '1615px', 
+                top: `${nearestEastShelf.centerY}px`, 
+                transform: 'translate(-100%, -50%)',
+                zIndex: 999 
+              }}
+              onClick={() => {
+                setSelectedBookshelfClass(target.targetClass);
+                setSelectedBookshelfMeta({ num: target.num, label: target.label, name: target.name });
+                setIsBookshelfModalOpen(true);
+              }}
+            >
+              <div className="animate-bounce-short">
+                <div className="pixel-panel-wood px-2 py-0.5 text-amber-100 flex items-center gap-1.5 pixel-shadow border border-amber-600/90 whitespace-nowrap text-[10px]">
+                  <span className="pixel-btn-gold text-amber-950 font-mono font-black text-[9px] px-1 py-0.2">R</span>
+                  <span className="font-bold text-amber-200">
+                    Rak {nearestEastShelf.num}: {target.targetClass === 'ALL' ? 'Semua Server' : target.targetClass}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         
         {/* Render Remote Students / Players and their Pets */}
         {visibleRemotePlayers.map((p) => {
@@ -750,227 +910,31 @@ export default function VirtualRoom({
         </div>
       )}
 
-      {/* Classroom HUD Overlay (Hidden during Fullscreen Presentation) */}
+      {/* Classroom HUD Overlay & Mini Request Popup (Kiri Atas) */}
       {!isPresentationActive && (
-        isHudCollapsed ? (
-          <div className="fixed top-4 left-4 pixel-panel-wood text-amber-100 px-3 py-1.5 z-40 flex items-center gap-2 animate-in fade-in duration-150">
-            <img 
-              src="/assets/fantasy_pixelart_ui/icons/gold_castle.png" 
-              alt="Kelas" 
-              className="w-4 h-4 image-rendering-pixelated shrink-0" 
-            />
-            <span className="font-bold text-xs text-amber-200 truncate max-w-[120px]">
-              {roomName || 'Kelompok 1'}
-            </span>
-            <span className="font-mono text-[10px] text-amber-950 font-bold pixel-btn-gold px-1.5 py-0.2 pointer-events-none">
-              {roomCode}
-            </span>
-
-            {/* Admin Red Name Display & Quick Edit in Mini HUD */}
-            {isAdmin && (
-              !isEditingAdminName ? (
-                <div className="flex items-center gap-1">
-                  <span className="text-red-400 font-bold text-xs truncate max-w-[100px]" title={currentUsername || username}>
-                    {currentUsername || username}
-                  </span>
-                  <button
-                    onClick={() => {
-                      setAdminNameInput(currentUsername || username);
-                      setIsEditingAdminName(true);
-                    }}
-                    title="Ubah Nama Admin"
-                    className="pixel-btn-wood p-0.5 text-red-300 hover:text-red-100 shrink-0"
-                  >
-                    <Edit2 className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleSaveAdminName} className="flex items-center gap-1">
-                  <input
-                    type="text"
-                    value={adminNameInput}
-                    onChange={(e) => setAdminNameInput(e.target.value)}
-                    autoFocus
-                    className="pixel-box-inset px-1.5 py-0.5 text-xs font-bold text-red-400 bg-[#120702] border border-red-700 focus:outline-none w-20"
-                  />
-                  <button type="submit" className="pixel-btn-gold text-[9px] px-1 py-0.2 font-bold">OK</button>
-                  <button type="button" onClick={() => setIsEditingAdminName(false)} className="pixel-btn-silver text-[9px] px-1 py-0.2">X</button>
-                </form>
-              )
-            )}
-
-            {isAdmin && (
-              <>
-                <button
-                  onClick={() => setIsAdminPanelOpen(true)}
-                  title="Buka Panel Admin / Pengajar"
-                  className="pixel-btn-gold text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 shadow animate-pulse"
-                >
-                  <ShieldCheck className="w-3 h-3" />
-                  <span>Admin</span>
-                </button>
-                <button
-                  onClick={() => setIsAdminAuraModalOpen(true)}
-                  title="Kustomisasi Aura Admin (Biasa, Love, Bintang, Warna)"
-                  className="pixel-btn-wood text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 text-amber-200"
-                >
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                  <span>Aura</span>
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => setIsPresentationFocused(true)}
-              title="Buka Layar Presentasi Canva"
-              className="pixel-btn-gold text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 shadow"
-            >
-              <span>Presentasi</span>
-            </button>
-            <button
-              onClick={() => setIsTrackerOpen(prev => !prev)}
-              title="Buka Pelacak Lokasi NPC"
-              className="pixel-btn-wood text-[10px] px-2 py-0.5 font-bold flex items-center gap-1"
-            >
-              <Navigation className="w-3 h-3 text-amber-400" />
-              <span>NPC</span>
-            </button>
-            <button
-              onClick={() => setIsTeamVaultOpen(true)}
-              title="Buka Bahan Prompt Tim (Supabase & Ide Game)"
-              className="pixel-btn-wood text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 relative"
-            >
-              <Users className="w-3 h-3 text-amber-400" />
-              <span>Bahan Tim</span>
-              {teamSharedPrompts?.length > 0 && (
-                <span className="bg-amber-400 text-amber-950 text-[9px] px-1 py-0.1 rounded-full font-black">
-                  {teamSharedPrompts.length}
+        <div className="fixed top-3 left-3 z-40 flex flex-col gap-1.5 items-start pointer-events-none select-none max-w-[calc(100vw-24px)]">
+          {/* Main Menu HUD Bar (pointer-events-auto) */}
+          <div className="pointer-events-auto">
+            {isHudCollapsed ? (
+              <div className="pixel-panel-wood text-amber-100 px-2.5 py-1 flex items-center gap-1.5 animate-in fade-in duration-150 shadow-lg">
+                <img 
+                  src="/assets/fantasy_pixelart_ui/icons/gold_castle.png" 
+                  alt="Kelas" 
+                  className="w-3.5 h-3.5 image-rendering-pixelated shrink-0" 
+                />
+                <span className="font-bold text-xs text-amber-200 truncate max-w-[85px]" title={roomName}>
+                  {roomName || 'Kel. 1'}
                 </span>
-              )}
-            </button>
-            <button
-              onClick={() => setIsHudCollapsed(false)}
-              title="Buka Informasi Kelompok"
-              className="pixel-btn-wood w-6 h-6 p-0 shrink-0 ml-0.5"
-            >
-              <img 
-                src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
-                alt="Expand" 
-                className="w-3.5 h-3.5 image-rendering-pixelated" 
-              />
-            </button>
-          </div>
-        ) : (
-          <div className="fixed top-4 left-4 pixel-panel-wood text-amber-100 p-3 z-40 flex flex-col gap-2 min-w-[280px] max-w-[320px] animate-in fade-in duration-200">
-            {/* Room Name Header with Edit & Collapse Feature */}
-            <div className="flex items-center justify-between border-b border-[#5c3416] pb-1.5">
-              {!isEditingName ? (
-                <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                  <img 
-                    src="/assets/fantasy_pixelart_ui/icons/gold_castle.png" 
-                    alt="Kelas" 
-                    className="w-4 h-4 image-rendering-pixelated shrink-0" 
-                  />
-                  <h1 className="font-bold text-xs text-amber-200 truncate" title={roomName}>
-                    {roomName || 'Kelompok 1'}
-                  </h1>
-                  {isAdmin && (
-                    <button
-                      onClick={() => {
-                        setEditingNameInput(roomName || '');
-                        setIsEditingName(true);
-                      }}
-                      title="Ubah Nama Kelompok"
-                      className="pixel-btn-wood p-1 shrink-0 ml-1"
-                    >
-                      <Edit2 className="w-3 h-3 text-amber-300" />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <form onSubmit={handleSaveRoomName} className="flex items-center gap-1.5 flex-1 min-w-0">
-                  <input
-                    type="text"
-                    value={editingNameInput}
-                    onChange={(e) => setEditingNameInput(e.target.value)}
-                    autoFocus
-                    className="w-full pixel-box-inset px-2 py-0.5 text-xs text-amber-100 focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="pixel-btn-gold text-[10px] px-2 py-0.5 font-bold"
-                  >
-                    Simpan
-                  </button>
-                </form>
-              )}
+                <span className="font-mono text-[9px] text-amber-950 font-bold pixel-btn-gold px-1 py-0.2 pointer-events-none">
+                  {roomCode}
+                </span>
 
-              {/* Collapse HUD Button */}
-              <button
-                onClick={() => setIsHudCollapsed(true)}
-                title="Kecilkan Panel"
-                className="pixel-btn-wood w-6 h-6 p-0 shrink-0 ml-1"
-              >
-                <img 
-                  src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_up_normal.png" 
-                  alt="Collapse" 
-                  className="w-3.5 h-3.5 image-rendering-pixelated" 
-                />
-              </button>
-            </div>
-
-            {/* Team / Class Code & Member Count */}
-            <div className="flex items-center justify-between gap-2 border-b border-[#5c3416] pb-1.5">
-              <div>
-                <span className="text-[9px] text-amber-300/70 font-medium uppercase tracking-wider block">Kelompok Anda</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-mono font-bold text-sm text-amber-300 tracking-widest">{roomCode}</span>
-                  <button
-                    onClick={handleCopyCode}
-                    title="Salin Kode Kelompok"
-                    className="pixel-btn-wood p-1"
-                  >
-                    {copied ? (
-                      <img 
-                        src="/assets/fantasy_pixelart_ui/icons/gold_tick.png" 
-                        alt="Copied" 
-                        className="w-3 h-3 image-rendering-pixelated" 
-                      />
-                    ) : (
-                      <Copy className="w-3 h-3 text-amber-300" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              <span className="text-[10px] font-bold pixel-btn-wood px-2 py-1 shrink-0 flex items-center gap-1 pointer-events-none">
-                <img 
-                  src="/assets/fantasy_pixelart_ui/icons/gold_flag.png" 
-                  alt="Tim" 
-                  className="w-3 h-3 image-rendering-pixelated" 
-                />
-                <span>{myGroupCount} Tim</span>
-                <span className="text-amber-500">•</span>
-                <span className="text-amber-200/90 font-normal">{playerCount} di Kelas</span>
-              </span>
-            </div>
-            
-            {/* User Presence & Role Status */}
-            <div className="flex items-center justify-between text-[11px] text-amber-200/90">
-              <span className="flex items-center gap-1.5">
-                <span className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></span>
-                {connected ? `${playerCount} Siswa` : 'Offline'}
-              </span>
-              <div className="flex items-center gap-1">
-                {isAdmin ? (
+                {/* Admin Quick Display */}
+                {isAdmin && (
                   !isEditingAdminName ? (
                     <div className="flex items-center gap-1">
-                      <span className="text-red-400 font-bold font-mono text-[10px] flex items-center gap-1">
-                        <img 
-                          src="/assets/fantasy_pixelart_ui/icons/gold_star.png" 
-                          alt="Admin" 
-                          className="w-3 h-3 image-rendering-pixelated" 
-                        />
-                        <span>#{attendanceNo ? attendanceNo : '-'}</span>
-                        <span className="underline decoration-red-500/50">{currentUsername || username}</span>
+                      <span className="text-red-400 font-bold text-[10px] truncate max-w-[80px]" title={currentUsername || username}>
+                        {currentUsername || username}
                       </span>
                       <button
                         onClick={() => {
@@ -978,7 +942,7 @@ export default function VirtualRoom({
                           setIsEditingAdminName(true);
                         }}
                         title="Ubah Nama Admin"
-                        className="pixel-btn-wood p-0.5 text-red-300 hover:text-red-100 ml-0.5"
+                        className="pixel-btn-wood p-0.5 text-red-300 hover:text-red-100 shrink-0"
                       >
                         <Edit2 className="w-2.5 h-2.5" />
                       </button>
@@ -990,84 +954,345 @@ export default function VirtualRoom({
                         value={adminNameInput}
                         onChange={(e) => setAdminNameInput(e.target.value)}
                         autoFocus
-                        className="pixel-box-inset px-1.5 py-0.5 text-[10px] font-bold text-red-400 bg-[#120702] border border-red-700 focus:outline-none w-24"
+                        className="pixel-box-inset px-1 py-0.5 text-[10px] font-bold text-red-400 bg-[#120702] border border-red-700 focus:outline-none w-16"
                       />
-                      <button type="submit" className="pixel-btn-gold text-[9px] px-1 py-0.2 font-bold">OK</button>
-                      <button type="button" onClick={() => setIsEditingAdminName(false)} className="pixel-btn-silver text-[9px] px-1 py-0.2">X</button>
+                      <button type="submit" className="pixel-btn-gold text-[8px] px-1 py-0.1 font-bold">OK</button>
+                      <button type="button" onClick={() => setIsEditingAdminName(false)} className="pixel-btn-silver text-[8px] px-1 py-0.1">X</button>
                     </form>
                   )
-                ) : (
-                  <span className="text-amber-200 font-mono text-[10px]">
-                    #{attendanceNo ? attendanceNo : '-'} {username}
-                  </span>
                 )}
-              </div>
-            </div>
 
-            {/* Controls hint, Presentation button, Pet button & Leave button */}
-            <div className="pt-1 border-t border-[#5c3416] flex items-center justify-between text-[10px] text-amber-300/70">
-              <div className="flex items-center gap-1.5">
                 {isAdmin && (
                   <>
                     <button
                       onClick={() => setIsAdminPanelOpen(true)}
-                      title="Buka Panel Admin / Pengajar"
-                      className="pixel-btn-gold text-[10px] px-2 py-0.5 text-amber-950 flex items-center gap-1 font-bold shadow-sm animate-pulse"
+                      title="Panel Admin"
+                      className="pixel-btn-gold text-[9px] px-1.5 py-0.5 font-bold flex items-center gap-0.5 shadow animate-pulse"
                     >
-                      <ShieldCheck className="w-3 h-3" />
+                      <ShieldCheck className="w-2.5 h-2.5" />
                       <span>Admin</span>
                     </button>
                     <button
                       onClick={() => setIsAdminAuraModalOpen(true)}
-                      title="Kustomisasi Aura Admin (Biasa, Love, Bintang, Warna)"
-                      className="pixel-btn-wood text-[10px] px-2 py-0.5 text-amber-200 flex items-center gap-1 font-bold"
+                      title="Aura Admin"
+                      className="pixel-btn-wood text-[9px] px-1.5 py-0.5 font-bold flex items-center gap-0.5 text-amber-200"
                     >
-                      <Sparkles className="w-3 h-3 text-amber-400" />
+                      <Sparkles className="w-2.5 h-2.5 text-amber-400" />
                       <span>Aura</span>
                     </button>
                   </>
                 )}
+
                 <button
                   onClick={() => setIsPresentationFocused(true)}
-                  title="Buka Layar Presentasi Canva"
-                  className="pixel-btn-gold text-[10px] px-2 py-0.5 text-amber-950 flex items-center gap-1 font-bold shadow-sm"
+                  title="Presentasi Canva"
+                  className="pixel-btn-gold text-[9px] px-1.5 py-0.5 font-bold flex items-center gap-0.5 shadow"
                 >
-                  <span>Presentasi</span>
+                  <span>Slide</span>
                 </button>
+
                 <button
                   onClick={() => setIsTrackerOpen(prev => !prev)}
-                  title="Buka Pelacak Lokasi NPC (Qeebos, Krisna, Imanuel, Sam, Dzakih)"
-                  className="pixel-btn-wood text-[10px] px-2 py-0.5 text-amber-200 flex items-center gap-1 font-bold"
+                  title="Pelacak NPC"
+                  className="pixel-btn-wood text-[9px] px-1.5 py-0.5 font-bold flex items-center gap-0.5"
                 >
-                  <Navigation className="w-3 h-3 text-amber-400" />
-                  <span>Lacak NPC</span>
+                  <Navigation className="w-2.5 h-2.5 text-amber-400" />
+                  <span>NPC</span>
                 </button>
+
                 <button
                   onClick={() => setIsTeamVaultOpen(true)}
-                  title="Buka Bahan Prompt Tim (Supabase & Ide Game)"
-                  className="pixel-btn-wood text-[10px] px-2 py-0.5 text-amber-200 flex items-center gap-1 font-bold relative"
+                  title="Bahan Prompt Tim"
+                  className="pixel-btn-wood text-[9px] px-1.5 py-0.5 font-bold flex items-center gap-0.5 relative"
                 >
-                  <Users className="w-3 h-3 text-amber-400" />
-                  <span>Bahan Tim</span>
+                  <Users className="w-2.5 h-2.5 text-amber-400" />
+                  <span>Bahan</span>
                   {teamSharedPrompts?.length > 0 && (
-                    <span className="bg-amber-400 text-amber-950 text-[9px] px-1 py-0.1 rounded-full font-black">
+                    <span className="bg-amber-400 text-amber-950 text-[8px] px-1 py-0.1 rounded-full font-black">
                       {teamSharedPrompts.length}
                     </span>
                   )}
                 </button>
+
+                {/* Tombol Kelola Kelompok Owner di Mini HUD */}
+                {isCreator && (
+                  <button
+                    onClick={() => {
+                      setIsOwnerModalOpen(true);
+                      setPendingCount(0);
+                    }}
+                    title="Kelola Kelompok (Owner)"
+                    className={`pixel-btn-wood text-[9px] px-1.5 py-0.5 font-bold flex items-center gap-0.5 relative ${
+                      pendingRequests.length > 0 ? 'border-amber-400 bg-amber-900/90 text-amber-100 ring-1 ring-amber-400' : 'text-amber-200'
+                    }`}
+                  >
+                    <UserPlus className="w-2.5 h-2.5 text-amber-400" />
+                    <span>Kelompok</span>
+                    {pendingRequests.length > 0 && (
+                      <span className="bg-red-600 text-white text-[8px] px-1 py-0.1 rounded-full font-black animate-pulse">
+                        {pendingRequests.length}
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setIsHudCollapsed(false)}
+                  title="Buka Menu Lengkap"
+                  className="pixel-btn-wood w-5 h-5 p-0 shrink-0 ml-0.5 flex items-center justify-center"
+                >
+                  <img 
+                    src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_down_normal.png" 
+                    alt="Expand" 
+                    className="w-3 h-3 image-rendering-pixelated" 
+                  />
+                </button>
+              </div>
+            ) : (
+              <div className="pixel-panel-wood text-amber-100 p-2.5 flex flex-col gap-1.5 min-w-[260px] max-w-[290px] animate-in fade-in duration-200 shadow-2xl">
+                {/* Room Name Header with Edit & Collapse */}
+                <div className="flex items-center justify-between border-b border-[#5c3416] pb-1">
+                  {!isEditingName ? (
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <img 
+                        src="/assets/fantasy_pixelart_ui/icons/gold_castle.png" 
+                        alt="Kelas" 
+                        className="w-3.5 h-3.5 image-rendering-pixelated shrink-0" 
+                      />
+                      <h1 className="font-bold text-xs text-amber-200 truncate" title={roomName}>
+                        {roomName || 'Kelompok 1'}
+                      </h1>
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            setEditingNameInput(roomName || '');
+                            setIsEditingName(true);
+                          }}
+                          title="Ubah Nama Kelompok"
+                          className="pixel-btn-wood p-0.5 shrink-0 ml-0.5"
+                        >
+                          <Edit2 className="w-2.5 h-2.5 text-amber-300" />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveRoomName} className="flex items-center gap-1 flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={editingNameInput}
+                        onChange={(e) => setEditingNameInput(e.target.value)}
+                        autoFocus
+                        className="w-full pixel-box-inset px-1.5 py-0.5 text-xs text-amber-100 focus:outline-none"
+                      />
+                      <button type="submit" className="pixel-btn-gold text-[9px] px-1.5 py-0.5 font-bold">Simpan</button>
+                    </form>
+                  )}
+
+                  {/* Collapse HUD Button */}
+                  <button
+                    onClick={() => setIsHudCollapsed(true)}
+                    title="Kecilkan Panel"
+                    className="pixel-btn-wood w-5 h-5 p-0 shrink-0 ml-1 flex items-center justify-center"
+                  >
+                    <img 
+                      src="/assets/fantasy_pixelart_ui/arrows/gold_arrow_up_normal.png" 
+                      alt="Collapse" 
+                      className="w-3 h-3 image-rendering-pixelated" 
+                    />
+                  </button>
+                </div>
+
+                {/* Team Code & Member Count */}
+                <div className="flex items-center justify-between gap-1.5 border-b border-[#5c3416] pb-1">
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono font-bold text-xs text-amber-300">{roomCode}</span>
+                    <button
+                      onClick={handleCopyCode}
+                      title="Salin Kode"
+                      className="pixel-btn-wood p-0.5"
+                    >
+                      {copied ? (
+                        <Check className="w-2.5 h-2.5 text-emerald-400" />
+                      ) : (
+                        <Copy className="w-2.5 h-2.5 text-amber-300" />
+                      )}
+                    </button>
+                  </div>
+                  <span className="text-[9px] font-bold pixel-btn-wood px-1.5 py-0.5 shrink-0 pointer-events-none">
+                    {myGroupCount} Tim • {playerCount} Total
+                  </span>
+                </div>
+                
+                {/* User Presence & Role Status */}
+                <div className="flex items-center justify-between text-[10px] text-amber-200/90">
+                  <span className="flex items-center gap-1">
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></span>
+                    {connected ? 'Online' : 'Offline'}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {isAdmin ? (
+                      <span className="text-red-400 font-bold font-mono text-[9px] flex items-center gap-0.5">
+                        <img 
+                          src="/assets/fantasy_pixelart_ui/icons/gold_star.png" 
+                          alt="Admin" 
+                          className="w-2.5 h-2.5 image-rendering-pixelated" 
+                        />
+                        <span>Admin</span>
+                      </span>
+                    ) : (
+                      <span className="text-amber-200 font-mono text-[9px] truncate max-w-[120px]">
+                        #{attendanceNo ? attendanceNo : '-'} {username}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action buttons & Leave */}
+                <div className="pt-1 border-t border-[#5c3416] flex items-center justify-between text-[9px] gap-1 flex-wrap">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => setIsAdminPanelOpen(true)}
+                          className="pixel-btn-gold text-[9px] px-1.5 py-0.5 text-amber-950 font-bold flex items-center gap-0.5 shadow-sm animate-pulse"
+                        >
+                          <ShieldCheck className="w-2.5 h-2.5" />
+                          <span>Admin</span>
+                        </button>
+                        <button
+                          onClick={() => setIsAdminAuraModalOpen(true)}
+                          className="pixel-btn-wood text-[9px] px-1.5 py-0.5 text-amber-200 font-bold flex items-center gap-0.5"
+                        >
+                          <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                          <span>Aura</span>
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => setIsPresentationFocused(true)}
+                      className="pixel-btn-gold text-[9px] px-1.5 py-0.5 text-amber-950 font-bold shadow-sm"
+                    >
+                      Slide
+                    </button>
+                    <button
+                      onClick={() => setIsTrackerOpen(prev => !prev)}
+                      className="pixel-btn-wood text-[9px] px-1.5 py-0.5 text-amber-200 font-bold flex items-center gap-0.5"
+                    >
+                      <Navigation className="w-2.5 h-2.5 text-amber-400" />
+                      <span>NPC</span>
+                    </button>
+                    <button
+                      onClick={() => setIsTeamVaultOpen(true)}
+                      className="pixel-btn-wood text-[9px] px-1.5 py-0.5 text-amber-200 font-bold flex items-center gap-0.5 relative"
+                    >
+                      <Users className="w-2.5 h-2.5 text-amber-400" />
+                      <span>Bahan</span>
+                      {teamSharedPrompts?.length > 0 && (
+                        <span className="bg-amber-400 text-amber-950 text-[8px] px-1 py-0.1 rounded-full font-black">
+                          {teamSharedPrompts.length}
+                        </span>
+                      )}
+                    </button>
+
+                    {isCreator && (
+                      <button
+                        onClick={() => {
+                          setIsOwnerModalOpen(true);
+                          setPendingCount(0);
+                        }}
+                        className={`pixel-btn-wood text-[9px] px-1.5 py-0.5 flex items-center gap-0.5 font-bold relative ${
+                          pendingRequests.length > 0 ? 'border-amber-400 bg-amber-900/90 text-amber-100 ring-1 ring-amber-400' : 'text-amber-200'
+                        }`}
+                      >
+                        <UserPlus className="w-2.5 h-2.5 text-amber-400" />
+                        <span>Kelompok</span>
+                        {pendingRequests.length > 0 && (
+                          <span className="bg-red-600 text-white text-[8px] px-1 py-0.1 rounded-full font-black animate-pulse">
+                            {pendingRequests.length}
+                          </span>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {onLeave && (
+                    <button
+                      onClick={onLeave}
+                      className="pixel-btn-wood text-red-300 hover:text-red-100 text-[9px] px-1.5 py-0.5 ml-auto"
+                    >
+                      Keluar
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* POP UP MINI DI KIRI ATAS BAWAH MENU: DAFTAR PERMINTAAN */}
+          {isCreator && pendingRequests.length > 0 && (
+            <div className="pointer-events-auto w-[240px] sm:w-[260px] pixel-panel-wood p-2 border-2 border-amber-500/90 shadow-2xl space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="flex items-center justify-between border-b border-[#5c3416] pb-1">
+                <div className="flex items-center gap-1.5">
+                  <UserPlus className="w-3.5 h-3.5 text-amber-400 animate-pulse shrink-0" />
+                  <span className="text-[10px] font-black text-amber-200 uppercase tracking-wide">
+                    Permintaan ({pendingRequests.length})
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsOwnerModalOpen(true)}
+                  className="text-[9px] font-mono text-amber-400 hover:text-amber-200 underline"
+                  title="Lihat detail lengkap"
+                >
+                  Semua
+                </button>
               </div>
 
-              {onLeave && (
-                <button
-                  onClick={onLeave}
-                  className="pixel-btn-wood text-red-300 hover:text-red-100 text-[10px] px-2 py-0.5"
-                >
-                  Keluar
-                </button>
+              {/* List Permintaan Ringkas */}
+              <div className="space-y-1 max-h-[130px] overflow-y-auto pr-0.5">
+                {pendingRequests.slice(0, 3).map((req) => (
+                  <div
+                    key={req.id || req.player_id}
+                    className="pixel-box-inset p-1.5 flex items-center justify-between gap-1.5 bg-[#140802]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[10px] font-bold text-amber-100 truncate">
+                        {req.full_name || req.username}
+                      </div>
+                      {req.attendance_no && (
+                        <div className="text-[8px] text-amber-400/80 font-mono">
+                          Absen #{req.attendance_no}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleApproveMiniRequest(req)}
+                        className="pixel-btn-gold px-1.5 py-0.5 text-[9px] font-black flex items-center gap-0.5"
+                        title="Terima"
+                      >
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        <span>OK</span>
+                      </button>
+                      <button
+                        onClick={() => handleRejectMiniRequest(req)}
+                        className="pixel-btn-wood text-red-300 hover:text-red-100 px-1 py-0.5 text-[9px] flex items-center"
+                        title="Tolak"
+                      >
+                        <X className="w-2.5 h-2.5 stroke-[2.5]" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {pendingRequests.length > 3 && (
+                <div className="text-[8px] text-amber-400/80 text-center font-mono pt-0.5">
+                  +{pendingRequests.length - 3} permintaan lagi
+                </div>
               )}
             </div>
-          </div>
-        )
+          )}
+        </div>
       )}
 
       {/* Modal Peringatan Room Penuh (4/4) */}
@@ -1218,6 +1443,7 @@ export default function VirtualRoom({
         isAdmin={isAdmin}
         adminAura={adminAura}
         onOpenAuraModal={() => setIsAdminAuraModalOpen(true)}
+        serverId={serverId}
       />
 
       {/* Rak Buku Karya Game Modal */}
@@ -1225,6 +1451,10 @@ export default function VirtualRoom({
         isOpen={isBookshelfModalOpen}
         onClose={() => setIsBookshelfModalOpen(false)}
         targetClass={selectedBookshelfClass}
+        shelfMeta={selectedBookshelfMeta}
+        isAdmin={isAdmin}
+        bookshelfConfig={presentation.bookshelfConfig}
+        onUpdateBookshelfConfig={presentation.updateBookshelfConfig}
         onOpenSubmit={() => {
           setIsBookshelfModalOpen(false);
           setIsSubmissionModalOpen(true);
@@ -1318,6 +1548,21 @@ export default function VirtualRoom({
           currentAura={adminAura}
           onSaveAura={updateAdminAura}
           characterIndex={characterIndex}
+        />
+      )}
+
+      {/* Owner Group Management Modal (Permintaan Bergabung & Kelola Anggota) */}
+      {isCreator && (
+        <OwnerGroupModal
+          isOpen={isOwnerModalOpen}
+          onClose={() => setIsOwnerModalOpen(false)}
+          sessionId={sessionId}
+          roomCode={roomCode}
+          roomName={initialRoomName || `Kelompok ${groupNumber || ''}`}
+          groupNumber={groupNumber}
+          myPlayerId={myPlayerId || myId}
+          myFullName={fullName || username}
+          sendBroadcast={broadcastMessage}
         />
       )}
 
