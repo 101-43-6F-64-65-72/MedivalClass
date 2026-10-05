@@ -832,11 +832,8 @@ export default function Home() {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono border ${srv.mode === 'class' ? 'bg-blue-950/60 text-blue-300 border-blue-800/50' : 'bg-purple-950/60 text-purple-300 border-purple-800/50'}`}>
-                        {srv.mode === 'class' ? srv.active_class || 'Kelas' : 'Bebas'}
-                      </span>
-                      <img src="/assets/fantasy_pixelart_ui/icons/gold_right.png" alt="Enter" className="w-3 h-3 image-pixelated opacity-70 group-hover:opacity-100" />
+                    <div className="flex items-center shrink-0 pl-2">
+                      <img src="/assets/fantasy_pixelart_ui/icons/gold_right.png" alt="Enter" className="w-3.5 h-3.5 image-pixelated opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-transform" />
                     </div>
                   </div>
                 </button>
